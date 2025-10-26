@@ -1,0 +1,79 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Frontend",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMapPathOverrides": {
+        "webpack:///src/*": "${webRoot}/*"
+      },
+      "userDataDir": "${workspaceFolder}/.vscode/chrome-debug",
+      "runtimeArgs": [
+        "--auto-open-devtools-for-tabs"
+      ]
+    },
+    {
+      "name": "Debug Frontend (Attach)",
+      "type": "chrome",
+      "request": "attach",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/src",
+      "port": 9222
+    },
+    {
+      "name": "Debug React Components",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/react-scripts",
+      "args": ["start"],
+      "env": {
+        "BROWSER": "none",
+        "PORT": "3000"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "Debug Livestock Components",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000/livestock",
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMapPathOverrides": {
+        "webpack:///src/*": "${webRoot}/*"
+      }
+    },
+    {
+      "name": "Debug API Calls",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/src",
+      "trace": true
+    },
+    {
+      "name": "Run Frontend Tests",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/react-scripts",
+      "args": ["test", "--runInBand", "--watchAll=false"],
+      "env": {
+        "CI": "true"
+      },
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack Debug",
+      "configurations": ["Debug Frontend", "Debug Backend Server"]
+    },
+    {
+      "name": "Debug Livestock Feature",
+      "configurations": ["Debug Livestock Components", "Debug Backend Server"]
+    }
+  ]
+}
