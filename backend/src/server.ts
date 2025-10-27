@@ -27,13 +27,14 @@ import farmExpenseRoutes from './routes/farmExpenses';
 import analyticsRoutes from './routes/analytics';
 import salesRoutes from './routes/sales';
 
+// Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Get frontend URL from environment or use default
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://farm-management-app.netlify.app';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://your-actual-app.netlify.app';
 
 // CORS configuration for production
 const corsOptions = {
@@ -60,7 +61,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Logging middleware for production
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  const timestamp = new Date().toISOString();
+  console.log(`${timestamp} - ${req.method} ${req.path} - IP: ${req.ip}`);
   next();
 });
 
@@ -74,7 +76,8 @@ app.get('/health', (req, res) => {
     message: 'Farm Management API is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0'
+    version: '1.0.0',
+    uptime: process.uptime()
   });
 });
 
@@ -83,6 +86,7 @@ app.get('/api', (req, res) => {
   res.json({
     message: 'Farm Management API',
     version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
     endpoints: {
       auth: '/auth',
       crops: '/api/crops',
@@ -92,8 +96,14 @@ app.get('/api', (req, res) => {
       finance: '/api/finance',
       analytics: '/api/analytics',
       health: '/health'
-    }
+    },
+    documentation: 'See README for API documentation'
   });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.redirect('/api');
 });
 
 // Protected routes
@@ -120,7 +130,15 @@ app.use('*', (req, res) => {
   res.status(404).json({
     error: 'Route not found',
     path: req.originalUrl,
-    method: req.method
+    method: req.method,
+    availableEndpoints: [
+      '/health',
+      '/api',
+      '/auth',
+      '/api/crops',
+      '/api/livestock',
+      '/api/tasks'
+    ]
   });
 });
 
@@ -138,6 +156,17 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
+// Unhandled promise rejection handler
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Uncaught exception handler
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
 const startServer = async () => {
   try {
     // Connect to database
@@ -152,18 +181,24 @@ const startServer = async () => {
 📊 Health Check: http://localhost:${PORT}/health
 🔐 API Base: http://localhost:${PORT}/api
 ✅ Frontend URL: ${FRONTEND_URL}
+📅 Started: ${new Date().toISOString()}
       `);
     });
 
     // Handle server errors
     server.on('error', (error: NodeJS.ErrnoException) => {
       if (error.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use`);
+        console.error(`❌ Port ${PORT} is already in use`);
         process.exit(1);
       } else {
-        console.error('Server error:', error);
+        console.error('❌ Server error:', error);
         process.exit(1);
       }
+    });
+
+    // Handle server close
+    server.on('close', () => {
+      console.log('Server closed');
     });
 
   } catch (error) {
