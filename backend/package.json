@@ -2,10 +2,9 @@
   "name": "farm-management-backend",
   "version": "1.0.0",
   "description": "Farm Management System Backend API",
-  "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "railway:build": "npm run build",
