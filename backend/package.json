@@ -5,14 +5,12 @@
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "clean": "rm -rf dist",
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
-    "type-check": "tsc --noEmit"
+    "railway:build": "npm run build",
+    "railway:start": "npm start",
+    "dev": "tsx watch src/server.ts"
   },
   "keywords": [
     "farm",
