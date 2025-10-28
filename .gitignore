@@ -56,3 +56,5 @@ coverage/
 tmp/
 temp/
 "@ | Out-File -FilePath .gitignore -Encoding utf8
+# Local Netlify folder
+.netlify
