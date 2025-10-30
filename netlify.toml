@@ -5,13 +5,13 @@
 [build.environment]
   NODE_ENV = "production"
 
-# API redirects - map /api/* to Netlify functions
+# API redirects
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
 
-# SPA catch-all - MUST BE LAST
+# SPA catch-all
 [[redirects]]
   from = "/*"
   to = "/index.html"
