@@ -69,16 +69,36 @@ exports.handler = async (event, context) => {
         const updateValues = [];
         let paramCount = 1;
 
+        // Convert camelCase to snake_case for database
+        const fieldMap = {
+          name: 'name',
+          type: 'type',
+          variety: 'variety',
+          plantingDate: 'planting_date',
+          expectedHarvestDate: 'expected_harvest_date',
+          actualHarvestDate: 'actual_harvest_date',
+          area: 'area',
+          areaUnit: 'area_unit',
+          expectedYield: 'expected_yield',
+          actualYield: 'actual_yield',
+          yieldUnit: 'yield_unit',
+          marketPrice: 'market_price',
+          totalExpenses: 'total_expenses',
+          status: 'status',
+          fieldLocation: 'field_location',
+          notes: 'notes'
+        };
+
         Object.keys(updateData).forEach(key => {
-          if (updateData[key] !== undefined) {
-            updateFields.push(`${key} = $${paramCount}`);
+          if (updateData[key] !== undefined && fieldMap[key]) {
+            updateFields.push(`${fieldMap[key]} = $${paramCount}`);
             updateValues.push(updateData[key]);
             paramCount++;
           }
         });
 
         if (updateFields.length === 0) {
-          return { statusCode: 400, headers, body: JSON.stringify({ error: 'No fields to update' }) };
+          return { statusCode: 400, headers, body: JSON.stringify({ error: 'No valid fields to update' }) };
         }
 
         updateValues.push(id);

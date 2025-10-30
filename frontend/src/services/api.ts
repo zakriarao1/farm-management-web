@@ -1,7 +1,321 @@
+// Types
+export interface Crop {
+  id: number;
+  name: string;
+  type: string;
+  variety: string;
+  planting_date: string;
+  expected_harvest_date?: string;
+  actual_harvest_date?: string;
+  area: number;
+  area_unit: string;
+  expected_yield: number;
+  actual_yield?: number;
+  yield_unit: string;
+  market_price: number;
+  total_expenses: number;
+  status: string;
+  field_location?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCropRequest {
+  name: string;
+  type: string;
+  variety: string;
+  plantingDate: string;
+  expectedHarvestDate?: string;
+  area: number;
+  areaUnit: string;
+  expectedYield: number;
+  yieldUnit: string;
+  marketPrice: number;
+  status: string;
+  fieldLocation?: string;
+  notes?: string;
+}
+
+export interface UpdateCropRequest {
+  name?: string;
+  type?: string;
+  variety?: string;
+  plantingDate?: string;
+  expectedHarvestDate?: string;
+  actualHarvestDate?: string;
+  area?: number;
+  areaUnit?: string;
+  expectedYield?: number;
+  actualYield?: number;
+  yieldUnit?: string;
+  marketPrice?: number;
+  status?: string;
+  fieldLocation?: string;
+  notes?: string;
+}
+
+export interface Expense {
+  id: number;
+  crop_id: number;
+  description: string;
+  category: string;
+  amount: number;
+  date: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface CreateExpenseRequest {
+  cropId: number;
+  description: string;
+  category: string;
+  amount: number;
+  date: string;
+  notes?: string;
+}
+
+export interface ApiResponse<T> {
+  data: T;
+  message?: string;
+  success?: boolean;
+}
+export interface AnalyticsSummary {
+  total_crops?: number;
+  active_crops?: number;
+  total_expenses?: number;
+  projected_revenue?: number;
+}
+
+export interface CropDistribution {
+  type: string;
+  count: number;
+  total_area: number;
+}
+
+export interface StatusDistribution {
+  status: string;
+  count: number;
+}
+
+export interface MonthlyExpense {
+  month: string;
+  total_expenses: number;
+  expense_count: number;
+}
+
+export interface AnalyticsData {
+  summary?: AnalyticsSummary;
+  cropDistribution: CropDistribution[];
+  statusDistribution?: StatusDistribution[];
+  monthlyExpenses?: MonthlyExpense[];
+}
+
+export interface FinancialReport {
+  crops: Array<{
+    crop_name: string;
+    crop_type: string;
+    expected_yield: number;
+    market_price: number;
+    projected_revenue: number;
+    total_expenses: number;
+    projected_profit: number;
+    expense_count: number;
+  }>;
+  summary: {
+    total_projected_revenue: number;
+    total_expenses: number;
+    total_projected_profit: number;
+    total_crops: number;
+  };
+}
+
+export interface ProfitLossReport {
+  summary: {
+    totalRevenue: number;
+    totalExpenses: number;
+    netProfit: number;
+    roi: number;
+    soldCropsCount: number;
+    expenseCount: number;
+  };
+  roiByCrop: Array<{
+    name: string;
+    type: string;
+    revenue: number;
+    total_expenses: number;
+    roi_percentage: number;
+  }>;
+  timeframe: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
+export interface ROIAnalysis {
+  period: string;
+  crop_count: number;
+  total_revenue: number;
+  total_expenses: number;
+  avg_roi_percentage: number;
+  avg_net_profit: number;
+}
+
+// Inventory Types
+export interface InventoryItem {
+  id: number;
+  name: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  min_quantity: number;
+  unit_cost?: number;
+  supplier?: string;
+  last_restocked?: string;
+  expiration_date?: string;
+  location?: string;
+  notes?: string;
+  is_low_stock?: boolean;
+  transaction_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateInventoryItemRequest {
+  name: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  minQuantity: number;
+  unitCost?: number;
+  supplier?: string;
+  expirationDate?: string;
+  location?: string;
+  notes?: string;
+}
+
+export interface UpdateInventoryItemRequest {
+  name?: string;
+  category?: string;
+  quantity?: number;
+  unit?: string;
+  minQuantity?: number;
+  unitCost?: number;
+  supplier?: string;
+  expirationDate?: string;
+  location?: string;
+  notes?: string;
+}
+// Reports API methods
+export const reportApi = {
+  getAnalytics: async (startDate?: string, endDate?: string): Promise<ApiResponse<AnalyticsData>> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    
+    const queryString = params.toString();
+    const url = queryString ? `/reports/analytics?${queryString}` : '/reports/analytics';
+    
+    return apiRequest<AnalyticsData>(url);
+  },
+
+  getFinancialReport: async (startDate?: string, endDate?: string): Promise<ApiResponse<FinancialReport>> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    
+    const queryString = params.toString();
+    const url = queryString ? `/reports/financial?${queryString}` : '/reports/financial';
+    
+    return apiRequest<FinancialReport>(url);
+  },
+
+  getRecentExpenses: async (): Promise<ApiResponse<Expense[]>> => {
+    return apiRequest<Expense[]>('/reports/expenses/recent');
+  },
+};
+
+// Finance API methods
+export const financeApi = {
+  getProfitLossReport: async (startDate?: string, endDate?: string): Promise<ApiResponse<ProfitLossReport>> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    
+    const queryString = params.toString();
+    const url = queryString ? `/finance/profit-loss?${queryString}` : '/finance/profit-loss';
+    
+    return apiRequest<ProfitLossReport>(url);
+  },
+
+  getROIAnalysis: async (period?: string): Promise<ApiResponse<{ period: string; analysis: ROIAnalysis[] }>> => {
+    const params = new URLSearchParams();
+    if (period) params.append('period', period);
+    
+    const queryString = params.toString();
+    const url = queryString ? `/finance/roi-analysis?${queryString}` : '/finance/roi-analysis';
+    
+    return apiRequest<{ period: string; analysis: ROIAnalysis[] }>(url);
+  },
+};
+
+// Inventory API methods
+export const inventoryApi = {
+  getAll: async (category?: string, lowStock?: boolean): Promise<ApiResponse<InventoryItem[]>> => {
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (lowStock) params.append('lowStock', 'true');
+    
+    const queryString = params.toString();
+    const url = queryString ? `/inventory?${queryString}` : '/inventory';
+    
+    return apiRequest<InventoryItem[]>(url);
+  },
+
+  getById: async (id: number): Promise<ApiResponse<InventoryItem>> => {
+    return apiRequest<InventoryItem>(`/inventory/${id}`);
+  },
+
+  create: async (itemData: CreateInventoryItemRequest): Promise<ApiResponse<InventoryItem>> => {
+    return apiRequest<InventoryItem>('/inventory', {
+      method: 'POST',
+      body: JSON.stringify(itemData),
+    });
+  },
+
+  update: async (id: number, itemData: UpdateInventoryItemRequest): Promise<ApiResponse<InventoryItem>> => {
+    return apiRequest<InventoryItem>(`/inventory/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(itemData),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiRequest<{ message: string }>(`/inventory/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  useItem: async (usageData: UseInventoryItemRequest): Promise<ApiResponse<{ remainingQuantity: number; message: string }>> => {
+    return apiRequest<{ remainingQuantity: number; message: string }>('/inventory/use', {
+      method: 'POST',
+      body: JSON.stringify(usageData),
+    });
+  },
+
+  getLowStock: async (): Promise<ApiResponse<InventoryItem[]>> => {
+    return apiRequest<InventoryItem[]>('/inventory/low-stock');
+  },
+};
+export interface UseInventoryItemRequest {
+  itemId: number;
+  quantityUsed: number;
+  notes?: string;
+}
 // Netlify Functions base URL
 const API_BASE_URL = '/.netlify/functions/api';
 
-// Remove all Express server references and use Netlify Functions directly
+// API request helper
 export const apiRequest = async <T>(url: string, options: RequestInit = {}): Promise<ApiResponse<T>> => {
   const fullUrl = `${API_BASE_URL}${url}`;
   
@@ -33,7 +347,7 @@ export const apiRequest = async <T>(url: string, options: RequestInit = {}): Pro
   }
 };
 
-// Update all API methods to use Netlify Functions paths
+// Crop API methods
 export const cropApi = {
   create: async (cropData: CreateCropRequest): Promise<ApiResponse<Crop>> => {
     return apiRequest<Crop>('/crops', {
@@ -75,6 +389,7 @@ export const cropApi = {
   },
 };
 
+// Expense API methods
 export const expenseApi = {
   create: (expense: CreateExpenseRequest): Promise<ApiResponse<Expense>> => {
     return apiRequest<Expense>('/expenses', {
@@ -92,4 +407,9 @@ export const expenseApi = {
       method: 'DELETE',
     });
   },
+};
+
+// Health check
+export const healthCheck = async (): Promise<ApiResponse<{ status: string; message: string }>> => {
+  return apiRequest<{ status: string; message: string }>('/health');
 };
