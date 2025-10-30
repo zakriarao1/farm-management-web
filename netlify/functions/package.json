@@ -1,8 +1,11 @@
-
 {
-  "name": "farm-management-functions",
+  "name": "farm-management-frontend",
   "version": "1.0.0",
-  "dependencies": {
-    "pg": "^8.11.3"
+  "type": "module",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",  
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
   }
 }
