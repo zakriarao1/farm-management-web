@@ -457,6 +457,14 @@ export interface UpdateLivestockRequest {
   purchase_cost?: number;
   notes?: string;
 }
+export interface AnimalSummary {
+  total_animals: number;
+  active_animals: number;
+  sold_animals: number;
+  total_investment: number;
+  total_revenue: number;
+  average_health_score: number;
+}
 
 // Add livestock API methods
 export const livestockApi = {
@@ -489,6 +497,8 @@ export const livestockApi = {
   },
 
   getByFlock: async (flockId: number): Promise<ApiResponse<Livestock[]>> => {
+
+
     return apiRequest<Livestock[]>(`/livestock/flock/${flockId}`);
   },
 };
@@ -505,6 +515,9 @@ export const financialSummaryApi = {
 
   getOverallMetrics: async (): Promise<ApiResponse<FinancialMetrics>> => {
     return apiRequest<FinancialMetrics>('/financial/overall-metrics');
+  },
+  getAnimalSummary: async (): Promise<ApiResponse<AnimalSummary>> => {
+    return apiRequest<AnimalSummary>('/financial/animal-summary');
   },
 };
 // Inventory API methods

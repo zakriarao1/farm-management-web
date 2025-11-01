@@ -25,8 +25,30 @@ exports.handler = async (event, context) => {
       return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
     }
 
+    if (event.path.includes('/animal-summary')) {
+      // Get animal summary
+      const animalSummaryQuery = `
+        SELECT 
+          COUNT(*) as total_animals,
+          COUNT(CASE WHEN status = 'ACTIVE' THEN 1 END) as active_animals,
+          COUNT(CASE WHEN status = 'SOLD' THEN 1 END) as sold_animals,
+          COALESCE(SUM(purchase_cost), 0) as total_investment,
+          0 as total_revenue, -- Placeholder for sales revenue
+          85 as average_health_score -- Placeholder health score
+        FROM livestock
+      `;
+
+      const result = await pool.query(animalSummaryQuery);
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ data: result.rows[0] })
+      };
+    }
+
     if (event.path.includes('/summary')) {
-      // Get flock financial summary
+      // Get flock financial summary (existing code)
       let flockCondition = '';
       const params = [];
 
@@ -66,7 +88,7 @@ exports.handler = async (event, context) => {
     }
 
     if (event.path.includes('/overall-metrics')) {
-      // Get overall financial metrics
+      // Get overall financial metrics (existing code)
       const metricsQuery = `
         SELECT 
           COUNT(DISTINCT f.id) as total_flocks,
@@ -107,31 +129,4 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({ error: 'Internal server error' })
     };
   }
-};// In the summaryQuery, add the missing fields:
-const summaryQuery = `
-  SELECT 
-    f.id as flock_id,
-    f.name as flock_name,
-    COALESCE(f.total_purchase_cost, 0) as total_purchase_cost,
-    COALESCE(SUM(le.amount), 0) as total_expenses,
-    COALESCE(SUM(sr.total_amount), 0) as total_sales,
-    COALESCE(SUM(sr.total_amount), 0) as total_sale_revenue,  -- Add this
-    0 as total_production_revenue,  -- Add placeholder
-    0 as total_medical_costs,       -- Add placeholder
-    (COALESCE(SUM(sr.total_amount), 0) - COALESCE(f.total_purchase_cost, 0) - COALESCE(SUM(le.amount), 0)) as net_profit,
-    (COALESCE(SUM(sr.total_amount), 0) - COALESCE(f.total_purchase_cost, 0) - COALESCE(SUM(le.amount), 0)) as net_profit_loss,  -- Same as net_profit
-    CASE 
-      WHEN (COALESCE(f.total_purchase_cost, 0) + COALESCE(SUM(le.amount), 0)) > 0 
-      THEN ((COALESCE(SUM(sr.total_amount), 0) - COALESCE(f.total_purchase_cost, 0) - COALESCE(SUM(le.amount), 0)) / (COALESCE(f.total_purchase_cost, 0) + COALESCE(SUM(le.amount), 0))) * 100
-      ELSE 0 
-    END as roi_percentage,
-    COALESCE(f.quantity, 0) as total_animals,  -- Add from flocks table
-    0 as sold_animals,      -- Add placeholder
-    COALESCE(f.quantity, 0) as active_animals   -- Add from flocks table
-  FROM flocks f
-  LEFT JOIN livestock_expenses le ON f.id = le.flock_id
-  LEFT JOIN sales_records sr ON f.id = sr.flock_id
-  ${flockCondition}
-  GROUP BY f.id, f.name, f.total_purchase_cost, f.quantity
-  ORDER BY net_profit DESC
-`;
+};
