@@ -412,7 +412,86 @@ export interface FinancialMetrics {
   net_profit: number;
   average_roi: number;
 }
+// Add these interfaces to your existing types
+export interface Livestock {
+  id: number;
+  flock_id: number;
+  name: string;
+  type: string;
+  breed: string;
+  age: number;
+  weight?: number;
+  health_status: string;
+  status: string;
+  purchase_date?: string;
+  purchase_cost?: number;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
 
+export interface CreateLivestockRequest {
+  flock_id: number;
+  name: string;
+  type: string;
+  breed: string;
+  age: number;
+  weight?: number;
+  health_status: string;
+  status: string;
+  purchase_date?: string;
+  purchase_cost?: number;
+  notes?: string;
+}
+
+export interface UpdateLivestockRequest {
+  flock_id?: number;
+  name?: string;
+  type?: string;
+  breed?: string;
+  age?: number;
+  weight?: number;
+  health_status?: string;
+  status?: string;
+  purchase_date?: string;
+  purchase_cost?: number;
+  notes?: string;
+}
+
+// Add livestock API methods
+export const livestockApi = {
+  create: async (livestockData: CreateLivestockRequest): Promise<ApiResponse<Livestock>> => {
+    return apiRequest<Livestock>('/livestock', {
+      method: 'POST',
+      body: JSON.stringify(livestockData),
+    });
+  },
+  
+  getAll: async (): Promise<ApiResponse<Livestock[]>> => {
+    return apiRequest<Livestock[]>('/livestock');
+  },
+  
+  getById: async (id: number): Promise<ApiResponse<Livestock>> => {
+    return apiRequest<Livestock>(`/livestock/${id}`);
+  },
+
+  update: async (id: number, livestockData: UpdateLivestockRequest): Promise<ApiResponse<Livestock>> => {
+    return apiRequest<Livestock>(`/livestock/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(livestockData),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiRequest<{ message: string }>(`/livestock/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  getByFlock: async (flockId: number): Promise<ApiResponse<Livestock[]>> => {
+    return apiRequest<Livestock[]>(`/livestock/flock/${flockId}`);
+  },
+};
 // Add financial summary API methods
 export const financialSummaryApi = {
   getFlockSummary: async (flockId?: number): Promise<ApiResponse<FlockFinancialSummary[]>> => {
