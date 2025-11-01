@@ -20,23 +20,25 @@ export type LivestockGender = 'MALE' | 'FEMALE' | 'CASTRATED';
 
 export interface Livestock {
   id: number;
-  tagId: string;           // This is the main identifier
-  identifier?: string;      // Optional, can be same as tagId
-  species?: string;         // Optional
-  flock_name?: string;      // Optional
-  type: LivestockType;
+  flock_id: number;
+  name: string;
+  type: string;
   breed: string;
-  gender: LivestockGender;
-  dateOfBirth?: string;
-  purchaseDate: string;
-  purchasePrice: number;
-  weight: number;
-  status: LivestockStatus;
-  location: string;
+  age: number;
+  weight?: number;
+  health_status: string;
+  status: string;
+  purchase_date?: string;
+  purchase_cost?: number;
   notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  flock_id?: number;
+  created_at: string;
+  updated_at: string;
+  // Make other fields optional if they don't exist in API
+  tagId?: string;
+  gender?: string;
+  purchaseDate?: string;
+  purchasePrice?: number;
+  // Add any other optional fields
 }
 
 
