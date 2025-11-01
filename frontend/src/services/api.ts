@@ -206,6 +206,70 @@ export interface UpdateInventoryItemRequest {
   location?: string;
   notes?: string;
 }
+
+export interface Flock {
+  id: number;
+  name: string;
+  breed: string;
+  quantity: number;
+  age: number;
+  health_status: string;
+  total_purchase_cost?: number;  // Add this
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateFlockRequest {
+  name: string;
+  breed: string;
+  quantity: number;
+  age: number;
+  health_status: string;
+  total_purchase_cost?: number;  // Add this
+  notes?: string;
+}
+
+export interface UpdateFlockRequest {
+  name?: string;
+  breed?: string;
+  quantity?: number;
+  age?: number;
+  health_status?: string;
+  notes?: string;
+  total_purchase_cost?: number;  // Add this line
+}
+
+// Flock API methods
+export const flockApi = {
+  create: async (flockData: CreateFlockRequest): Promise<ApiResponse<Flock>> => {
+    return apiRequest<Flock>('/flocks', {
+      method: 'POST',
+      body: JSON.stringify(flockData),
+    });
+  },
+  
+  getAll: async (): Promise<ApiResponse<Flock[]>> => {
+    return apiRequest<Flock[]>('/flocks');
+  },
+  
+  getById: async (id: number): Promise<ApiResponse<Flock>> => {
+    return apiRequest<Flock>(`/flocks/${id}`);
+  },
+
+  update: async (id: number, flockData: UpdateFlockRequest): Promise<ApiResponse<Flock>> => {
+    return apiRequest<Flock>(`/flocks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(flockData),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiRequest<{ message: string }>(`/flocks/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
 // Reports API methods
 export const reportApi = {
   getAnalytics: async (startDate?: string, endDate?: string): Promise<ApiResponse<AnalyticsData>> => {

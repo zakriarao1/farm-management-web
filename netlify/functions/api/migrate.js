@@ -125,7 +125,23 @@ await pool.query(`
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
   )
 `);
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS flocks (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    breed VARCHAR(100) NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 0,
+    age INTEGER NOT NULL DEFAULT 0,
+    health_status VARCHAR(50) NOT NULL DEFAULT 'HEALTHY',
+    total_purchase_cost DECIMAL(10,2),  -- Add this line
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 
+// Create index
+await pool.query('CREATE INDEX IF NOT EXISTS idx_flocks_breed ON flocks(breed)');
 // Create inventory indexes
 await pool.query('CREATE INDEX IF NOT EXISTS idx_inventory_category ON inventory_items(category)');
 await pool.query('CREATE INDEX IF NOT EXISTS idx_inventory_transactions_item ON inventory_transactions(item_id)');
