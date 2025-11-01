@@ -19,4 +19,4 @@
   status = 200
 
 [functions]
-  directory = "netlify/functions
+  directory = "netlify/functions"  # ← FIXED: Added missing closing quote
