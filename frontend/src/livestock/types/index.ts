@@ -33,6 +33,8 @@ export interface Livestock {
   notes?: string;
   created_at: string;
   updated_at: string;
+    dateOfBirth?: string;
+
   // Make other fields optional if they don't exist in API
   tagId?: string;
   gender?: string;
