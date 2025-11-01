@@ -226,8 +226,11 @@ export interface CreateFlockRequest {
   quantity: number;
   age: number;
   health_status: string;
-  total_purchase_cost?: number;  // Add this
+  total_purchase_cost?: number;
   notes?: string;
+  // Add these if your form uses them:
+  description?: string;
+  purchase_date?: string;
 }
 
 export interface UpdateFlockRequest {
@@ -322,7 +325,109 @@ export const financeApi = {
     return apiRequest<{ period: string; analysis: ROIAnalysis[] }>(url);
   },
 };
+export interface LivestockExpense {
+  id: number;
+  flock_id: number;
+  livestock_id?: number;
+  description: string;
+  category: string;
+  amount: number;
+  date: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+export interface CreateLivestockExpenseRequest {
+  flock_id: number;
+  livestock_id?: number;
+  description: string;
+  category: string;
+  amount: number;
+  date: string;
+  notes?: string;
+}
+export interface UpdateLivestockExpenseRequest {
+  flock_id?: number;
+  livestock_id?: number;
+  description?: string;
+  category?: string;
+  amount?: number;
+  date?: string;
+  notes?: string;
+}
+export const livestockExpenseApi = {
+  create: async (expenseData: CreateLivestockExpenseRequest): Promise<ApiResponse<LivestockExpense>> => {
+    return apiRequest<LivestockExpense>('/livestock-expenses', {
+      method: 'POST',
+      body: JSON.stringify(expenseData),
+    });
+  },
+  
+  getAll: async (): Promise<ApiResponse<LivestockExpense[]>> => {
+    return apiRequest<LivestockExpense[]>('/livestock-expenses');
+  },
+  
+  getById: async (id: number): Promise<ApiResponse<LivestockExpense>> => {
+    return apiRequest<LivestockExpense>(`/livestock-expenses/${id}`);
+  },
 
+  update: async (id: number, expenseData: UpdateLivestockExpenseRequest): Promise<ApiResponse<LivestockExpense>> => {
+    return apiRequest<LivestockExpense>(`/livestock-expenses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(expenseData),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiRequest<{ message: string }>(`/livestock-expenses/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+export interface FlockFinancialSummary {
+  flock_id: number;
+  flock_name: string;
+  total_purchase_cost: number;
+  total_expenses: number;
+  total_sales: number;
+  net_profit: number;
+  roi_percentage: number;
+  
+  // Add all the missing fields your component is using:
+  total_production_revenue?: number;
+  total_sale_revenue?: number;
+  total_medical_costs?: number;
+  net_profit_loss?: number;
+  total_animals?: number;
+  sold_animals?: number;
+  active_animals?: number;
+  // Add any other fields your component references
+}
+
+export interface FinancialMetrics {
+  total_flocks: number;
+  total_investment: number;
+  total_revenue: number;
+  total_expenses: number;
+  net_profit: number;
+  average_roi: number;
+}
+
+// Add financial summary API methods
+export const financialSummaryApi = {
+  getFlockSummary: async (flockId?: number): Promise<ApiResponse<FlockFinancialSummary[]>> => {
+    const url = flockId ? `/financial/summary?flockId=${flockId}` : '/financial/summary';
+    return apiRequest<FlockFinancialSummary[]>(url);
+  },
+
+  getFlockMetrics: async (flockId: number): Promise<ApiResponse<any>> => {
+    return apiRequest<any>(`/financial/flock-metrics/${flockId}`);
+  },
+
+  getOverallMetrics: async (): Promise<ApiResponse<FinancialMetrics>> => {
+    return apiRequest<FinancialMetrics>('/financial/overall-metrics');
+  },
+};
 // Inventory API methods
 export const inventoryApi = {
   getAll: async (category?: string, lowStock?: boolean): Promise<ApiResponse<InventoryItem[]>> => {

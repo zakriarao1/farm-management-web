@@ -122,9 +122,13 @@ export interface HealthAlert {
 export interface Flock {
   id: number;
   name: string;
+  breed: string;
+  quantity: number;
+  age: number;
+  health_status: string;
+  total_purchase_cost?: number;
   description?: string;
   purchase_date?: string;
-  total_purchase_cost?: number;
   created_at: string;
   updated_at: string;
 }
@@ -249,15 +253,17 @@ export interface ProductionRecord {
 export interface FlockFinancialSummary {
   flock_id: number;
   flock_name: string;
-  total_animals: number;
-  sold_animals: number;
-  active_animals: number;
   total_purchase_cost: number;
-  total_sale_revenue: number;
   total_expenses: number;
-  total_medical_costs: number;
-  total_production_revenue: number;
-  net_profit_loss: number;
+  total_sales: number;
+  net_profit: number;
+  roi_percentage: number;
+  // Remove or update these if they don't exist in your API:
+  total_animals?: number;
+  sold_animals?: number;
+  active_animals?: number;
+  total_sale_revenue?: number;
+  // Add any other optional fields that might be missing
 }
 
 export interface AnimalFinancialSummary {

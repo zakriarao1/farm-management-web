@@ -139,7 +139,24 @@ await pool.query(`
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
   )
 `);
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS livestock_expenses (
+    id SERIAL PRIMARY KEY,
+    flock_id INTEGER REFERENCES flocks(id) ON DELETE CASCADE,
+    livestock_id INTEGER,
+    description TEXT NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL DEFAULT 0.0,
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 
+// Create index
+await pool.query('CREATE INDEX IF NOT EXISTS idx_livestock_expenses_flock ON livestock_expenses(flock_id)');
+await pool.query('CREATE INDEX IF NOT EXISTS idx_livestock_expenses_date ON livestock_expenses(date)');
 // Create index
 await pool.query('CREATE INDEX IF NOT EXISTS idx_flocks_breed ON flocks(breed)');
 // Create inventory indexes

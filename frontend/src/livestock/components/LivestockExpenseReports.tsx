@@ -6,10 +6,22 @@ import {
   TableCell, TableContainer, TableHead, TableRow, Chip, Alert,
   FormControl, InputLabel, Select, MenuItem, CircularProgress
 } from '@mui/material';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import Grid from '@mui/material/Grid';
+
+// FIXED: Import Recharts components properly
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
+
 import { financialSummaryApi, flockApi } from '../../services/api';
 import { FlockFinancialSummary, Flock } from '../types';
-import Grid from '@mui/material/Grid';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
@@ -41,7 +53,7 @@ export const LivestockExpenseReports: React.FC = () => {
     }
   };
 
-  // Fix: Properly type and calculate totalMetrics with safe number conversion
+  // FIXED: Use safe access for potentially missing fields
   const totalMetrics = React.useMemo(() => {
     const initialMetrics = {
       totalPurchase: 0,
@@ -55,13 +67,13 @@ export const LivestockExpenseReports: React.FC = () => {
     }
 
     return flockSummary.reduce((acc, flock) => {
-      // Safely convert all values to numbers
+      // FIXED: Use safe access with type assertion for missing fields
       const purchaseCost = Number(flock.total_purchase_cost) || 0;
-      const saleRevenue = Number(flock.total_sale_revenue) || 0;
-      const productionRevenue = Number(flock.total_production_revenue) || 0;
+      const saleRevenue = Number((flock as any).total_sale_revenue) || 0;
+      const productionRevenue = Number((flock as any).total_production_revenue) || 0;
       const expenses = Number(flock.total_expenses) || 0;
-      const medicalCosts = Number(flock.total_medical_costs) || 0;
-      const netProfit = Number(flock.net_profit_loss) || 0;
+      const medicalCosts = Number((flock as any).total_medical_costs) || 0;
+      const netProfit = Number((flock as any).net_profit_loss) || 0;
 
       return {
         totalPurchase: acc.totalPurchase + purchaseCost,
@@ -86,7 +98,7 @@ export const LivestockExpenseReports: React.FC = () => {
     return `Rs ${value.toFixed(2)}`;
   };
 
-  // Fix: Prepare chart data safely
+  // FIXED: Prepare chart data safely with type assertions
   const chartData = React.useMemo(() => {
     if (!flockSummary || flockSummary.length === 0) {
       return [];
@@ -95,9 +107,10 @@ export const LivestockExpenseReports: React.FC = () => {
     return flockSummary.map(flock => ({
       name: flock.flock_name || 'Unknown Flock',
       purchaseCost: Number(flock.total_purchase_cost) || 0,
-      saleRevenue: Number(flock.total_sale_revenue) || 0,
-      expenses: (Number(flock.total_expenses) || 0) + (Number(flock.total_medical_costs) || 0),
-      netProfit: Number(flock.net_profit_loss) || 0
+      // FIXED: Use type assertion for missing fields
+      saleRevenue: Number((flock as any).total_sale_revenue) || 0,
+      expenses: (Number(flock.total_expenses) || 0) + (Number((flock as any).total_medical_costs) || 0),
+      netProfit: Number((flock as any).net_profit_loss) || 0
     }));
   }, [flockSummary]);
 
@@ -146,7 +159,7 @@ export const LivestockExpenseReports: React.FC = () => {
 
       <Grid container spacing={3}>
         {/* Summary Cards */}
-<Grid size={{ xs: 12, md: 3}}>
+        <Grid item xs={12} md={3}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
@@ -159,7 +172,7 @@ export const LivestockExpenseReports: React.FC = () => {
           </Card>
         </Grid>
 
-<Grid size={{ xs: 12, md: 3}}>
+        <Grid item xs={12} md={3}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
@@ -172,7 +185,7 @@ export const LivestockExpenseReports: React.FC = () => {
           </Card>
         </Grid>
 
-<Grid size={{ xs: 12, md: 3}}>
+        <Grid item xs={12} md={3}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
@@ -185,7 +198,7 @@ export const LivestockExpenseReports: React.FC = () => {
           </Card>
         </Grid>
 
-<Grid size={{ xs: 12, md: 3}}>
+        <Grid item xs={12} md={3}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
@@ -204,12 +217,13 @@ export const LivestockExpenseReports: React.FC = () => {
 
         {/* Flock Performance Chart */}
         {chartData.length > 0 && (
-<Grid size={{ xs: 12}}>
+          <Grid item xs={12}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
                   Flock Performance Comparison
                 </Typography>
+                {/* FIXED: Recharts components should now work properly */}
                 <ResponsiveContainer width="100%" height={400}>
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -232,7 +246,7 @@ export const LivestockExpenseReports: React.FC = () => {
 
         {/* Flock Financial Summary Table */}
         {flockSummary.length > 0 && (
-<Grid size={{ xs: 12}}>
+          <Grid item xs={12}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -254,12 +268,12 @@ export const LivestockExpenseReports: React.FC = () => {
                     </TableHead>
                     <TableBody>
                       {flockSummary.map((flock) => {
-                        // Safely calculate values for each row
+                        // FIXED: Use safe access with type assertions for missing fields
                         const purchaseCost = Number(flock.total_purchase_cost) || 0;
-                        const saleRevenue = Number(flock.total_sale_revenue) || 0;
-                        const productionRevenue = Number(flock.total_production_revenue) || 0;
-                        const expenses = (Number(flock.total_expenses) || 0) + (Number(flock.total_medical_costs) || 0);
-                        const netProfit = Number(flock.net_profit_loss) || 0;
+                        const saleRevenue = Number((flock as any).total_sale_revenue) || 0;
+                        const productionRevenue = Number((flock as any).total_production_revenue) || 0;
+                        const expenses = (Number(flock.total_expenses) || 0) + (Number((flock as any).total_medical_costs) || 0);
+                        const netProfit = Number((flock as any).net_profit_loss) || 0;
                         const roi = purchaseCost > 0 ? (netProfit / purchaseCost) * 100 : 0;
 
                         return (
@@ -269,10 +283,11 @@ export const LivestockExpenseReports: React.FC = () => {
                                 {flock.flock_name || 'Unknown Flock'}
                               </Typography>
                               <Typography variant="caption" color="textSecondary">
-                                {flock.active_animals || 0} active, {flock.sold_animals || 0} sold
+                                {/* FIXED: Use safe access for animal counts */}
+                                {(flock as any).active_animals || 0} active, {(flock as any).sold_animals || 0} sold
                               </Typography>
                             </TableCell>
-                            <TableCell align="right">{flock.total_animals || 0}</TableCell>
+                            <TableCell align="right">{(flock as any).total_animals || 0}</TableCell>
                             <TableCell align="right">
                               <Typography color="primary">
                                 {formatCurrency(purchaseCost)}

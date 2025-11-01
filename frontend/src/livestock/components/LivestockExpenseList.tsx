@@ -20,7 +20,7 @@ import {
   DialogActions,
   TextField,
   Alert,
-    MenuItem,
+  MenuItem,
   FormControl,
   InputLabel,
   Select,
@@ -43,7 +43,7 @@ export const LivestockExpenseList: React.FC = () => {
     description: '',
     category: '',
     amount: 0,
-date: new Date().toISOString().slice(0, 10),
+    date: new Date().toISOString().slice(0, 10),
     notes: '',
   });
 
@@ -129,7 +129,7 @@ date: new Date().toISOString().slice(0, 10),
       description: '',
       category: '',
       amount: 0,
-date: new Date().toISOString().slice(0, 10),
+      date: new Date().toISOString().slice(0, 10),
       notes: '',
     });
   };
@@ -260,7 +260,7 @@ date: new Date().toISOString().slice(0, 10),
         <form onSubmit={handleSubmit}>
           <DialogContent>
             <Grid container spacing={2}>
-<Grid size={{ xs: 12, sm: 6}}>
+              <Grid item xs={12} sm={6}>
                 <FormControl fullWidth margin="normal" required>
                   <InputLabel>Flock</InputLabel>
                   <Select
@@ -276,7 +276,7 @@ date: new Date().toISOString().slice(0, 10),
                   </Select>
                 </FormControl>
               </Grid>
-<Grid size={{ xs: 12, sm: 6}}>
+              <Grid item xs={12} sm={6}>
                 <FormControl fullWidth margin="normal" required>
                   <InputLabel>Category</InputLabel>
                   <Select
@@ -292,7 +292,7 @@ date: new Date().toISOString().slice(0, 10),
                   </Select>
                 </FormControl>
               </Grid>
-<Grid size={{ xs: 12}}>
+              <Grid item xs={12}>
                 <TextField
                   fullWidth
                   label="Description"
@@ -302,19 +302,20 @@ date: new Date().toISOString().slice(0, 10),
                   margin="normal"
                 />
               </Grid>
-<Grid size={{ xs: 12, sm: 6}}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
                   label="Amount"
                   type="number"
                   value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
                   InputProps={{ startAdornment: '$' }}
                   required
                   margin="normal"
+                  inputProps={{ min: 0, step: 0.01 }}
                 />
               </Grid>
-<Grid size={{ xs: 12, sm: 6}}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
                   label="Date"
@@ -326,7 +327,7 @@ date: new Date().toISOString().slice(0, 10),
                   margin="normal"
                 />
               </Grid>
-<Grid size={{ xs: 12}}>
+              <Grid item xs={12}>
                 <TextField
                   fullWidth
                   label="Notes"

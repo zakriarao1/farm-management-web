@@ -3,21 +3,20 @@
   command = "npm run build"
   publish = "build"
 
-[build.environment]
-  NODE_ENV = "production"
-
-# API redirects
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
 
-# SPA catch-all
+[[redirects]]
+  from = "/financial/*"
+  to = "/.netlify/functions/api/financial-summary/:splat"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
 [functions]
-  node_bundler = "esbuild"
-  directory = "netlify/functions"
+  directory = "netlify/functions
