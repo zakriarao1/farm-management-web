@@ -1,4 +1,4 @@
-[[build]
+[build]
   command = "npm install --legacy-peer-deps && npm run build"
   publish = "build"
   functions = "netlify/functions"
@@ -22,4 +22,4 @@
   status = 200
 
 [functions]
-  directory = "netlify/functions"  # ← FIXED: Added missing closing quote
+  directory = "netlify/functions"
