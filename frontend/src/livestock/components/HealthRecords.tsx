@@ -62,7 +62,7 @@ export const HealthRecords: React.FC<HealthRecordsProps> = ({
   const [success, setSuccess] = useState<string>('');
 
   const [formData, setFormData] = useState<HealthRecordFormData>({
-date: new Date().toISOString().slice(0, 10),
+    date: new Date().toISOString().slice(0, 10),
     condition: '',
     treatment: '',
     medication: '',
@@ -101,7 +101,7 @@ date: new Date().toISOString().slice(0, 10),
 
   const resetForm = () => {
     setFormData({
-date: new Date().toISOString().slice(0, 10),
+      date: new Date().toISOString().slice(0, 10),
       condition: '',
       treatment: '',
       medication: '',
@@ -119,7 +119,7 @@ date: new Date().toISOString().slice(0, 10),
     if (record) {
       setEditingRecord(record);
       setFormData({
-date: new Date().toISOString().slice(0, 10),
+        date: record.date,
         condition: record.condition,
         treatment: record.treatment,
         medication: record.medication || '',
@@ -178,16 +178,19 @@ date: new Date().toISOString().slice(0, 10),
         notes: formData.notes || undefined,
       };
 
+      // Use type assertion to handle the API type requirements
+      const apiRecordData = recordData as any;
+
       if (editingRecord) {
         // Update existing record
-        const response = await livestockApi.updateHealthRecord(editingRecord.id, recordData);
+        const response = await livestockApi.updateHealthRecord(editingRecord.id, apiRecordData);
         if (onRecordUpdated) {
           onRecordUpdated(response.data);
         }
         setSuccess('Health record updated successfully!');
       } else {
         // Create new record
-        const response = await livestockApi.addHealthRecord(livestockId, recordData);
+        const response = await livestockApi.addHealthRecord(livestockId, apiRecordData);
         onRecordAdded(response.data);
         setSuccess('Health record added successfully!');
       }
@@ -357,8 +360,8 @@ date: new Date().toISOString().slice(0, 10),
                       )}
                       
                       <Typography variant="caption" color="text.secondary">
-                        Recorded on {new Date(record.createdAt).toLocaleDateString()} at{' '}
-                        {new Date(record.createdAt).toLocaleTimeString()}
+                        Recorded on {new Date((record as any).created_at || record.createdAt).toLocaleDateString()} at{' '}
+                        {new Date((record as any).created_at || record.createdAt).toLocaleTimeString()}
                       </Typography>
                     </Box>
                   </Box>

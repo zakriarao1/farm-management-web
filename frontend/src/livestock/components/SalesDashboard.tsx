@@ -130,7 +130,7 @@ export const SalesDashboard: React.FC = () => {
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-<Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" gap={2}>
@@ -148,7 +148,7 @@ export const SalesDashboard: React.FC = () => {
           </Card>
         </Grid>
 
-<Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" gap={2}>
@@ -166,7 +166,7 @@ export const SalesDashboard: React.FC = () => {
           </Card>
         </Grid>
 
-<Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" gap={2}>
@@ -184,7 +184,7 @@ export const SalesDashboard: React.FC = () => {
           </Card>
         </Grid>
 
-<Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" gap={2}>

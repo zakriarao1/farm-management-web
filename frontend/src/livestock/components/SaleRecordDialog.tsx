@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Button, MenuItem,  Alert,
+  TextField, Button, MenuItem, Alert,
   FormControl, InputLabel, Select, Box, Typography,
   Stepper, Step, StepLabel, Card, CardContent,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
@@ -226,7 +226,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
 
         {activeStep === 0 && (
           <Grid container spacing={3}>
-<Grid size={{ xs: 12}}>
+            <Grid item xs={12}>
               <FormControl fullWidth>
                 <InputLabel>Sale Type</InputLabel>
                 <Select
@@ -241,13 +241,13 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
             </Grid>
 
             {saleType === 'individual' && (
-<Grid size={{ xs: 12}}>
+              <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom>Select Animals</Typography>
                 <Grid container spacing={1}>
                   {livestock
                     .filter(animal => animal.status === 'active')
                     .map(animal => (
-                      <Grid size={{ xs: 12, sm: 6, md: 4 }} key={animal.id}>
+                      <Grid item xs={12} sm={6} md={4} key={animal.id}>
                         <Card 
                           variant="outlined"
                           sx={{ 
@@ -277,7 +277,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
             )}
 
             {saleType === 'bulk' && (
-<Grid size={{ xs: 12}}>
+              <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom>Select Flock</Typography>
                 <Box display="flex" gap={2} alignItems="flex-start">
                   <FormControl fullWidth>
@@ -306,7 +306,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
             )}
 
             {saleItems.length > 0 && (
-<Grid size={{ xs: 12}}>
+              <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom>
                   Selected Items ({saleItems.length})
                 </Typography>
@@ -373,7 +373,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
 
         {activeStep === 1 && (
           <Grid container spacing={3}>
-<Grid size={{ xs: 12}}>
+            <Grid item xs={12}>
               <Typography variant="h6" gutterBottom>
                 Set Sale Prices
               </Typography>
@@ -421,7 +421,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
 
         {activeStep === 2 && (
           <Grid container spacing={3}>
-<Grid size={{ xs: 12, sm: 6}}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Sale Date *"
@@ -432,7 +432,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                 required
               />
             </Grid>
-<Grid size={{ xs: 12, sm: 6}}>
+            <Grid item xs={12} sm={6}>
               <FormControl fullWidth>
                 <InputLabel>Payment Method *</InputLabel>
                 <Select
@@ -449,7 +449,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                 </Select>
               </FormControl>
             </Grid>
-<Grid size={{ xs: 12, sm: 6}}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Customer Name"
@@ -457,7 +457,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                 onChange={handleSaleDataChange('customer_name')}
               />
             </Grid>
-<Grid size={{ xs: 12, sm: 6}}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Customer Contact"
@@ -465,7 +465,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                 onChange={handleSaleDataChange('customer_contact')}
               />
             </Grid>
-<Grid size={{ xs: 12}}>
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 multiline

@@ -1,10 +1,5 @@
-export type LivestockType = 
-  | 'CATTLE' 
-  | 'POULTRY' 
-  | 'SHEEP' 
-  | 'GOATS' 
-  | 'FISH'
-  | 'OTHER';
+export type LivestockType = 'CATTLE' | 'POULTRY' | 'SHEEP' | 'GOATS'  | 'FISH'  | 'OTHER';
+
 
 export type LivestockStatus = 
   | 'active' 
@@ -20,27 +15,23 @@ export type LivestockGender = 'MALE' | 'FEMALE' | 'CASTRATED';
 
 export interface Livestock {
   id: number;
-  flock_id: number;
-  name: string;
-  type: string;
-  breed: string;
-  age: number;
-  weight?: number;
-  health_status: string;
-  status: string;
-  purchase_date?: string;
-  purchase_cost?: number;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-    dateOfBirth?: string;
-
-  // Make other fields optional if they don't exist in API
-  tagId?: string;
-  gender?: string;
+  tagId: string;
+  type: LivestockType;
+  breed?: string;
+  gender: LivestockGender;
+  dateOfBirth?: string;
   purchaseDate?: string;
   purchasePrice?: number;
-  // Add any other optional fields
+  weight?: number;
+  status: LivestockStatus;
+  location?: string;
+  notes?: string;
+  created_at: string; // snake_case
+  updated_at: string; // snake_case
+  identifier?: string;
+  species?: string;
+  flock_name?: string;
+  flock_id?: number;
 }
 
 
@@ -60,7 +51,6 @@ export interface AnimalEvent {
 
 export interface HealthRecord {
   id: number;
-  livestockId: number;
   date: string;
   condition: string;
   treatment: string;
@@ -69,7 +59,8 @@ export interface HealthRecord {
   veterinarian?: string;
   cost: number;
   notes?: string;
-  createdAt: string;
+  created_at: string;
+  createdAt?: string; // Add this as optional
 }
 
 export interface BreedingRecord {

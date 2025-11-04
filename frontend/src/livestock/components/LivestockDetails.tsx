@@ -236,8 +236,7 @@ export const LivestockDetails: React.FC = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Purchase Date" 
-                    secondary={new Date(animal.purchaseDate).toLocaleDateString()} 
-                  />
+secondary={animal.purchaseDate ? new Date(animal.purchaseDate).toLocaleDateString() : 'Not specified'}                  />
                 </ListItem>
 
                 <ListItem>
@@ -246,8 +245,7 @@ export const LivestockDetails: React.FC = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Purchase Price" 
-                    secondary={`$${animal.purchasePrice.toLocaleString()}`} 
-                  />
+secondary={animal.purchaseDate ? new Date(animal.purchaseDate).toLocaleDateString() : 'Not specified'}                  />
                 </ListItem>
 
                 <ListItem>

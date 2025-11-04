@@ -83,8 +83,8 @@ const transformLivestockData = (data: any): Livestock => ({
   status: data.status as Livestock['status'],
   location: data.location,
   notes: data.notes,
-  createdAt: data.created_at,
-  updatedAt: data.updated_at,
+  created_at: data.created_at, // Use snake_case to match interface
+  updated_at: data.updated_at, // Use snake_case to match interface
   // Use tag_id as identifier if identifier doesn't exist
   identifier: data.identifier || data.tag_id,
   species: data.species || data.type,
@@ -130,6 +130,7 @@ const transformFinancialData = (data: any): any => {
   
   return transformed;
 };
+export type CreateHealthRecordRequest = Omit<HealthRecord, "id" | "livestockId" | "created_at" | "updated_at">;
 
 // Add to your api.ts file
 export const safeNumber = (value: any): number => {
@@ -212,22 +213,22 @@ export const livestockApi = {
 
   // Sale recording (individual animal sale)
   recordSale: async (id: number, saleData: { sale_price: number; sale_date: string; sale_reason?: string }): Promise<ApiResponse<Livestock>> => {
-    const response = await livestockApiRequest<any>(`/api/livestock/${id}/sale`, {
-      method: 'POST',
-      body: JSON.stringify(saleData),
-    });
-    return {
-      ...response,
-      data: transformLivestockData(response.data)
-    };
-  },
+  const response = await livestockApiRequest<any>(`/api/livestock/${id}/sale`, {
+    method: 'POST',
+    body: JSON.stringify(saleData),
+  });
+  return {
+    ...response,
+    data: transformLivestockData(response.data)
+  };
+},
 
   // Health Records
   getHealthRecords: async (livestockId: number): Promise<ApiResponse<HealthRecord[]>> => {
     return livestockApiRequest<HealthRecord[]>(`/api/livestock/${livestockId}/health-records`);
   },
 
-  addHealthRecord: async (livestockId: number, record: Omit<HealthRecord, 'id' | 'livestockId' | 'createdAt'>): Promise<ApiResponse<HealthRecord>> => {
+  addHealthRecord: async (livestockId: number, record: Omit<HealthRecord, 'id' | 'livestockId' | 'created_at'>): Promise<ApiResponse<HealthRecord>> => {
     return livestockApiRequest<HealthRecord>(`/api/livestock/${livestockId}/health-records`, {
       method: 'POST',
       body: JSON.stringify(record),
@@ -252,7 +253,7 @@ export const livestockApi = {
     return livestockApiRequest<BreedingRecord[]>(`/api/livestock/${livestockId}/breeding-records`);
   },
 
-  addBreedingRecord: async (livestockId: number, record: Omit<BreedingRecord, 'id' | 'livestockId' | 'createdAt'>): Promise<ApiResponse<BreedingRecord>> => {
+  addBreedingRecord: async (livestockId: number, record: Omit<BreedingRecord, 'id' | 'livestockId' | 'created_at'>): Promise<ApiResponse<BreedingRecord>> => {
     return livestockApiRequest<BreedingRecord>(`/api/livestock/${livestockId}/breeding-records`, {
       method: 'POST',
       body: JSON.stringify(record),
@@ -277,7 +278,7 @@ export const livestockApi = {
     return livestockApiRequest<MilkProduction[]>(`/api/livestock/${livestockId}/milk-productions`);
   },
 
-  addMilkProduction: async (livestockId: number, record: Omit<MilkProduction, 'id' | 'livestockId' | 'createdAt'>): Promise<ApiResponse<MilkProduction>> => {
+  addMilkProduction: async (livestockId: number, record: Omit<MilkProduction, 'id' | 'livestockId' | 'created_at'>): Promise<ApiResponse<MilkProduction>> => {
     return livestockApiRequest<MilkProduction>(`/api/livestock/${livestockId}/milk-productions`, {
       method: 'POST',
       body: JSON.stringify(record),
@@ -325,7 +326,7 @@ export const flockApi = {
     const response = await livestockApiRequest<any[]>('/api/flocks');
     console.log('📦 Raw flocks API response:', response);
     
-    // Transform the data if needed
+    // Transform the data to match Flock interface
     const transformedData = response.data?.map(flock => ({
       id: flock.id,
       name: flock.name,
@@ -340,7 +341,7 @@ export const flockApi = {
     
     return {
       ...response,
-      data: transformedData
+      data: transformedData as Flock[]
     };
   },
 
@@ -356,7 +357,7 @@ export const flockApi = {
         total_purchase_cost: response.data.total_purchase_cost,
         created_at: response.data.created_at,
         updated_at: response.data.updated_at
-      }
+      } as Flock
     };
   },
 
@@ -367,7 +368,7 @@ export const flockApi = {
     });
     return {
       ...response,
-      data: response.data
+      data: response.data as Flock
     };
   },
 
@@ -378,7 +379,7 @@ export const flockApi = {
     });
     return {
       ...response,
-      data: response.data
+      data: response.data as Flock
     };
   },
 
@@ -496,7 +497,7 @@ export const productionApi = {
 };
 
 // Re-export salesApi from the separate file
-export { salesApi } from './salesApi';
+export { salesApi };
 
 // Default export for backward compatibility
 export default {

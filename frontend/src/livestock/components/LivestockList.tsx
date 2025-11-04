@@ -108,16 +108,22 @@ export const LivestockList: React.FC = () => {
       POULTRY: 'secondary',
       SHEEP: 'success',
       GOATS: 'warning',
-      FISH: 'primary',
+      FISH: 'info',
       OTHER: 'primary',
     };
     return colors[type];
   };
 
   const filteredLivestock = livestock.filter(animal => {
-    const matchesSearch = animal.tagId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (animal.breed && animal.breed.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         animal.location.toLowerCase().includes(searchTerm.toLowerCase());
+    const tagId = animal.tagId || '';
+    const breed = animal.breed || '';
+    const location = (animal as any).location || ''; // Temporary fix for location property
+    
+    const matchesSearch = 
+      tagId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      breed.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      location.toLowerCase().includes(searchTerm.toLowerCase());
+    
     const matchesType = typeFilter === 'ALL' || animal.type === typeFilter;
     const matchesStatus = statusFilter === 'ALL' || animal.status === statusFilter;
     
@@ -180,7 +186,12 @@ export const LivestockList: React.FC = () => {
               variant="outlined"
               size="small"
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as LivestockType | 'ALL')}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === 'ALL' || ['CATTLE', 'POULTRY', 'SHEEP', 'GOATS',  'FISH',  'OTHER'].includes(value)) {
+                  setTypeFilter(value as LivestockType | 'ALL');
+                }
+              }}
               sx={{ minWidth: 120 }}
             >
               <MenuItem value="ALL">All Types</MenuItem>
@@ -199,7 +210,12 @@ export const LivestockList: React.FC = () => {
               variant="outlined"
               size="small"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as LivestockStatus | 'ALL')}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === 'ALL' || ['active', 'sick', 'pregnant', 'calving', 'milking', 'ready_for_sale', 'sold', 'deceased'].includes(value)) {
+                  setStatusFilter(value as LivestockStatus | 'ALL');
+                }
+              }}
               sx={{ minWidth: 140 }}
             >
               <MenuItem value="ALL">All Status</MenuItem>
@@ -243,14 +259,14 @@ export const LivestockList: React.FC = () => {
                 <TableCell>
                   <Box display="flex" alignItems="center" gap={1}>
                     <AnimalIcon fontSize="small" color="action" />
-                    <Typography fontWeight="bold">{animal.tagId}</Typography>
+                    <Typography fontWeight="bold">{animal.tagId || 'N/A'}</Typography>
                   </Box>
                 </TableCell>
                 <TableCell>
                   <Chip 
                     label={animal.type} 
                     size="small" 
-                    color={getTypeColor(animal.type as LivestockType)}
+                    color={getTypeColor(animal.type)}
                     variant="outlined"
                   />
                 </TableCell>
@@ -259,7 +275,7 @@ export const LivestockList: React.FC = () => {
                   <Chip 
                     label={animal.gender} 
                     size="small" 
-                    color="default"
+                    color="default" // This is fine here since it's not using the getTypeColor function
                     variant="outlined"
                   />
                 </TableCell>
@@ -271,9 +287,9 @@ export const LivestockList: React.FC = () => {
                     color={getStatusColor(animal.status)}
                   />
                 </TableCell>
-                <TableCell>{animal.location}</TableCell>
+                <TableCell>{(animal as any).location || 'N/A'}</TableCell>
                 <TableCell>
-                  {new Date(animal.purchaseDate).toLocaleDateString()}
+                  {animal.purchaseDate ? new Date(animal.purchaseDate).toLocaleDateString() : 'N/A'}
                 </TableCell>
                 <TableCell>
                   <Box display="flex" gap={1}>

@@ -26,6 +26,21 @@ import type {
   LivestockGender
 } from '../types';
 
+// Define a form data interface with required fields
+interface LivestockFormData {
+  tagId: string;
+  type: LivestockType;
+  breed: string;
+  gender: LivestockGender;
+  dateOfBirth: string;
+  purchaseDate: string;
+  purchasePrice: number;
+  weight: number;
+  status: LivestockStatus;
+  location: string;
+  notes: string;
+}
+
 export const LivestockForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -36,20 +51,20 @@ export const LivestockForm: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
 
-  // Use type assertion for initial state to handle optional fields
-  const [formData, setFormData] = useState<CreateLivestockRequest>({
+  // Use our form data interface for state (all fields required)
+  const [formData, setFormData] = useState<LivestockFormData>({
     tagId: '',
     type: 'CATTLE',
     breed: '',
     gender: 'FEMALE',
-    dateOfBirth: '', // This will be treated as string, not string | undefined
-    purchaseDate: new Date().toISOString().split('T')[0],
+    dateOfBirth: '',
+    purchaseDate: new Date().toISOString().split('T')[0] || '',
     purchasePrice: 0,
     weight: 0,
     status: 'active',
     location: '',
     notes: '',
-  } as CreateLivestockRequest); // Type assertion to handle optional fields
+  });
 
   useEffect(() => {
     if (isEdit && id) {
@@ -63,19 +78,22 @@ export const LivestockForm: React.FC = () => {
       const response = await livestockApi.getById(animalId);
       const animal = response.data;
       
+      // Provide fallbacks for potentially undefined fields and ensure purchaseDate is always a string
+      const today = new Date().toISOString().split('T')[0] || '';
+      
       setFormData({
-        tagId: animal.tagId,
+        tagId: animal.tagId || '',
         type: animal.type,
-        breed: animal.breed,
+        breed: animal.breed || '',
         gender: animal.gender,
         dateOfBirth: animal.dateOfBirth || '',
-        purchaseDate: animal.purchaseDate,
-        purchasePrice: animal.purchasePrice,
-        weight: animal.weight,
+        purchaseDate: animal.purchaseDate || today,
+        purchasePrice: animal.purchasePrice || 0,
+        weight: animal.weight || 0,
         status: animal.status,
-        location: animal.location,
+        location: animal.location || '',
         notes: animal.notes || '',
-      } as CreateLivestockRequest);
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load animal data');
       console.error('Error loading animal:', err);
@@ -84,7 +102,7 @@ export const LivestockForm: React.FC = () => {
     }
   };
 
-  const handleInputChange = (field: keyof CreateLivestockRequest) => (
+  const handleInputChange = (field: keyof LivestockFormData) => (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const value = event.target.value;
@@ -95,20 +113,40 @@ export const LivestockForm: React.FC = () => {
     }));
   };
 
-  const handleSelectChange = (field: keyof CreateLivestockRequest) => (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  const handleSelectChange = (field: keyof LivestockFormData) => (
+    event: React.ChangeEvent<{ value: unknown }>
   ) => {
     const value = event.target.value;
     setFormData(prev => ({
       ...prev,
-      [field]: value as any
+      [field]: value
     }));
+  };
+
+  // Convert form data to API request format with type assertion
+  const prepareSubmitData = (): CreateLivestockRequest => {
+    const submitData = {
+      tagId: formData.tagId,
+      type: formData.type,
+      breed: formData.breed,
+      gender: formData.gender,
+      dateOfBirth: formData.dateOfBirth || undefined,
+      purchaseDate: formData.purchaseDate,
+      purchasePrice: formData.purchasePrice,
+      weight: formData.weight,
+      status: formData.status,
+      location: formData.location,
+      notes: formData.notes || undefined,
+    };
+
+    // Use type assertion to handle the type mismatch
+    return submitData as unknown as CreateLivestockRequest;
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
-    // Basic validation
+    // Basic validation - no TypeScript errors since all fields are guaranteed to exist
     if (!formData.tagId.trim()) {
       setError('Tag ID is required');
       return;
@@ -131,12 +169,8 @@ export const LivestockForm: React.FC = () => {
       setError('');
       setSuccess('');
 
-      // Prepare data for API - handle optional fields
-      const submitData: CreateLivestockRequest = {
-        ...formData,
-        dateOfBirth: formData.dateOfBirth || undefined, // Convert empty string to undefined
-        notes: formData.notes || undefined, // Convert empty string to undefined
-      };
+      // Prepare data for API
+      const submitData = prepareSubmitData();
 
       if (isEdit && id) {
         const updateData: UpdateLivestockRequest = { ...submitData };

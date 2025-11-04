@@ -3,10 +3,11 @@
 import React, { useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Button, MenuItem,  Alert
+  TextField, Button, MenuItem, Alert
 } from '@mui/material';
 import { salesApi } from '../services/api';
 import Grid from '@mui/material/Grid';
+
 interface SalesRecordingFormProps {
   open: boolean;
   onClose: () => void;
@@ -132,7 +133,8 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           
           <Grid container spacing={2}>
-<Grid size={{ xs: 12, sm: 6}}>
+            {/* Sale Type */}
+            <Grid item xs={12} sm={6}>
               <TextField
                 select
                 fullWidth
@@ -147,7 +149,8 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
               </TextField>
             </Grid>
             
-<Grid size={{ xs: 12, sm: 6}}>
+            {/* Sale Date */}
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Sale Date *"
@@ -159,8 +162,9 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
               />
             </Grid>
 
+            {/* Animal Selection */}
             {formData.sale_type === 'animal' && (
-<Grid size={{ xs: 12, sm: 6}}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   select
                   fullWidth
@@ -179,8 +183,9 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
               </Grid>
             )}
 
+            {/* Flock Selection */}
             {formData.sale_type === 'product' && (
-<Grid size={{ xs: 12, sm: 6}}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   select
                   fullWidth
@@ -198,7 +203,8 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
               </Grid>
             )}
 
-<Grid size={{ xs: 12}}>
+            {/* Description */}
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Description *"
@@ -209,7 +215,8 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
               />
             </Grid>
 
-<Grid size={{ xs: 12, sm: 6}}>
+            {/* Quantity */}
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Quantity *"
@@ -221,7 +228,8 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
               />
             </Grid>
 
-<Grid size={{ xs: 12, sm: 6}}>
+            {/* Unit Price */}
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Unit Price *"
@@ -234,7 +242,8 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
               />
             </Grid>
 
-<Grid size={{ xs: 12}}>
+            {/* Total Amount */}
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Total Amount"
@@ -248,7 +257,8 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
               />
             </Grid>
 
-<Grid size={{ xs: 12, sm: 6}}>
+            {/* Customer Name */}
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Customer Name"
@@ -258,7 +268,8 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
               />
             </Grid>
 
-<Grid size={{ xs: 12, sm: 6}}>
+            {/* Customer Contact */}
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Customer Contact"
@@ -268,7 +279,8 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
               />
             </Grid>
 
-<Grid size={{ xs: 12, sm: 6}}>
+            {/* Payment Method */}
+            <Grid item xs={12} sm={6}>
               <TextField
                 select
                 fullWidth
@@ -285,7 +297,8 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
               </TextField>
             </Grid>
 
-<Grid size={{ xs: 12}}>
+            {/* Notes */}
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 multiline
