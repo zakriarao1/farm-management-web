@@ -1,7 +1,7 @@
 [build]
-  command = "npm install --production=false --legacy-peer-deps && npm run build"
-  publish = "build"
-  functions = "netlify/functions"
+  command = "cd frontend && npm install --legacy-peer-deps && npm run build"
+  publish = "frontend/build"
+  functions = "frontend/netlify/functions"
 
 [build.environment]
   NPM_FLAGS = "--legacy-peer-deps"
@@ -20,6 +20,3 @@
   from = "/*"
   to = "/index.html"
   status = 200
-
-[functions]
-  directory = "netlify/functions"
