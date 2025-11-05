@@ -1,19 +1,24 @@
 {
-  "name": "farm-management",
+  "name": "farm-management-web",
   "version": "1.0.0",
-  "type": "module",
+  "description": "Farm Management System",
+  "private": true,
   "scripts": {
+    "build": "cd frontend && npm install --legacy-peer-deps && npm run build",
     "dev": "cd frontend && npm start",
-    "build": "cd frontend && npm run build",
-    "setup": "npm install && cd frontend && npm install"
+    "install-deps": "cd frontend && npm install --legacy-peer-deps",
+    "functions:dev": "netlify dev"
   },
-  
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   },
-  "devDependencies": {
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0"
-  }
+  "keywords": [
+    "farm",
+    "management",
+    "livestock",
+    "react"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
 }
