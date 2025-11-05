@@ -39,7 +39,6 @@ export const exportToPDF = async (elementId: string, filename: string = 'report.
 
   try {
     const canvas = await html2canvas(element, {
-      scale: 2,
       useCORS: true,
       logging: false,
     });
