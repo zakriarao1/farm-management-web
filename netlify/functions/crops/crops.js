@@ -1,5 +1,5 @@
-const { pool } = require('../shared/config/database');
-const { authenticateToken } = require('../shared/middleware/auth');
+const { pool } = require('../../shared/config/database');
+const { authenticateToken } = require('../../shared/middleware/auth');
 
 exports.handler = async (event, context) => {
   // Handle CORS
