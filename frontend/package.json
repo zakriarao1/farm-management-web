@@ -4,8 +4,6 @@
   "description": "Farm Management System Frontend",
   "private": true,
   "dependencies": {
-     "jspdf": "^2.5.1",
-    "html2canvas": "^1.4.1",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.15.0",
@@ -15,7 +13,8 @@
     "ajv-keywords": "^5.1.0",
     "axios": "^1.6.0",
     "date-fns": "^2.30.0",
-   
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.0",
@@ -26,7 +25,6 @@
   "devDependencies": {
     "@types/html2canvas": "^0.5.35",
     "@types/jest": "29.5.0",
-    "@types/jspdf": "^2.5.3",
     "@types/node": "16.18.0",
     "@types/react": "18.2.0",
     "@types/react-dom": "18.2.0",
