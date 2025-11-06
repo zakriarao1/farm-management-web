@@ -3,10 +3,6 @@
   publish = "frontend/build"
   functions = "netlify/functions"
 
-[build.environment]
-  NODE_VERSION = "18"
-  NPM_FLAGS = "--legacy-peer-deps"
-
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
@@ -17,7 +13,12 @@
   to = "/.netlify/functions/api/financial-summary/:splat"
   status = 200
 
+# SPA fallback - IMPORTANT: This must be LAST
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_FLAGS = "--legacy-peer-deps"
