@@ -1,5 +1,5 @@
-[build]
-  command = "npm run build"
+build]
+  command = "cd frontend && npm install --legacy-peer-deps && npm run build"
   publish = "frontend/build"
   functions = "netlify/functions"
 
@@ -13,7 +13,7 @@
   to = "/.netlify/functions/api/financial-summary/:splat"
   status = 200
 
-# SPA fallback - IMPORTANT: This must be LAST
+# SPA fallback - MUST BE LAST
 [[redirects]]
   from = "/*"
   to = "/index.html"
