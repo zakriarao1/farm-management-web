@@ -5,16 +5,19 @@ import App from './App.jsx';
 
 console.log('React app starting...');
 
-// Simple fix - wait a bit longer for DOM
-setTimeout(() => {
+function initApp() {
   const rootElement = document.getElementById('root');
-  console.log('Root element after timeout:', rootElement);
+  console.log('Root element:', rootElement);
   
   if (rootElement) {
     const root = ReactDOM.createRoot(rootElement);
     root.render(<App />);
-    console.log('App rendered successfully!');
+    console.log('App rendered!');
   } else {
-    console.error('Root element still not found after timeout');
+    console.log('Root not found, trying again next frame...');
+    requestAnimationFrame(initApp);
   }
-}, 50);
+}
+
+// Start on next animation frame
+requestAnimationFrame(initApp);
