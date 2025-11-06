@@ -3,19 +3,17 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 
-const rootElement = document.getElementById('root');
-
-if (rootElement) {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(<App />);
+// Wait for DOM to be ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
 } else {
-  console.error('Root element not found!');
-  // You could also retry after a delay
-  setTimeout(() => {
-    const retryElement = document.getElementById('root');
-    if (retryElement) {
-      const root = ReactDOM.createRoot(retryElement);
-      root.render(<App />);
-    }
-  }, 100);
+  initApp();
+}
+
+function initApp() {
+  const rootElement = document.getElementById('root');
+  if (rootElement) {
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(<App />);
+  }
 }
