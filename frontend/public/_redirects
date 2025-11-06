@@ -1,3 +1,0 @@
-api/* /.netlify/functions/api/:splat 200
-/financial/* /.netlify/functions/api/financial-summary/:splat 200
-/* /index.html 200
