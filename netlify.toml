@@ -1,0 +1,11 @@
+[build]
+  command = "cd frontend && npm install --legacy-peer-deps && npm run build"
+  publish = "frontend/build"
+
+[build.environment]
+  NODE_OPTIONS = "--openssl-legacy-provider"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
