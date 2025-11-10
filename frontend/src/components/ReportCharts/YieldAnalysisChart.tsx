@@ -3,7 +3,7 @@
 import React from 'react';
 import { Bar } from 'react-chartjs-2';
 import { Card, CardContent, Typography, Box } from '@mui/material';
-import { Crop } from '../../src/types';
+import { Crop } from '../../types';
 
 interface YieldAnalysisChartProps {
   crops: Crop[];

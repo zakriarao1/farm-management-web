@@ -1,595 +1,109 @@
-// Types
-export interface Crop {
-  id: number;
-  name: string;
-  type: string;
-  variety: string;
-  planting_date: string;
-  expected_harvest_date?: string;
-  actual_harvest_date?: string;
-  area: number;
-  area_unit: string;
-  expected_yield: number;
-  actual_yield?: number;
-  yield_unit: string;
-  market_price: number;
-  total_expenses: number;
-  status: string;
-  field_location?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
+// frontend/src/services/api.ts
+import type { 
+  Crop, 
+  CreateCropRequest, 
+  UpdateCropRequest, 
+  Expense, 
+  CreateExpenseRequest, 
+  UpdateExpenseRequest, 
+  ApiResponse,
+  Task, 
+  WeatherData, 
+  InventoryItem, 
+  CreateTaskRequest, 
+  CreateInventoryItemRequest, 
+  UseInventoryItemRequest,
+  HarvestReminderResponse,
+  WeatherRecommendationsResponse,
+  ProfitLossReport,
+  ROIAnalysisResponse,
+  
+} from '../types';
+import type {
+  Flock,
+  LivestockExpense,
+  CreateLivestockExpenseRequest,
+  UpdateLivestockExpenseRequest,
+  FlockExpenseSummary,
+  LivestockExpenseReport
+} from '../livestock/types';
+import type {
+  Livestock,
+  CreateLivestockRequest,
+  UpdateLivestockRequest,
+  HealthRecord,
+  BreedingRecord,
+  LivestockStats,
+  HealthAlert,
+    MedicalTreatment,
+  UpdateMedicalTreatmentRequest,
+  ProductionRecord, 
+  FlockFinancialSummary,
+  AnimalFinancialSummary,
+  CreateMedicalTreatmentRequest
+} from '../livestock/types';
 
-export interface CreateCropRequest {
-  name: string;
-  type: string;
-  variety: string;
-  plantingDate: string;
-  expectedHarvestDate?: string;
-  area: number;
-  areaUnit: string;
-  expectedYield: number;
-  yieldUnit: string;
-  marketPrice: number;
-  status: string;
-  fieldLocation?: string;
-  notes?: string;
-}
-
-export interface UpdateCropRequest {
-  name?: string;
-  type?: string;
-  variety?: string;
-  plantingDate?: string;
-  expectedHarvestDate?: string;
-  actualHarvestDate?: string;
-  area?: number;
-  areaUnit?: string;
-  expectedYield?: number;
-  actualYield?: number;
-  yieldUnit?: string;
-  marketPrice?: number;
-  status?: string;
-  fieldLocation?: string;
-  notes?: string;
-}
-
-export interface Expense {
-  id: number;
-  crop_id: number;
-  description: string;
-  category: string;
-  amount: number;
-  date: string;
-  notes?: string;
-  created_at: string;
-}
-
-export interface CreateExpenseRequest {
-  cropId: number;
-  description: string;
-  category: string;
-  amount: number;
-  date: string;
-  notes?: string;
-}
-
-export interface ApiResponse<T> {
-  data: T;
+// Define response format types
+interface RawApiResponse {
+  data?: unknown;
   message?: string;
-  success?: boolean;
-}
-export interface AnalyticsSummary {
-  total_crops?: number;
-  active_crops?: number;
-  total_expenses?: number;
-  projected_revenue?: number;
+  [key: string]: unknown; // Allow other properties like 'crops', 'expenses', etc.
 }
 
-export interface CropDistribution {
-  type: string;
-  count: number;
-  total_area: number;
-}
-
-export interface StatusDistribution {
-  status: string;
-  count: number;
-}
-
-export interface MonthlyExpense {
-  month: string;
-  total_expenses: number;
-  expense_count: number;
-}
-
-export interface AnalyticsData {
-  summary?: AnalyticsSummary;
-  cropDistribution: CropDistribution[];
-  statusDistribution?: StatusDistribution[];
-  monthlyExpenses?: MonthlyExpense[];
-}
-
-export interface FinancialReport {
-  crops: Array<{
-    crop_name: string;
-    crop_type: string;
-    expected_yield: number;
-    market_price: number;
-    projected_revenue: number;
-    total_expenses: number;
-    projected_profit: number;
-    expense_count: number;
-  }>;
-  summary: {
-    total_projected_revenue: number;
-    total_expenses: number;
-    total_projected_profit: number;
-    total_crops: number;
-  };
-}
-
-export interface ProfitLossReport {
-  summary: {
-    totalRevenue: number;
-    totalExpenses: number;
-    netProfit: number;
-    roi: number;
-    soldCropsCount: number;
-    expenseCount: number;
-  };
-  roiByCrop: Array<{
-    name: string;
-    type: string;
-    revenue: number;
-    total_expenses: number;
-    roi_percentage: number;
-  }>;
-  timeframe: {
-    startDate: string;
-    endDate: string;
-  };
-}
-
-export interface ROIAnalysis {
-  period: string;
-  crop_count: number;
-  total_revenue: number;
-  total_expenses: number;
-  avg_roi_percentage: number;
-  avg_net_profit: number;
-}
-
-// Inventory Types
-export interface InventoryItem {
-  id: number;
-  name: string;
-  category: string;
-  quantity: number;
-  unit: string;
-  min_quantity: number;
-  unit_cost?: number;
-  supplier?: string;
-  last_restocked?: string;
-  expiration_date?: string;
-  location?: string;
-  notes?: string;
-  is_low_stock?: boolean;
-  transaction_count?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateInventoryItemRequest {
-  name: string;
-  category: string;
-  quantity: number;
-  unit: string;
-  minQuantity: number;
-  unitCost?: number;
-  supplier?: string;
-  expirationDate?: string;
-  location?: string;
-  notes?: string;
-}
-
-export interface UpdateInventoryItemRequest {
-  name?: string;
-  category?: string;
-  quantity?: number;
-  unit?: string;
-  minQuantity?: number;
-  unitCost?: number;
-  supplier?: string;
-  expirationDate?: string;
-  location?: string;
-  notes?: string;
-}
-
-export interface Flock {
-  id: number;
-  name: string;
-  breed: string;
-  quantity: number;
-  age: number;
-  health_status: string;
-  total_purchase_cost?: number;  // Add this
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateFlockRequest {
-  name: string;
-  breed: string;
-  quantity: number;
-  age: number;
-  health_status: string;
-  total_purchase_cost?: number;
-  notes?: string;
-  // Add these if your form uses them:
-  description?: string;
-  purchase_date?: string;
-}
-
-export interface UpdateFlockRequest {
-  name?: string;
-  breed?: string;
-  quantity?: number;
-  age?: number;
-  health_status?: string;
-  notes?: string;
-  total_purchase_cost?: number;  // Add this line
-}
-
-// Flock API methods
-export const flockApi = {
-  create: async (flockData: CreateFlockRequest): Promise<ApiResponse<Flock>> => {
-    return apiRequest<Flock>('/flocks', {
-      method: 'POST',
-      body: JSON.stringify(flockData),
-    });
-  },
+// Safe environment variable access
+const getApiBaseUrl = (): string => {
+  // Check if process exists and has env (for Node.js/React build process)
+  if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
   
-  getAll: async (): Promise<ApiResponse<Flock[]>> => {
-    return apiRequest<Flock[]>('/flocks');
-  },
-  
-  getById: async (id: number): Promise<ApiResponse<Flock>> => {
-    return apiRequest<Flock>(`/flocks/${id}`);
-  },
-
-  update: async (id: number, flockData: UpdateFlockRequest): Promise<ApiResponse<Flock>> => {
-    return apiRequest<Flock>(`/flocks/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(flockData),
-    });
-  },
-
-  delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return apiRequest<{ message: string }>(`/flocks/${id}`, {
-      method: 'DELETE',
-    });
-  },
-};
-// Reports API methods
-export const reportApi = {
-  getAnalytics: async (startDate?: string, endDate?: string): Promise<ApiResponse<AnalyticsData>> => {
-    const params = new URLSearchParams();
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
-    
-    const queryString = params.toString();
-    const url = queryString ? `/reports/analytics?${queryString}` : '/reports/analytics';
-    
-    return apiRequest<AnalyticsData>(url);
-  },
-
-  getFinancialReport: async (startDate?: string, endDate?: string): Promise<ApiResponse<FinancialReport>> => {
-    const params = new URLSearchParams();
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
-    
-    const queryString = params.toString();
-    const url = queryString ? `/reports/financial?${queryString}` : '/reports/financial';
-    
-    return apiRequest<FinancialReport>(url);
-  },
-
-  getRecentExpenses: async (): Promise<ApiResponse<Expense[]>> => {
-    return apiRequest<Expense[]>('/reports/expenses/recent');
-  },
+  // Fallback for browser environment
+  return 'http://localhost:5000';
 };
 
-// Finance API methods
-export const financeApi = {
-  getProfitLossReport: async (startDate?: string, endDate?: string): Promise<ApiResponse<ProfitLossReport>> => {
-    const params = new URLSearchParams();
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
-    
-    const queryString = params.toString();
-    const url = queryString ? `/finance/profit-loss?${queryString}` : '/finance/profit-loss';
-    
-    return apiRequest<ProfitLossReport>(url);
-  },
+const API_BASE_URL = getApiBaseUrl();
 
-  getROIAnalysis: async (period?: string): Promise<ApiResponse<{ period: string; analysis: ROIAnalysis[] }>> => {
-    const params = new URLSearchParams();
-    if (period) params.append('period', period);
-    
-    const queryString = params.toString();
-    const url = queryString ? `/finance/roi-analysis?${queryString}` : '/finance/roi-analysis';
-    
-    return apiRequest<{ period: string; analysis: ROIAnalysis[] }>(url);
-  },
-};
-export interface LivestockExpense {
-  id: number;
-  flock_id: number;
-  livestock_id?: number;
-  description: string;
-  category: string;
-  amount: number;
-  date: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-export interface CreateLivestockExpenseRequest {
-  flock_id: number;
-  livestock_id?: number;
-  description: string;
-  category: string;
-  amount: number;
-  date: string;
-  notes?: string;
-}
-export interface UpdateLivestockExpenseRequest {
-  flock_id?: number;
-  livestock_id?: number;
-  description?: string;
-  category?: string;
-  amount?: number;
-  date?: string;
-  notes?: string;
-}
-export const livestockExpenseApi = {
-  create: async (expenseData: CreateLivestockExpenseRequest): Promise<ApiResponse<LivestockExpense>> => {
-    return apiRequest<LivestockExpense>('/livestock-expenses', {
-      method: 'POST',
-      body: JSON.stringify(expenseData),
-    });
-  },
+// Get auth headers without circular dependency
+const getAuthHeaders = (): Record<string, string> => {
+  if (typeof window === 'undefined') return {};
   
-  getAll: async (): Promise<ApiResponse<LivestockExpense[]>> => {
-    return apiRequest<LivestockExpense[]>('/livestock-expenses');
-  },
-  
-  getById: async (id: number): Promise<ApiResponse<LivestockExpense>> => {
-    return apiRequest<LivestockExpense>(`/livestock-expenses/${id}`);
-  },
-
-  update: async (id: number, expenseData: UpdateLivestockExpenseRequest): Promise<ApiResponse<LivestockExpense>> => {
-    return apiRequest<LivestockExpense>(`/livestock-expenses/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(expenseData),
-    });
-  },
-
-  delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return apiRequest<{ message: string }>(`/livestock-expenses/${id}`, {
-      method: 'DELETE',
-    });
-  },
-};
-export interface FlockFinancialSummary {
-  flock_id: number;
-  flock_name: string;
-  total_purchase_cost: number;
-  total_expenses: number;
-  total_sales: number;
-  net_profit: number;
-  roi_percentage: number;
-  
-  // Add all the missing fields your component is using:
-  total_production_revenue?: number;
-  total_sale_revenue?: number;
-  total_medical_costs?: number;
-  net_profit_loss?: number;
-  total_animals?: number;
-  sold_animals?: number;
-  active_animals?: number;
-  // Add any other fields your component references
-}
-
-export interface FinancialMetrics {
-  total_flocks: number;
-  total_investment: number;
-  total_revenue: number;
-  total_expenses: number;
-  net_profit: number;
-  average_roi: number;
-}
-// Add these interfaces to your existing types
-export interface Livestock {
-  id: number;
-  flock_id: number;
-  name: string;
-  type: string;
-  breed: string;
-  age: number;
-  weight?: number;
-  health_status: string;
-  status: string;
-  purchase_date?: string;
-  purchase_cost?: number;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-    dateOfBirth?: string;
-
-  // Make other fields optional if they don't exist in API
-  tagId?: string;
-  gender?: string;
-  purchaseDate?: string;
-  purchasePrice?: number;
-  // Add any other optional fields
-}
-
-export interface CreateLivestockRequest {
-  flock_id: number;
-  name: string;
-  type: string;
-  breed: string;
-  age: number;
-  weight?: number;
-  health_status: string;
-  status: string;
-  purchase_date?: string;
-  purchase_cost?: number;
-  notes?: string;
-}
-
-export interface UpdateLivestockRequest {
-  flock_id?: number;
-  name?: string;
-  type?: string;
-  breed?: string;
-  age?: number;
-  weight?: number;
-  health_status?: string;
-  status?: string;
-  purchase_date?: string;
-  purchase_cost?: number;
-  notes?: string;
-}
-export interface AnimalSummary {
-  total_animals: number;
-  active_animals: number;
-  sold_animals: number;
-  total_investment: number;
-  total_revenue: number;
-  average_health_score: number;
-}
-
-// Add livestock API methods
-export const livestockApi = {
-  create: async (livestockData: CreateLivestockRequest): Promise<ApiResponse<Livestock>> => {
-    return apiRequest<Livestock>('/livestock', {
-      method: 'POST',
-      body: JSON.stringify(livestockData),
-    });
-  },
-  
-  getAll: async (): Promise<ApiResponse<Livestock[]>> => {
-    return apiRequest<Livestock[]>('/livestock');
-  },
-  
-  getById: async (id: number): Promise<ApiResponse<Livestock>> => {
-    return apiRequest<Livestock>(`/livestock/${id}`);
-  },
-
-  update: async (id: number, livestockData: UpdateLivestockRequest): Promise<ApiResponse<Livestock>> => {
-    return apiRequest<Livestock>(`/livestock/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(livestockData),
-    });
-  },
-
-  delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return apiRequest<{ message: string }>(`/livestock/${id}`, {
-      method: 'DELETE',
-    });
-  },
-
-  getByFlock: async (flockId: number): Promise<ApiResponse<Livestock[]>> => {
-
-
-    return apiRequest<Livestock[]>(`/livestock/flock/${flockId}`);
-  },
-};
-// Add financial summary API methods
-export const financialSummaryApi = {
-  getFlockSummary: async (flockId?: number): Promise<ApiResponse<FlockFinancialSummary[]>> => {
-    const url = flockId ? `/financial/summary?flockId=${flockId}` : '/financial/summary';
-    return apiRequest<FlockFinancialSummary[]>(url);
-  },
-
-  getFlockMetrics: async (flockId: number): Promise<ApiResponse<any>> => {
-    return apiRequest<any>(`/financial/flock-metrics/${flockId}`);
-  },
-
-  getOverallMetrics: async (): Promise<ApiResponse<FinancialMetrics>> => {
-    return apiRequest<FinancialMetrics>('/financial/overall-metrics');
-  },
-  getAnimalSummary: async (): Promise<ApiResponse<AnimalSummary>> => {
-    return apiRequest<AnimalSummary>('/financial/animal-summary');
-  },
-};
-// Inventory API methods
-export const inventoryApi = {
-  getAll: async (category?: string, lowStock?: boolean): Promise<ApiResponse<InventoryItem[]>> => {
-    const params = new URLSearchParams();
-    if (category) params.append('category', category);
-    if (lowStock) params.append('lowStock', 'true');
+  try {
+    const token = localStorage.getItem('authToken');
     
-    const queryString = params.toString();
-    const url = queryString ? `/inventory?${queryString}` : '/inventory';
+    // Check token expiry
+    const expiry = localStorage.getItem('tokenExpiry');
+    if (expiry && Date.now() >= parseInt(expiry, 10)) {
+      // Token expired, clear it
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('tokenExpiry');
+      localStorage.removeItem('user');
+      return {};
+    }
     
-    return apiRequest<InventoryItem[]>(url);
-  },
-
-  getById: async (id: number): Promise<ApiResponse<InventoryItem>> => {
-    return apiRequest<InventoryItem>(`/inventory/${id}`);
-  },
-
-  create: async (itemData: CreateInventoryItemRequest): Promise<ApiResponse<InventoryItem>> => {
-    return apiRequest<InventoryItem>('/inventory', {
-      method: 'POST',
-      body: JSON.stringify(itemData),
-    });
-  },
-
-  update: async (id: number, itemData: UpdateInventoryItemRequest): Promise<ApiResponse<InventoryItem>> => {
-    return apiRequest<InventoryItem>(`/inventory/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(itemData),
-    });
-  },
-
-  delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return apiRequest<{ message: string }>(`/inventory/${id}`, {
-      method: 'DELETE',
-    });
-  },
-
-  useItem: async (usageData: UseInventoryItemRequest): Promise<ApiResponse<{ remainingQuantity: number; message: string }>> => {
-    return apiRequest<{ remainingQuantity: number; message: string }>('/inventory/use', {
-      method: 'POST',
-      body: JSON.stringify(usageData),
-    });
-  },
-
-  getLowStock: async (): Promise<ApiResponse<InventoryItem[]>> => {
-    return apiRequest<InventoryItem[]>('/inventory/low-stock');
-  },
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+  } catch (error) {
+    console.error('Error getting auth headers:', error);
+    return {};
+  }
 };
-export interface UseInventoryItemRequest {
-  itemId: number;
-  quantityUsed: number;
-  notes?: string;
-}
-// Netlify Functions base URL
-const API_BASE_URL = '/.netlify/functions/api';
 
-// API request helper
+// Handle unauthorized response
+const handleUnauthorized = () => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('tokenExpiry');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  }
+};
+
+// Enhanced API request handler with proper typing
 export const apiRequest = async <T>(url: string, options: RequestInit = {}): Promise<ApiResponse<T>> => {
   const fullUrl = `${API_BASE_URL}${url}`;
   
   const headers = {
     'Content-Type': 'application/json',
+    ...getAuthHeaders(),
     ...options.headers,
   };
 
@@ -599,61 +113,164 @@ export const apiRequest = async <T>(url: string, options: RequestInit = {}): Pro
       ...options,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json() as { error?: string; message?: string };
-      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+    if (response.status === 401) {
+      // Token expired or invalid
+      handleUnauthorized();
+      throw new Error('Authentication required. Please login again.');
     }
 
-    const responseData = await response.json();
-    return responseData as ApiResponse<T>;
+    if (response.status === 403) {
+      throw new Error('Access forbidden. Please check your permissions.');
+    }
+
+    if (!response.ok) {
+      let errorData: { error?: string; message?: string };
+      try {
+        errorData = await response.json() as { error?: string; message?: string };
+      } catch {
+        errorData = { 
+          error: `HTTP ${response.status}: ${response.statusText}`,
+          message: `Request failed: ${fullUrl}`
+        };
+      }
+      
+      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const responseData = await response.json() as RawApiResponse | unknown[];
+    console.log('✅ API Raw Response:', responseData);
+
+    // Handle different response formats with proper typing
+    let finalData: ApiResponse<T>;
+
+    if (Array.isArray(responseData)) {
+      // Backend returns direct array
+      console.log('📦 Backend returns direct array');
+      finalData = { 
+        data: responseData as T, 
+        message: 'Success' 
+      };
+    } else if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+      // Backend returns { data: [], message: '' } format
+      console.log('📦 Backend returns wrapped response');
+      finalData = responseData as ApiResponse<T>;
+    } else if (responseData && typeof responseData === 'object' && 'message' in responseData) {
+      // Backend returns { message: '', crops: [] } or similar
+      console.log('📦 Backend returns custom format');
+      const customResponse = responseData as Record<string, unknown>;
+      
+      // Try to find the data in different property names
+      const dataProperty = Object.keys(customResponse).find(key => 
+        key !== 'message' && Array.isArray(customResponse[key])
+      );
+      
+      if (dataProperty) {
+        finalData = { 
+          data: customResponse[dataProperty] as T, 
+          message: (customResponse.message as string) || 'Success' 
+        };
+      } else {
+        // Single object response
+        finalData = { 
+          data: responseData as T, 
+          message: (customResponse.message as string) || 'Success' 
+        };
+      }
+    } else {
+      // Single object response or unknown format
+      console.log('📦 Backend returns single object or unknown format');
+      finalData = { 
+        data: responseData as T, 
+        message: 'Success' 
+      };
+    }
+
+    console.log('✅ Final processed data:', finalData);
+    return finalData;
 
   } catch (error) {
-    console.error('API Request failed:', error);
+    console.error('❌ API Request failed:', error);
+    
     if (error instanceof Error) {
+      // Handle network errors
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error('Network error. Please check your connection and try again.');
+      }
       throw error;
     }
+    
     throw new Error('Unknown API error occurred');
   }
+};
+
+// Axios instance (optional - you can remove this if not used)
+export const axiosInstance = {
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 };
 
 // Crop API methods
 export const cropApi = {
   create: async (cropData: CreateCropRequest): Promise<ApiResponse<Crop>> => {
-    return apiRequest<Crop>('/crops', {
+    return apiRequest<Crop>('/api/crops', {
       method: 'POST',
       body: JSON.stringify(cropData),
     });
   },
   
   getAll: async (): Promise<ApiResponse<Crop[]>> => {
-    return apiRequest<Crop[]>('/crops');
+    return apiRequest<Crop[]>('/api/crops');
   },
   
   getById: async (id: number): Promise<ApiResponse<Crop>> => {
-    return apiRequest<Crop>(`/crops/${id}`);
+    return apiRequest<Crop>(`/api/crops/${id}`);
   },
 
   update: async (id: number, cropData: UpdateCropRequest): Promise<ApiResponse<Crop>> => {
-    return apiRequest<Crop>(`/crops/${id}`, {
+    return apiRequest<Crop>(`/api/crops/${id}`, {
       method: 'PUT',
       body: JSON.stringify(cropData),
     });
   },
 
   delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return apiRequest<{ message: string }>(`/crops/${id}`, {
+    return apiRequest<{ message: string }>(`/api/crops/${id}`, {
       method: 'DELETE',
     });
   },
 
+  search: async (query: string): Promise<ApiResponse<Crop[]>> => {
+    return apiRequest<Crop[]>(`/api/crops/search?q=${encodeURIComponent(query)}`);
+  },
+
+  getByStatus: async (status: string): Promise<ApiResponse<Crop[]>> => {
+    return apiRequest<Crop[]>(`/api/crops/status/${status}`);
+  },
+
   getExpenses: async (cropId: number): Promise<ApiResponse<Expense[]>> => {
-    return apiRequest<Expense[]>(`/crops/${cropId}/expenses`);
+    return apiRequest<Expense[]>(`/api/crops/${cropId}/expenses`);
   },
 
   addExpense: async (expenseData: CreateExpenseRequest): Promise<ApiResponse<Expense>> => {
-    return apiRequest<Expense>(`/expenses`, {
+    return apiRequest<Expense>(`/api/crops/${expenseData.cropId}/expenses`, {
       method: 'POST',
       body: JSON.stringify(expenseData),
+    });
+  },
+
+  updateExpense: async (id: number, expenseData: UpdateExpenseRequest): Promise<ApiResponse<Expense>> => {
+    return apiRequest<Expense>(`/api/expenses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(expenseData),
+    });
+  },
+
+  deleteExpense: async (id: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiRequest<{ message: string }>(`/api/expenses/${id}`, {
+      method: 'DELETE',
     });
   },
 };
@@ -661,24 +278,434 @@ export const cropApi = {
 // Expense API methods
 export const expenseApi = {
   create: (expense: CreateExpenseRequest): Promise<ApiResponse<Expense>> => {
-    return apiRequest<Expense>('/expenses', {
+    return apiRequest<Expense>('/api/expenses', {
       method: 'POST',
       body: JSON.stringify(expense),
     });
   },
   
   getAll: (): Promise<ApiResponse<Expense[]>> => {
-    return apiRequest<Expense[]>('/expenses');
+    return apiRequest<Expense[]>('/api/expenses');
+  },
+  
+  getRecent: (): Promise<ApiResponse<Expense[]>> => {
+    // Use existing endpoint and filter on frontend
+    return apiRequest<Expense[]>('/api/expenses')
+      .then(response => {
+        // Simulate recent by taking last 5
+        const recent = response.data ? response.data.slice(-5) : [];
+        return { ...response, data: recent };
+      });
+  },
+  
+  getByCropId: (cropId: string): Promise<ApiResponse<Expense[]>> => {
+    return apiRequest<Expense[]>(`/api/expenses?cropId=${cropId}`);
+  },
+  
+  getById: (id: string): Promise<ApiResponse<Expense>> => {
+    return apiRequest<Expense>(`/api/expenses/${id}`);
+  },
+  
+  update: (id: string, expense: Partial<Expense>): Promise<ApiResponse<Expense>> => {
+    return apiRequest<Expense>(`/api/expenses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(expense),
+    });
   },
   
   delete: (id: string): Promise<ApiResponse<{ message: string }>> => {
-    return apiRequest<{ message: string }>(`/expenses/${id}`, {
+    return apiRequest<{ message: string }>(`/api/expenses/${id}`, {
       method: 'DELETE',
     });
   },
 };
 
-// Health check
-export const healthCheck = async (): Promise<ApiResponse<{ status: string; message: string }>> => {
-  return apiRequest<{ status: string; message: string }>('/health');
+// Task API methods
+export const taskApi = {
+  create: (taskData: CreateTaskRequest): Promise<ApiResponse<Task>> => 
+    apiRequest<Task>('/api/tasks', { 
+      method: 'POST', 
+      body: JSON.stringify(taskData) 
+    }),
+  
+  getUpcoming: (days?: number): Promise<ApiResponse<Task[]>> => 
+    apiRequest<Task[]>(`/api/tasks/upcoming?days=${days || 7}`),
+  
+  generateHarvestReminders: (): Promise<ApiResponse<HarvestReminderResponse>> => 
+    apiRequest<HarvestReminderResponse>('/api/tasks/generate-harvest-reminders', { 
+      method: 'POST' 
+    }),
 };
+
+// Weather API methods
+export const weatherApi = {
+  getForecast: (lat: number, lon: number): Promise<ApiResponse<WeatherData>> => 
+    apiRequest<WeatherData>(`/api/weather?lat=${lat}&lon=${lon}`),
+  
+  getRecommendations: (lat: number, lon: number, cropType: string): Promise<ApiResponse<WeatherRecommendationsResponse>> => 
+    apiRequest<WeatherRecommendationsResponse>(`/api/weather/recommendations?lat=${lat}&lon=${lon}&cropType=${cropType}`),
+};
+
+// Inventory API methods
+export const inventoryApi = {
+  getAll: (): Promise<ApiResponse<InventoryItem[]>> => 
+    apiRequest<InventoryItem[]>('/api/inventory'),
+  
+  addItem: (itemData: CreateInventoryItemRequest): Promise<ApiResponse<InventoryItem>> => 
+    apiRequest<InventoryItem>('/api/inventory', { 
+      method: 'POST', 
+      body: JSON.stringify(itemData) 
+    }),
+  
+  useItem: (usageData: UseInventoryItemRequest): Promise<ApiResponse<{ remainingQuantity: number }>> => 
+    apiRequest<{ remainingQuantity: number }>('/api/inventory/use', { 
+      method: 'POST', 
+      body: JSON.stringify(usageData) 
+    }),
+  
+  getLowStock: (): Promise<ApiResponse<InventoryItem[]>> => 
+    apiRequest<InventoryItem[]>('/api/inventory/low-stock'),
+};
+
+// Finance API methods
+export const financeApi = {
+  getProfitLossReport: (startDate?: string, endDate?: string): Promise<ApiResponse<ProfitLossReport>> => 
+    apiRequest<ProfitLossReport>(`/api/finance/profit-loss?${startDate ? `startDate=${startDate}&endDate=${endDate}` : ''}`),
+  
+  getROIAnalysis: (period?: string): Promise<ApiResponse<ROIAnalysisResponse>> => 
+    apiRequest<ROIAnalysisResponse>(`/api/finance/roi-analysis?period=${period || 'monthly'}`),
+};
+
+// Livestock API methods with proper types
+export const livestockApi = {
+  getAll: async (): Promise<ApiResponse<Livestock[]>> => {
+    return apiRequest<Livestock[]>('/api/livestock');
+  },
+
+  getById: async (id: number): Promise<ApiResponse<Livestock>> => {
+    return apiRequest<Livestock>(`/api/livestock/${id}`);
+  },
+
+  create: async (livestockData: CreateLivestockRequest): Promise<ApiResponse<Livestock>> => {
+    return apiRequest<Livestock>('/api/livestock', {
+      method: 'POST',
+      body: JSON.stringify(livestockData),
+    });
+  },
+
+  update: async (id: number, livestockData: UpdateLivestockRequest): Promise<ApiResponse<Livestock>> => {
+    return apiRequest<Livestock>(`/api/livestock/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(livestockData),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiRequest<{ message: string }>(`/api/livestock/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  getHealthRecords: async (livestockId: number): Promise<ApiResponse<HealthRecord[]>> => {
+    return apiRequest<HealthRecord[]>(`/api/livestock/${livestockId}/health-records`);
+  },
+
+  addHealthRecord: async (livestockId: number, record: Omit<HealthRecord, 'id' | 'livestockId' | 'createdAt'>): Promise<ApiResponse<HealthRecord>> => {
+    return apiRequest<HealthRecord>(`/api/livestock/${livestockId}/health-records`, {
+      method: 'POST',
+      body: JSON.stringify(record),
+    });
+  },
+
+  updateHealthRecord: async (recordId: number, recordData: Partial<HealthRecord>): Promise<ApiResponse<HealthRecord>> => {
+    return apiRequest<HealthRecord>(`/api/health-records/${recordId}`, {
+      method: 'PUT',
+      body: JSON.stringify(recordData),
+    });
+  },
+
+  deleteHealthRecord: async (recordId: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiRequest<{ message: string }>(`/api/health-records/${recordId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  getBreedingRecords: async (livestockId: number): Promise<ApiResponse<BreedingRecord[]>> => {
+    return apiRequest<BreedingRecord[]>(`/api/livestock/${livestockId}/breeding-records`);
+  },
+
+  addBreedingRecord: async (livestockId: number, record: Omit<BreedingRecord, 'id' | 'livestockId' | 'createdAt'>): Promise<ApiResponse<BreedingRecord>> => {
+    return apiRequest<BreedingRecord>(`/api/livestock/${livestockId}/breeding-records`, {
+      method: 'POST',
+      body: JSON.stringify(record),
+    });
+  },
+
+  updateBreedingRecord: async (recordId: number, recordData: Partial<BreedingRecord>): Promise<ApiResponse<BreedingRecord>> => {
+    return apiRequest<BreedingRecord>(`/api/breeding-records/${recordId}`, {
+      method: 'PUT',
+      body: JSON.stringify(recordData),
+    });
+  },
+
+  deleteBreedingRecord: async (recordId: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiRequest<{ message: string }>(`/api/breeding-records/${recordId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  getLivestockStats: async (): Promise<ApiResponse<LivestockStats>> => {
+    return apiRequest<LivestockStats>('/api/livestock/analytics/stats');
+  },
+
+  getHealthAlerts: async (): Promise<ApiResponse<HealthAlert[]>> => {
+    return apiRequest<HealthAlert[]>('/api/livestock/analytics/health-alerts');
+  },
+   recordSale: (id: number, saleData: { sale_price: number; sale_date: string; sale_reason?: string }): Promise<ApiResponse<Livestock>> => 
+    apiRequest<Livestock>(`/api/livestock/${id}/sale`, {
+      method: 'POST',
+      body: JSON.stringify(saleData),
+    }),
+
+  updateWeight: (id: number, currentWeight: number): Promise<ApiResponse<Livestock>> => 
+    apiRequest<Livestock>(`/api/livestock/${id}/weight`, {
+      method: 'PUT',
+      body: JSON.stringify({ current_weight: currentWeight }),
+    }),
+
+  getFinancials: (id: number): Promise<ApiResponse<any>> => 
+    apiRequest<any>(`/api/livestock/${id}/financials`),
+};
+export const flockApi = {
+  // Flock management
+  getAll: (): Promise<ApiResponse<Flock[]>> => 
+    apiRequest<Flock[]>('/api/flocks'),
+
+  getById: (id: number): Promise<ApiResponse<Flock>> => 
+    apiRequest<Flock>(`/api/flocks/${id}`),
+
+  create: (flockData: Omit<Flock, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Flock>> => 
+    apiRequest<Flock>('/api/flocks', {
+      method: 'POST',
+      body: JSON.stringify(flockData),
+    }),
+
+  update: (id: number, flockData: Partial<Flock>): Promise<ApiResponse<Flock>> => 
+    apiRequest<Flock>(`/api/flocks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(flockData),
+    }),
+
+  delete: (id: number): Promise<ApiResponse<{ message: string }>> => 
+    apiRequest<{ message: string }>(`/flocks/${id}`, {
+      method: 'DELETE',
+    }),
+
+  getStats: (id: number): Promise<ApiResponse<any>> => 
+    apiRequest<any>(`/api/flocks/${id}/stats`),
+};
+
+export const livestockExpenseApi = {
+  // Expense management
+  getAll: (): Promise<ApiResponse<LivestockExpense[]>> => 
+    apiRequest<LivestockExpense[]>('/api/livestock-expenses'),
+
+  getByFlockId: (flockId: number): Promise<ApiResponse<LivestockExpense[]>> => 
+    apiRequest<LivestockExpense[]>(`/api/livestock-expenses/flock/${flockId}`),
+
+  getById: (id: number): Promise<ApiResponse<LivestockExpense>> => 
+    apiRequest<LivestockExpense>(`/api/livestock-expenses/${id}`),
+
+  create: (expenseData: CreateLivestockExpenseRequest): Promise<ApiResponse<LivestockExpense>> => 
+    apiRequest<LivestockExpense>('/api/livestock-expenses', {
+      method: 'POST',
+      body: JSON.stringify(expenseData),
+    }),
+
+  update: (id: number, expenseData: UpdateLivestockExpenseRequest): Promise<ApiResponse<LivestockExpense>> => 
+    apiRequest<LivestockExpense>(`/api/livestock-expenses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(expenseData),
+    }),
+
+  delete: (id: number): Promise<ApiResponse<{ message: string }>> => 
+    apiRequest<{ message: string }>(`/api/livestock-expenses/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // Reporting
+  getExpenseSummary: (): Promise<ApiResponse<Array<{ category: string; expense_count: number; total_amount: number }>>> => 
+    apiRequest('/api/livestock-expenses/reports/summary'),
+
+  getFlockExpenseSummary: (): Promise<ApiResponse<FlockExpenseSummary[]>> => 
+    apiRequest<FlockExpenseSummary[]>('/api/livestock-expenses/reports/flock-summary'),
+};
+
+// Default export for backward compatibility
+export default {
+  apiRequest,
+  axiosInstance,
+  cropApi,
+  expenseApi,
+  taskApi,
+  weatherApi,
+  inventoryApi,
+  financeApi,
+  livestockApi,
+};
+
+export interface FarmExpense {
+  id: number;
+  expense_type: 'livestock' | 'crop' | 'operational' | 'infrastructure';
+  category: string;
+  subcategory?: string;
+  description: string;
+  amount: number;
+  quantity?: number;
+  unit?: string;
+  unit_price?: number;
+  date: string;
+  payment_method?: string;
+  supplier?: string;
+  receipt_number?: string;
+  notes?: string;
+  
+  // Optional foreign keys
+  crop_id?: number;
+  flock_id?: number;
+  livestock_id?: number;
+  
+  // Joined data
+  crop_name?: string;
+  flock_name?: string;
+  animal_identifier?: string;
+  
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateFarmExpenseRequest {
+  expense_type: 'livestock' | 'crop' | 'operational' | 'infrastructure';
+  category: string;
+  subcategory?: string;
+  description: string;
+  amount: number;
+  quantity?: number;
+  unit?: string;
+  unit_price?: number;
+  date: string;
+  payment_method?: string;
+  supplier?: string;
+  receipt_number?: string;
+  notes?: string;
+  crop_id?: number;
+  flock_id?: number;
+  livestock_id?: number;
+}
+
+export interface ExpenseSummary {
+  total_expenses: number;
+  expenses_by_type: Array<{
+    expense_type: string;
+    total_amount: number;
+    expense_count: number;
+  }>;
+  expenses_by_category: Array<{
+    category: string;
+    subcategory?: string;
+    total_amount: number;
+    expense_count: number;
+  }>;
+  monthly_expenses: Array<{
+    month: string;
+    total_amount: number;
+    expense_count: number;
+  }>;
+}
+
+// Expense categories and subcategories
+export const EXPENSE_CATEGORIES = {
+  livestock: {
+    feed: ['wanda', 'grass', 'straw', 'concentrate', 'minerals', 'other_feed'],
+    labor: ['servant_salary', 'veterinary_labor', 'other_labor'],
+    medical: ['deworming', 'vaccination', 'treatment', 'vitamins', 'other_medical'],
+    equipment: ['feeding_equipment', 'shelter_equipment', 'other_equipment'],
+    other: ['transportation', 'insurance', 'other']
+  },
+  crop: {
+    inputs: ['seeds', 'fertilizer', 'pesticides', 'irrigation', 'other_inputs'],
+    labor: ['planting_labor', 'harvesting_labor', 'other_labor'],
+    equipment: ['tractor', 'tools', 'irrigation_equipment', 'other_equipment'],
+    other: ['transportation', 'storage', 'other']
+  },
+  operational: {
+    utilities: ['electricity', 'water', 'internet', 'other_utilities'],
+    maintenance: ['building_repair', 'equipment_repair', 'vehicle_maintenance', 'other_maintenance'],
+    administration: ['office_supplies', 'communication', 'professional_fees', 'other_administration'],
+    other: ['taxes', 'insurance', 'other']
+  },
+  infrastructure: {
+    construction: ['sheds', 'fences', 'storage_buildings', 'other_construction'],
+    equipment: ['tractors', 'vehicles', 'machinery', 'other_equipment'],
+    land: ['land_purchase', 'land_development', 'other_land'],
+    other: ['planning', 'permits', 'other']
+  }
+};
+
+export const medicalTreatmentApi = {
+  getAll: (): Promise<ApiResponse<MedicalTreatment[]>> => 
+    apiRequest<MedicalTreatment[]>('/api/medical-treatments'),
+
+  getByLivestockId: (livestockId: number): Promise<ApiResponse<MedicalTreatment[]>> => 
+    apiRequest<MedicalTreatment[]>(`/api/medical-treatments/livestock/${livestockId}`),
+
+  getUpcoming: (days?: number): Promise<ApiResponse<MedicalTreatment[]>> => 
+    apiRequest<MedicalTreatment[]>(`/api/medical-treatments/upcoming?days=${days || 30}`),
+
+  create: (treatmentData: CreateMedicalTreatmentRequest): Promise<ApiResponse<MedicalTreatment>> => 
+    apiRequest<MedicalTreatment>('/api/medical-treatments', {
+      method: 'POST',
+      body: JSON.stringify(treatmentData),
+    }),
+
+  update: (id: number, treatmentData: UpdateMedicalTreatmentRequest): Promise<ApiResponse<MedicalTreatment>> => 
+    apiRequest<MedicalTreatment>(`/api/medical-treatments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(treatmentData),
+    }),
+
+  delete: (id: number): Promise<ApiResponse<{ message: string }>> => 
+    apiRequest<{ message: string }>(`/api/medical-treatments/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+export const productionApi = {
+  getAll: (): Promise<ApiResponse<ProductionRecord[]>> => 
+    apiRequest<ProductionRecord[]>('/api/production-records'),
+
+  getByFlockId: (flockId: number): Promise<ApiResponse<ProductionRecord[]>> => 
+    apiRequest<ProductionRecord[]>(`/api/production-records/flock/${flockId}`),
+
+  getSummary: (flockId?: number): Promise<ApiResponse<any>> => 
+    apiRequest<any>(`/api/production-records/summary${flockId ? `?flockId=${flockId}` : ''}`),
+
+  create: (recordData: Omit<ProductionRecord, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<ProductionRecord>> => 
+    apiRequest<ProductionRecord>('/api/production-records', {
+      method: 'POST',
+      body: JSON.stringify(recordData),
+    }),
+};
+
+export const financialSummaryApi = {
+  getFlockSummary: (flockId?: number): Promise<ApiResponse<FlockFinancialSummary[]>> => 
+    apiRequest<FlockFinancialSummary[]>(`/api/financial-summary/flocks${flockId ? `?flockId=${flockId}` : ''}`),
+
+  getAnimalSummary: (animalId?: number): Promise<ApiResponse<AnimalFinancialSummary[]>> => 
+    apiRequest<AnimalFinancialSummary[]>(`/api/financial-summary/animals${animalId ? `?animalId=${animalId}` : ''}`),
+
+  getFlockMetrics: (flockId: number): Promise<ApiResponse<any>> => 
+    apiRequest<any>(`/api/financial-summary/flocks/${flockId}/metrics`),
+};
+
+

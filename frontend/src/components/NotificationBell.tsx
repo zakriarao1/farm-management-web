@@ -20,7 +20,7 @@ import {
   Warning as WarningIcon,
   Info as InfoIcon,
 } from '@mui/icons-material';
-import { notificationService, type Notification } from '../src/services/notificationService';
+import { notificationService, type Notification } from '../services/notificationService';
 
 export const NotificationBell: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);

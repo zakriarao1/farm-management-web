@@ -15,9 +15,9 @@ import {
   Alert,
 } from '@mui/material';
 import { ArrowBack as BackIcon } from '@mui/icons-material';
-import { cropApi } from '../src/services/api';
+import { cropApi } from '../services/api';
 import { ExpenseManager } from './ExpenseManager';
-import type { Crop } from '../src/types';
+import type { Crop } from '../types';
 
 interface TabPanelProps {
   children?: React.ReactNode;

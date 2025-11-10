@@ -13,8 +13,8 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { cropApi } from '../src/services/api';
-import type { UpdateCropRequest, AreaUnit, YieldUnit, CropStatus } from '../src/types';
+import { cropApi } from '../services/api';
+import type { UpdateCropRequest, AreaUnit, YieldUnit, CropStatus } from '../types';
 
 // Extended Crop data with proper typing - using display names as values
 const CROP_DATA = [

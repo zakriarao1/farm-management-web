@@ -1,23 +1,23 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Layout } from '../components/Layout';
-import { Dashboard } from '../components/Dashboard';
-import { CropList } from '../components/CropList';
-import { CropForm } from '../components/CropForm';
-import { CropDetails } from '../components/CropDetails';
-import { EditCropForm } from '../components/EditCropForm';
-import { ErrorBoundary } from '../components/ErrorBoundary';
-import { ReportsDashboard } from '../components/ReportsDashboard';
+import { Layout } from './components/Layout';
+import { Dashboard } from './components/Dashboard';
+import { CropList } from './components/CropList';
+import { CropForm } from './components/CropForm';
+import { CropDetails } from './components/CropDetails';
+import { EditCropForm } from './components/EditCropForm';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { ReportsDashboard } from './components/ReportsDashboard';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LivestockPage } from '../src/livestock/pages/LivestockPage'; // Direct import
 
 // ✅ Import the new authentication components
-import { Login } from '../components/Login';
-import { Register } from '../components/Register';
-import { ProtectedRoute } from '../components/ProtectedRoute';
-import { UserProfile } from '../components/UserProfile';
+import { Login } from './components/Login';
+import { Register } from './components/Register';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { UserProfile } from './components/UserProfile';
 
 const theme = createTheme({
   palette: {

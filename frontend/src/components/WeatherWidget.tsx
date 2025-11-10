@@ -21,8 +21,8 @@ import {
   WbTwilight as ClearIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import { weatherApi } from '../src/services/api';
-import type { WeatherData, WeatherRecommendation } from '../src/types';
+import { weatherApi } from '../services/api';
+import type { WeatherData, WeatherRecommendation } from '../types';
 
 const getDefaultWeatherData = (): WeatherData => ({
   temperature: 0,

@@ -12,8 +12,8 @@ import {
   MenuItem,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { cropApi } from '../src/services/api';
-import type { CreateCropRequest } from '../src/types';
+import { cropApi } from '../services/api';
+import type { CreateCropRequest } from '../types';
 
 // Crop data with names, types, and varieties
 const CROP_DATA = {
@@ -50,17 +50,6 @@ const CROP_DATA = {
     varieties: ['Vidalia', 'Walla Walla', 'Texas Sweet', 'Spanish Yellow', 'Red Burgundy']
   }
 };
-/*
-const CROP_VARIETIES = {
-  wheat: ['Arooj 2022','Subhani 2021','MH 2021', 'Dilkash 2020', 'Akbar 2019', 'Bhakkar Star','Ujala 2016', 'Millat 2011', 'FSD. 08','Other'],
-  rice: ['Basmati', 'Jasmine', 'Brown Rice', 'Sella', 'Long Grain', 'Short Grain'],
-  corn: ['DK-8148', 'DK-8022','DK-6714','DK-6789', 'P4040', 'P30T60', 'Other'],
-  sugarcane: ['CPF-253', 'CPF-250','CPF-252','CP-77-400', 'SL-284','Other'],
-  Bajra: ['Server', 'MB-87', 'Pak Green', 'ICMV-221', 'Hybrid-F1'],
-  tomato: ['Cherry', 'Beefsteak', 'Roma', 'Heirloom', 'Grape Tomato'],
-  onion: ['Yellow Onion', 'Red Onion', 'White Onion', 'Sweet Onion', 'Vidalia']
-};
-*/
 
 export const CropForm: React.FC = () => {
   const navigate = useNavigate();
@@ -85,7 +74,7 @@ export const CropForm: React.FC = () => {
     status: 'PLANNED',
     fieldLocation: '',
     notes: '',
-     actualHarvestDate: '',
+    actualHarvestDate: '',
     actualYield: 0,
   });
 
@@ -126,7 +115,7 @@ export const CropForm: React.FC = () => {
     }));
   };
 
-   const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -163,6 +152,7 @@ export const CropForm: React.FC = () => {
       setLoading(false);
     }
   };
+
   const getCropTypes = () => {
     if (!formData.name) return [];
     const crop = CROP_DATA[formData.name as keyof typeof CROP_DATA];
@@ -295,10 +285,8 @@ export const CropForm: React.FC = () => {
                   value={formData.plantingDate}
                   onChange={handleChange}
                   required
-                  slotProps={{
-                    inputLabel: {
-                      shrink: true,
-                    },
+                  InputLabelProps={{
+                    shrink: true,
                   }}
                 />
                 <TextField
@@ -308,16 +296,14 @@ export const CropForm: React.FC = () => {
                   type="date"
                   value={formData.expectedHarvestDate}
                   onChange={handleChange}
-                  slotProps={{
-                    inputLabel: {
-                      shrink: true,
-                    },
+                  InputLabelProps={{
+                    shrink: true,
                   }}
                 />
               </Box>
 
               {/* Actual Yield Section (Only shown when harvested/sold) */}
-               {showActualYieldFields && (
+              {showActualYieldFields && (
                 <>
                   <Typography variant="h6" gutterBottom color="primary">
                     Harvest Information
@@ -331,10 +317,8 @@ export const CropForm: React.FC = () => {
                       type="date"
                       value={formData.actualHarvestDate || ''}
                       onChange={handleChange}
-                      slotProps={{
-                        inputLabel: {
-                          shrink: true,
-                        },
+                      InputLabelProps={{
+                        shrink: true,
                       }}
                     />
                     <TextField
@@ -344,19 +328,14 @@ export const CropForm: React.FC = () => {
                       type="number"
                       value={formData.actualYield || 0}
                       onChange={handleChange}
-                      slotProps={{
-                        input: {
-                          inputProps: { 
-                            min: "0",
-                            step: "1"
-                          }
-                        }
+                      inputProps={{ 
+                        min: "0",
+                        step: "1"
                       }}
                       helperText="Enter the actual yield after harvest"
                     />
                   </Box>
                 </>
-              
               )}
 
               {/* Area and Expected Yield */}
@@ -372,13 +351,9 @@ export const CropForm: React.FC = () => {
                   type="number"
                   value={formData.area}
                   onChange={handleChange}
-                  slotProps={{
-                    input: {
-                      inputProps: { 
-                        min: "0",
-                        step: "1"
-                      }
-                    }
+                  inputProps={{ 
+                    min: "0",
+                    step: "1"
                   }}
                   required
                 />
@@ -405,13 +380,9 @@ export const CropForm: React.FC = () => {
                   type="number"
                   value={formData.expectedYield}
                   onChange={handleChange}
-                  slotProps={{
-                    input: {
-                      inputProps: { 
-                        min: "0",
-                        step: "1"
-                      }
-                    }
+                  inputProps={{ 
+                    min: "0",
+                    step: "1"
                   }}
                   required
                 />
@@ -451,13 +422,9 @@ export const CropForm: React.FC = () => {
                       type="number"
                       value={formData.marketPrice}
                       onChange={handleChange}
-                      slotProps={{
-                        input: {
-                          inputProps: { 
-                            min: "0",
-                            step: "1"
-                          }
-                        }
+                      inputProps={{ 
+                        min: "0",
+                        step: "1"
                       }}
                       required={isMarketPriceRequired}
                       helperText={isMarketPriceRequired ? "Required when status is Sold" : "Optional"}
@@ -514,3 +481,5 @@ export const CropForm: React.FC = () => {
     </Box>
   );
 };
+
+export default CropForm;

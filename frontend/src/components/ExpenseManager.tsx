@@ -31,8 +31,8 @@ import {
   Delete as DeleteIcon,
   AttachMoney as MoneyIcon,
 } from '@mui/icons-material';
-import { cropApi } from '../src/services/api';
-import type { Expense, CreateExpenseRequest, ExpenseCategory } from '../src/types';
+import { cropApi } from '../services/api';
+import type { Expense, CreateExpenseRequest, ExpenseCategory } from '../types';
 
 interface ExpenseManagerProps {
   cropId: number;
@@ -331,13 +331,9 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                 type="number"
                 value={formData.amount}
                 onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                slotProps={{
-                  input: {
-                    inputProps: { 
-                      min: "0",
-                      step: "1"
-                    }
-                  }
+                inputProps={{ 
+                  min: "0",
+                  step: "1"
                 }}
                 required
               />
@@ -347,10 +343,8 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                slotProps={{
-                  inputLabel: {
-                    shrink: true,
-                  },
+                InputLabelProps={{
+                  shrink: true,
                 }}
                 required
               />
@@ -376,3 +370,5 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     </Box>
   );
 };
+
+export default ExpenseManager;

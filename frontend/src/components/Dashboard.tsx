@@ -20,8 +20,8 @@ import {
   PieChart as ChartIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { cropApi, expenseApi } from '../src/services/api';
-import type { Crop, Expense } from '../src/types';
+import { cropApi, expenseApi } from '../services/api';
+import type { Crop, Expense } from '../types';
 import { TaskDashboard } from './TaskDashboard';
 import { InventoryManager } from './InventoryManager';
 import { WeatherWidget } from './WeatherWidget';

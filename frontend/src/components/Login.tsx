@@ -12,17 +12,15 @@ import {
 } from '@mui/material';
 import { Agriculture } from '@mui/icons-material';
 import { useNavigate, Link } from 'react-router-dom';
-import { authService } from '../src/services/authService';
+import { authService } from '../services/authService';
 
-export const Register: React.FC = () => {
+export const Login: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
     password: '',
-    confirmPassword: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,17 +28,11 @@ export const Register: React.FC = () => {
     setLoading(true);
     setError('');
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
     try {
-      await authService.register(formData.name, formData.email, formData.password);
+      await authService.login(formData.email, formData.password);
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -69,10 +61,10 @@ export const Register: React.FC = () => {
           <Box sx={{ textAlign: 'center', mb: 4 }}>
             <Agriculture sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
             <Typography component="h1" variant="h4" fontWeight="bold">
-              Create Account
+              Farm Management
             </Typography>
             <Typography variant="subtitle1" color="text.secondary">
-              Join Farm Management System
+              Sign in to your account
             </Typography>
           </Box>
 
@@ -85,16 +77,6 @@ export const Register: React.FC = () => {
               )}
 
               <form onSubmit={handleSubmit}>
-                <TextField
-                  fullWidth
-                  label="Full Name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  margin="normal"
-                  autoComplete="name"
-                />
                 <TextField
                   fullWidth
                   label="Email Address"
@@ -115,18 +97,7 @@ export const Register: React.FC = () => {
                   onChange={handleChange}
                   required
                   margin="normal"
-                  autoComplete="new-password"
-                />
-                <TextField
-                  fullWidth
-                  label="Confirm Password"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  margin="normal"
-                  autoComplete="new-password"
+                  autoComplete="current-password"
                 />
                 <Button
                   type="submit"
@@ -136,13 +107,13 @@ export const Register: React.FC = () => {
                   disabled={loading}
                   sx={{ mt: 3, mb: 2 }}
                 >
-                  {loading ? 'Creating Account...' : 'Create Account'}
+                  {loading ? 'Signing in...' : 'Sign In'}
                 </Button>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="body2" color="text.secondary">
-                    Already have an account?{' '}
-                    <Link to="/login" style={{ color: '#2e7d32', textDecoration: 'none' }}>
-                      Sign in
+                    Don't have an account?{' '}
+                    <Link to="/register" style={{ color: '#2e7d32', textDecoration: 'none' }}>
+                      Sign up
                     </Link>
                   </Typography>
                 </Box>

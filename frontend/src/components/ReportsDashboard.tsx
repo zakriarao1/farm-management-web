@@ -29,8 +29,8 @@ import { CropPerformanceReport } from './CropPerformanceReport';
 import { EmailReportDialog } from './EmailReportDialog';
 import { DateRangeFilter } from './DateRangeFilter';
 import { ComparativeAnalysis } from './ComparativeAnalysis';
-import { useRealTimeData } from '../src/hooks/useRealTimeData';
-import { exportToPDF, exportToCSV, exportToExcel } from '../src/utils/exportUtils';
+import { useRealTimeData } from '../hooks/useRealTimeData';
+import { exportToPDF, exportToCSV, exportToExcel } from '../utils/exportUtils';
 
 interface TabPanelProps {
   children?: React.ReactNode;

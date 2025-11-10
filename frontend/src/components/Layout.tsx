@@ -29,7 +29,7 @@ import {
   Pets as LivestockIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { authService } from '../src/services/authService';
+import { authService } from '../services/authService';
 import { NotificationBell } from './NotificationBell';
 
 const drawerWidth = 240;

@@ -4,7 +4,7 @@ import React from 'react';
 import { Box, Typography, Card, CardContent } from '@mui/material';
 import { PieChart } from './ReportCharts/PieChart';
 import { BarChart } from './ReportCharts/BarChart';
-import type { AnalyticsData } from '../src/services/reportApi';
+import type { AnalyticsData } from '../services/reportApi';
 
 interface AnalyticsReportProps {
   data: AnalyticsData | null;

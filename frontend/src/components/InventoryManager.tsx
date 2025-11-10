@@ -19,8 +19,8 @@ import {
   Paper,
 } from '@mui/material';
 import { Add as AddIcon, Warning as WarningIcon, Inventory as InventoryIcon } from '@mui/icons-material';
-import { inventoryApi } from '../src/services/api';
-import type { InventoryItem } from '../src/types';
+import { inventoryApi } from '../services/api';
+import type { InventoryItem } from '../types';
 
 export const InventoryManager: React.FC = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);

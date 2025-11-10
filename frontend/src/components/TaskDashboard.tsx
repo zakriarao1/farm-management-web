@@ -14,8 +14,8 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { Add as AddIcon, Notifications as NotificationsIcon } from '@mui/icons-material';
-import { taskApi } from '../src/services/api';
-import type { Task } from '../src/types';
+import { taskApi } from '../services/api';
+import type { Task } from '../types';
 
 export const TaskDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);

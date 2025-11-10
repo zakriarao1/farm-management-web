@@ -1,4 +1,4 @@
-// frontend/src/components/CropLlist.tsx
+// frontend/src/components/CropList.tsx
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -24,8 +24,8 @@ import {
   Visibility as ViewIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { cropApi } from '../src/services/api';
-import type { Crop, CropStatus, StatusCounts } from '../src/types';
+import { cropApi } from '../services/api';
+import type { Crop, CropStatus, StatusCounts } from '../types';
 
 export const CropList: React.FC = () => {
   const navigate = useNavigate();
@@ -164,14 +164,12 @@ export const CropList: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                },
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
               }}
             />
             <Button
@@ -310,3 +308,5 @@ export const CropList: React.FC = () => {
     </Box>
   );
 };
+
+export default CropList;

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Box } from '@mui/material';
-import { useMobile } from '../../src/hooks/useMobile';
+import { useMobile } from '../../hooks/useMobile';
 
 interface ResponsiveChartContainerProps {
   children: React.ReactNode;

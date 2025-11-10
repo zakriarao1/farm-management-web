@@ -20,8 +20,8 @@ import {
   Chip,
 } from '@mui/material';
 import { Delete as DeleteIcon } from '@mui/icons-material';
-import { expenseApi } from '../src/services/api';
-import type { Expense, ExpenseCategory, CreateExpenseRequest } from '../src/types';
+import { expenseApi } from '../services/api';
+import type { Expense, ExpenseCategory, CreateExpenseRequest } from '../types';
 
 // Expense category options for the dropdown
 const EXPENSE_CATEGORIES = {
@@ -197,7 +197,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                   onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
                   required
                   sx={{ flex: '1 1 200px' }}
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  InputLabelProps={{ shrink: true }}
                 />
                 <TextField
                   label="Category"
@@ -234,7 +234,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                     quantity: parseFloat(e.target.value) || 0 
                   }))}
                   sx={{ flex: '1 1 150px' }}
-                  slotProps={{ input: { inputProps: { min: 0, step: 0.01 } } }}
+                  inputProps={{ min: 0, step: 0.01 }}
                 />
                 <TextField
                   label="Unit"
@@ -256,7 +256,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                     }));
                   }}
                   sx={{ flex: '1 1 150px' }}
-                  slotProps={{ input: { inputProps: { min: 0, step: 0.01 } } }}
+                  inputProps={{ min: 0, step: 0.01 }}
                 />
                 <TextField
                   label="Total Amount ($)"
@@ -268,7 +268,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                   }))}
                   required
                   sx={{ flex: '1 1 150px' }}
-                  slotProps={{ input: { inputProps: { min: 0, step: 0.01 } } }}
+                  inputProps={{ min: 0, step: 0.01 }}
                 />
               </Box>
 
@@ -404,3 +404,5 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
     </Box>
   );
 };
+
+export default ExpenseTracker;

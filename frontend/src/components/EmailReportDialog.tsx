@@ -14,9 +14,10 @@ import {
   Box,
   Typography,
   Alert,
+  InputAdornment,
 } from '@mui/material';
-import { EmailService, type EmailReportRequest } from '../src/services/emailService';
-import { type AnalyticsData } from '../src/services/reportApi';
+import { EmailService, type EmailReportRequest } from '../services/emailService';
+import { type AnalyticsData } from '../services/reportApi';
 
 interface EmailReportDialogProps {
   open: boolean;
@@ -54,44 +55,44 @@ export const EmailReportDialog: React.FC<EmailReportDialogProps> = ({
     return emailRegex.test(email);
   };
 
- // In EmailReportDialog.tsx, update the handleSendReport function:
-const handleSendReport = async () => {
-  if (emails.length === 0) {
-    setError('Please add at least one email address');
-    return;
-  }
+  const handleSendReport = async () => {
+    if (emails.length === 0) {
+      setError('Please add at least one email address');
+      return;
+    }
 
-  if (!reportData) {
-    setError('No report data available');
-    return;
-  }
+    if (!reportData) {
+      setError('No report data available');
+      return;
+    }
 
-  setLoading(true);
-  setError('');
+    setLoading(true);
+    setError('');
 
-  try {
-    const emailRequest: EmailReportRequest = { // Changed from EmailRequest to EmailReportRequest
-      to: emails,
-      subject: `Farm ${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report - ${new Date().toLocaleDateString()}`,
-      message: `Please find the attached ${reportType} report generated on ${new Date().toLocaleDateString()}.`,
-      reportType,
-      includeCharts,
-      reportData,
-    };
+    try {
+      const emailRequest: EmailReportRequest = {
+        to: emails,
+        subject: `Farm ${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report - ${new Date().toLocaleDateString()}`,
+        message: `Please find the attached ${reportType} report generated on ${new Date().toLocaleDateString()}.`,
+        reportType,
+        includeCharts,
+        reportData,
+      };
 
-    await EmailService.sendReport(emailRequest);
-    setSuccess(true);
-    setTimeout(() => {
-      onClose();
-      setSuccess(false);
-      setEmails([]);
-    }, 2000);
-  } catch (err) {
-    setError('Failed to send email report');
-  } finally {
-    setLoading(false);
-  }
-};
+      await EmailService.sendReport(emailRequest);
+      setSuccess(true);
+      setTimeout(() => {
+        onClose();
+        setSuccess(false);
+        setEmails([]);
+      }, 2000);
+    } catch (err) {
+      setError('Failed to send email report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Email Report</DialogTitle>
@@ -111,14 +112,14 @@ const handleSendReport = async () => {
             onKeyPress={(e) => e.key === 'Enter' && handleAddEmail()}
             fullWidth
             size="small"
-            slotProps={{
-              input: {
-                endAdornment: (
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
                   <Button onClick={handleAddEmail} disabled={!validateEmail(currentEmail)}>
                     Add
                   </Button>
-                ),
-              },
+                </InputAdornment>
+              ),
             }}
           />
           
@@ -161,3 +162,5 @@ const handleSendReport = async () => {
     </Dialog>
   );
 };
+
+export default EmailReportDialog;

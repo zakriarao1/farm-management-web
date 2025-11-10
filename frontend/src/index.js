@@ -1,13 +1,11 @@
-import './index.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.jsx';
+import './index.css';
+import App from './App';
 
-// Wait a bit for DOM to be fully ready
-setTimeout(() => {
-  const rootElement = document.getElementById('root');
-  if (rootElement) {
-    const root = ReactDOM.createRoot(rootElement);
-    root.render(<App />);
-  }
-}, 50);
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
