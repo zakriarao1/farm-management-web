@@ -7,14 +7,27 @@ import type {
   MilkProduction,
   CreateLivestockRequest,
   UpdateLivestockRequest,
-  LivestockStats,
-  HealthAlert,
   Flock,
-  FlockFinancialSummary
+  FlockFinancialSummary,
+  LivestockExpense,
+  CreateLivestockExpenseRequest,
+  UpdateLivestockExpenseRequest,
+  FlockExpenseSummary,
+  MedicalTreatment,
+  CreateMedicalTreatmentRequest,
+  UpdateMedicalTreatmentRequest,
+  ProductionRecord,
+  UpdateHealthRecordRequest
 } from '../types';
 import { salesApi } from './salesApi';
 
-const API_BASE_URL = 'http://localhost:5000';
+const getApiBaseUrl = (): string => {
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:8888/.netlify/functions';
+  }
+  return '/.netlify/functions';
+};
+const API_BASE_URL = getApiBaseUrl();
 
 interface ApiResponse<T> {
   data: T;
@@ -70,45 +83,27 @@ export const livestockApiRequest = async <T>(url: string, options: RequestInit =
   }
 };
 
-const transformLivestockData = (data: any): Livestock => ({
-  id: data.id,
-  tagId: data.tag_id,
-  type: data.type as Livestock['type'],
-  breed: data.breed,
-  gender: data.gender as Livestock['gender'],
-  dateOfBirth: data.date_of_birth,
-  purchaseDate: data.purchase_date,
-  purchasePrice: data.purchase_price,
-  weight: data.weight,
-  status: data.status as Livestock['status'],
-  location: data.location,
-  notes: data.notes,
-  created_at: data.created_at, // Use snake_case to match interface
-  updated_at: data.updated_at, // Use snake_case to match interface
-  // Use tag_id as identifier if identifier doesn't exist
-  identifier: data.identifier || data.tag_id,
-  species: data.species || data.type,
-  flock_name: data.flock_name,
-  flock_id: data.flock_id
-});
-
-const transformToSnakeCase = (data: any): any => ({
-  tag_id: data.tagId,
-  type: data.type,
-  breed: data.breed,
-  gender: data.gender,
-  date_of_birth: data.dateOfBirth,
-  purchase_date: data.purchaseDate,
-  purchase_price: data.purchasePrice,
-  weight: data.weight,
-  status: data.status,
-  location: data.location,
-  notes: data.notes,
-  // Include the additional properties if they exist
-  ...(data.identifier && { identifier: data.identifier }),
-  ...(data.species && { species: data.species }),
-  ...(data.flock_name && { flock_name: data.flock_name })
-});
+// Transformation function for livestock data (handles both old and new field names during transition)
+const transformLivestockData = (data: any): Livestock => {
+  return {
+    id: data.id,
+    tag_number: data.tag_number || data.tagId || '',
+    animal_type: data.animal_type || data.type || 'OTHER',
+    breed: data.breed || '',
+    gender: data.gender || 'UNKNOWN',
+    date_of_birth: data.date_of_birth || data.dateOfBirth,
+    purchase_date: data.purchase_date || data.purchaseDate,
+    purchase_price: data.purchase_price || data.purchasePrice || 0,
+    current_weight: data.current_weight || data.weight || 0,
+    status: data.status || 'HEALTHY',
+    location: data.location || '',
+    notes: data.notes || '',
+    flock_id: data.flock_id,
+    created_at: data.created_at,
+    updated_at: data.updated_at,
+    flock_name: data.flock_name
+  };
+};
 
 const transformFinancialData = (data: any): any => {
   if (!data) return data;
@@ -130,9 +125,10 @@ const transformFinancialData = (data: any): any => {
   
   return transformed;
 };
-export type CreateHealthRecordRequest = Omit<HealthRecord, "id" | "livestockId" | "created_at" | "updated_at">;
 
-// Add to your api.ts file
+export type CreateHealthRecordRequest = Omit<HealthRecord, "id" | "livestock_id" | "created_at" | "updated_at">;
+
+// Utility function for safe number conversion
 export const safeNumber = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
   const num = Number(value);
@@ -142,7 +138,7 @@ export const safeNumber = (value: any): number => {
 // Financial Summary API
 export const financialSummaryApi = {
   getFlockSummary: async (flockId?: number): Promise<ApiResponse<FlockFinancialSummary[]>> => {
-    const response = await livestockApiRequest<any[]>(`/api/financial-summary/flocks${flockId ? `?flockId=${flockId}` : ''}`);
+    const response = await livestockApiRequest<any[]>(`/financial-summary/flocks${flockId ? `?flockId=${flockId}` : ''}`);
     return {
       ...response,
       data: response.data?.map(transformFinancialData) || []
@@ -150,7 +146,7 @@ export const financialSummaryApi = {
   },
 
   getAnimalSummary: async (animalId?: number): Promise<ApiResponse<any[]>> => {
-    const response = await livestockApiRequest<any[]>(`/api/financial-summary/animals${animalId ? `?animalId=${animalId}` : ''}`);
+    const response = await livestockApiRequest<any[]>(`/financial-summary/animals${animalId ? `?animalId=${animalId}` : ''}`);
     return {
       ...response,
       data: response.data?.map(transformFinancialData) || []
@@ -158,7 +154,7 @@ export const financialSummaryApi = {
   },
 
   getFlockMetrics: async (flockId: number): Promise<ApiResponse<any>> => {
-    return livestockApiRequest<any>(`/api/financial-summary/flocks/${flockId}/metrics`);
+    return livestockApiRequest<any>(`/financial-summary/flocks/${flockId}/metrics`);
   },
 };
 
@@ -166,7 +162,7 @@ export const financialSummaryApi = {
 export const livestockApi = {
   // Livestock CRUD
   getAll: async (): Promise<ApiResponse<Livestock[]>> => {
-    const response = await livestockApiRequest<any[]>('/api/livestock');
+    const response = await livestockApiRequest<any[]>('/livestock');
     return {
       ...response,
       data: response.data?.map(transformLivestockData) || []
@@ -174,7 +170,7 @@ export const livestockApi = {
   },
 
   getById: async (id: number): Promise<ApiResponse<Livestock>> => {
-    const response = await livestockApiRequest<any>(`/api/livestock/${id}`);
+    const response = await livestockApiRequest<any>(`/livestock/${id}`);
     return {
       ...response,
       data: transformLivestockData(response.data)
@@ -182,10 +178,10 @@ export const livestockApi = {
   },
 
   create: async (livestockData: CreateLivestockRequest): Promise<ApiResponse<Livestock>> => {
-    const snakeCaseData = transformToSnakeCase(livestockData);
-    const response = await livestockApiRequest<any>('/api/livestock', {
+    // No transformation needed - data is already in correct format
+    const response = await livestockApiRequest<any>('/livestock', {
       method: 'POST',
-      body: JSON.stringify(snakeCaseData),
+      body: JSON.stringify(livestockData),
     });
     return {
       ...response,
@@ -194,10 +190,10 @@ export const livestockApi = {
   },
 
   update: async (id: number, livestockData: UpdateLivestockRequest): Promise<ApiResponse<Livestock>> => {
-    const snakeCaseData = transformToSnakeCase(livestockData);
-    const response = await livestockApiRequest<any>(`/api/livestock/${id}`, {
+    // No transformation needed - data is already in correct format
+    const response = await livestockApiRequest<any>(`/livestock/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(snakeCaseData),
+      body: JSON.stringify(livestockData),
     });
     return {
       ...response,
@@ -206,97 +202,105 @@ export const livestockApi = {
   },
 
   delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return livestockApiRequest<{ message: string }>(`/api/livestock/${id}`, {
+    return livestockApiRequest<{ message: string }>(`/livestock/${id}`, {
       method: 'DELETE',
     });
   },
 
   // Sale recording (individual animal sale)
   recordSale: async (id: number, saleData: { sale_price: number; sale_date: string; sale_reason?: string }): Promise<ApiResponse<Livestock>> => {
-  const response = await livestockApiRequest<any>(`/api/livestock/${id}/sale`, {
-    method: 'POST',
-    body: JSON.stringify(saleData),
-  });
-  return {
-    ...response,
-    data: transformLivestockData(response.data)
-  };
-},
+    const response = await livestockApiRequest<any>(`/livestock/${id}/sale`, {
+      method: 'POST',
+      body: JSON.stringify(saleData),
+    });
+    return {
+      ...response,
+      data: transformLivestockData(response.data)
+    };
+  },
 
   // Health Records
   getHealthRecords: async (livestockId: number): Promise<ApiResponse<HealthRecord[]>> => {
-    return livestockApiRequest<HealthRecord[]>(`/api/livestock/${livestockId}/health-records`);
+    const response = await livestockApiRequest<any[]>(`/livestock/${livestockId}/health-records`);
+    return {
+      ...response,
+      data: response.data || []
+    };
   },
 
-  addHealthRecord: async (livestockId: number, record: Omit<HealthRecord, 'id' | 'livestockId' | 'created_at'>): Promise<ApiResponse<HealthRecord>> => {
-    return livestockApiRequest<HealthRecord>(`/api/livestock/${livestockId}/health-records`, {
+  addHealthRecord: async (livestockId: number, record: CreateHealthRecordRequest): Promise<ApiResponse<HealthRecord>> => {
+    const response = await livestockApiRequest<HealthRecord>(`/livestock/${livestockId}/health-records`, {
       method: 'POST',
       body: JSON.stringify(record),
     });
+    return response;
   },
 
   updateHealthRecord: async (recordId: number, recordData: Partial<HealthRecord>): Promise<ApiResponse<HealthRecord>> => {
-    return livestockApiRequest<HealthRecord>(`/api/health-records/${recordId}`, {
+    const response = await livestockApiRequest<HealthRecord>(`/health-records/${recordId}`, {
       method: 'PUT',
       body: JSON.stringify(recordData),
     });
+    return response;
   },
 
   deleteHealthRecord: async (recordId: number): Promise<ApiResponse<{ message: string }>> => {
-    return livestockApiRequest<{ message: string }>(`/api/health-records/${recordId}`, {
+    return livestockApiRequest<{ message: string }>(`/health-records/${recordId}`, {
       method: 'DELETE',
     });
   },
 
   // Breeding Records
   getBreedingRecords: async (livestockId: number): Promise<ApiResponse<BreedingRecord[]>> => {
-    return livestockApiRequest<BreedingRecord[]>(`/api/livestock/${livestockId}/breeding-records`);
+    const response = await livestockApiRequest<any[]>(`/livestock/${livestockId}/breeding-records`);
+    return {
+      ...response,
+      data: response.data || []
+    };
   },
 
-  addBreedingRecord: async (livestockId: number, record: Omit<BreedingRecord, 'id' | 'livestockId' | 'created_at'>): Promise<ApiResponse<BreedingRecord>> => {
-    return livestockApiRequest<BreedingRecord>(`/api/livestock/${livestockId}/breeding-records`, {
+  addBreedingRecord: async (livestockId: number, record: Omit<BreedingRecord, 'id' | 'livestock_id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<BreedingRecord>> => {
+    const response = await livestockApiRequest<BreedingRecord>(`/livestock/${livestockId}/breeding-records`, {
       method: 'POST',
       body: JSON.stringify(record),
     });
+    return response;
   },
 
   updateBreedingRecord: async (recordId: number, recordData: Partial<BreedingRecord>): Promise<ApiResponse<BreedingRecord>> => {
-    return livestockApiRequest<BreedingRecord>(`/api/breeding-records/${recordId}`, {
+    const response = await livestockApiRequest<BreedingRecord>(`/breeding-records/${recordId}`, {
       method: 'PUT',
       body: JSON.stringify(recordData),
     });
+    return response;
   },
 
   deleteBreedingRecord: async (recordId: number): Promise<ApiResponse<{ message: string }>> => {
-    return livestockApiRequest<{ message: string }>(`/api/breeding-records/${recordId}`, {
+    return livestockApiRequest<{ message: string }>(`/breeding-records/${recordId}`, {
       method: 'DELETE',
     });
   },
 
   // Milk Production Records
   getMilkProductions: async (livestockId: number): Promise<ApiResponse<MilkProduction[]>> => {
-    return livestockApiRequest<MilkProduction[]>(`/api/livestock/${livestockId}/milk-productions`);
+    const response = await livestockApiRequest<any[]>(`/livestock/${livestockId}/milk-productions`);
+    return {
+      ...response,
+      data: response.data || []
+    };
   },
 
-  addMilkProduction: async (livestockId: number, record: Omit<MilkProduction, 'id' | 'livestockId' | 'created_at'>): Promise<ApiResponse<MilkProduction>> => {
-    return livestockApiRequest<MilkProduction>(`/api/livestock/${livestockId}/milk-productions`, {
+  addMilkProduction: async (livestockId: number, record: Omit<MilkProduction, 'id' | 'livestock_id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<MilkProduction>> => {
+    const response = await livestockApiRequest<MilkProduction>(`/livestock/${livestockId}/milk-productions`, {
       method: 'POST',
       body: JSON.stringify(record),
     });
-  },
-
-  // Analytics
-  getLivestockStats: async (): Promise<ApiResponse<LivestockStats>> => {
-    return livestockApiRequest<LivestockStats>('/api/livestock/analytics/stats');
-  },
-
-  getHealthAlerts: async (): Promise<ApiResponse<HealthAlert[]>> => {
-    return livestockApiRequest<HealthAlert[]>('/api/livestock/analytics/health-alerts');
+    return response;
   },
 
   // Search and filter
   searchLivestock: async (query: string): Promise<ApiResponse<Livestock[]>> => {
-    const response = await livestockApiRequest<any[]>(`/api/livestock/search?q=${encodeURIComponent(query)}`);
+    const response = await livestockApiRequest<any[]>(`/livestock/search?q=${encodeURIComponent(query)}`);
     return {
       ...response,
       data: response.data?.map(transformLivestockData) || []
@@ -304,7 +308,7 @@ export const livestockApi = {
   },
 
   getByStatus: async (status: string): Promise<ApiResponse<Livestock[]>> => {
-    const response = await livestockApiRequest<any[]>(`/api/livestock/status/${status}`);
+    const response = await livestockApiRequest<any[]>(`/livestock/status/${status}`);
     return {
       ...response,
       data: response.data?.map(transformLivestockData) || []
@@ -312,7 +316,7 @@ export const livestockApi = {
   },
 
   getByFlock: async (flockId: number): Promise<ApiResponse<Livestock[]>> => {
-    const response = await livestockApiRequest<any[]>(`/api/livestock/flock/${flockId}`);
+    const response = await livestockApiRequest<any[]>(`/livestock/flock/${flockId}`);
     return {
       ...response,
       data: response.data?.map(transformLivestockData) || []
@@ -320,24 +324,28 @@ export const livestockApi = {
   }
 };
 
+// Flock API (unchanged)
 export const flockApi = {
   getAll: async (): Promise<ApiResponse<Flock[]>> => {
     console.log('🔄 Fetching flocks from API...');
-    const response = await livestockApiRequest<any[]>('/api/flocks');
+    const response = await livestockApiRequest<any[]>('/flocks');
     console.log('📦 Raw flocks API response:', response);
     
-    // Transform the data to match Flock interface
     const transformedData = response.data?.map(flock => ({
       id: flock.id,
       name: flock.name,
-      description: flock.description,
+      animal_type: flock.animal_type || flock.breed || 'OTHER',
+      breed: flock.breed,
+      total_animals: flock.total_animals || flock.quantity || 0,
+      current_animals: flock.current_animals || flock.quantity || 0,
       purchase_date: flock.purchase_date,
-      total_purchase_cost: flock.total_purchase_cost,
+      purchase_price: flock.purchase_price || flock.total_purchase_cost,
+      health_status: flock.health_status,
+      age: flock.age,
+      description: flock.description,
       created_at: flock.created_at,
       updated_at: flock.updated_at
     })) || [];
-    
-    console.log('🔄 Transformed flocks data:', transformedData);
     
     return {
       ...response,
@@ -346,15 +354,21 @@ export const flockApi = {
   },
 
   getById: async (id: number): Promise<ApiResponse<Flock>> => {
-    const response = await livestockApiRequest<any>(`/api/flocks/${id}`);
+    const response = await livestockApiRequest<any>(`/flocks/${id}`);
     return {
       ...response,
       data: {
         id: response.data.id,
         name: response.data.name,
-        description: response.data.description,
+        animal_type: response.data.animal_type || response.data.breed || 'OTHER',
+        breed: response.data.breed,
+        total_animals: response.data.total_animals || response.data.quantity || 0,
+        current_animals: response.data.current_animals || response.data.quantity || 0,
         purchase_date: response.data.purchase_date,
-        total_purchase_cost: response.data.total_purchase_cost,
+        purchase_price: response.data.purchase_price || response.data.total_purchase_cost,
+        health_status: response.data.health_status,
+        age: response.data.age,
+        description: response.data.description,
         created_at: response.data.created_at,
         updated_at: response.data.updated_at
       } as Flock
@@ -362,7 +376,7 @@ export const flockApi = {
   },
 
   create: async (flockData: Omit<Flock, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Flock>> => {
-    const response = await livestockApiRequest<any>('/api/flocks', {
+    const response = await livestockApiRequest<any>('/flocks', {
       method: 'POST',
       body: JSON.stringify(flockData),
     });
@@ -373,7 +387,7 @@ export const flockApi = {
   },
 
   update: async (id: number, flockData: Partial<Flock>): Promise<ApiResponse<Flock>> => {
-    const response = await livestockApiRequest<any>(`/api/flocks/${id}`, {
+    const response = await livestockApiRequest<any>(`/flocks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(flockData),
     });
@@ -384,116 +398,125 @@ export const flockApi = {
   },
 
   delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return livestockApiRequest<{ message: string }>(`/api/flocks/${id}`, {
+    return livestockApiRequest<{ message: string }>(`/flocks/${id}`, {
       method: 'DELETE',
     });
   },
 
   getStats: async (id: number): Promise<ApiResponse<any>> => {
-    return livestockApiRequest<any>(`/api/flocks/${id}/stats`);
+    return livestockApiRequest<any>(`/flocks/${id}/stats`);
   }
 };
 
-// Additional livestock expense API
+// Other APIs remain unchanged...
 export const livestockExpenseApi = {
-  getAll: async (): Promise<ApiResponse<any[]>> => {
-    return livestockApiRequest<any[]>('/api/livestock-expenses');
-  },
+  getAll: (): Promise<ApiResponse<LivestockExpense[]>> => 
+    livestockApiRequest<LivestockExpense[]>('/livestock-expenses'),
 
-  getByFlockId: async (flockId: number): Promise<ApiResponse<any[]>> => {
-    return livestockApiRequest<any[]>(`/api/livestock-expenses/flock/${flockId}`);
-  },
+  getByFlockId: (flockId: number): Promise<ApiResponse<LivestockExpense[]>> => 
+    livestockApiRequest<LivestockExpense[]>(`/livestock-expenses/flock/${flockId}`),
 
-  getById: async (id: number): Promise<ApiResponse<any>> => {
-    return livestockApiRequest<any>(`/api/livestock-expenses/${id}`);
-  },
+  getById: (id: number): Promise<ApiResponse<LivestockExpense>> => 
+    livestockApiRequest<LivestockExpense>(`/livestock-expenses/${id}`),
 
-  create: async (expenseData: any): Promise<ApiResponse<any>> => {
-    return livestockApiRequest<any>('/api/livestock-expenses', {
+  create: (expenseData: CreateLivestockExpenseRequest): Promise<ApiResponse<LivestockExpense>> => 
+    livestockApiRequest<LivestockExpense>('/livestock-expenses', {
       method: 'POST',
       body: JSON.stringify(expenseData),
-    });
-  },
+    }),
 
-  update: async (id: number, expenseData: any): Promise<ApiResponse<any>> => {
-    return livestockApiRequest<any>(`/api/livestock-expenses/${id}`, {
+  update: (id: number, expenseData: UpdateLivestockExpenseRequest): Promise<ApiResponse<LivestockExpense>> => 
+    livestockApiRequest<LivestockExpense>(`/livestock-expenses/${id}`, {
       method: 'PUT',
       body: JSON.stringify(expenseData),
-    });
-  },
+    }),
 
-  delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return livestockApiRequest<{ message: string }>(`/api/livestock-expenses/${id}`, {
+  delete: (id: number): Promise<ApiResponse<{ message: string }>> => 
+    livestockApiRequest<{ message: string }>(`/livestock-expenses/${id}`, {
       method: 'DELETE',
-    });
-  },
+    }),
 
-  getExpenseSummary: async (): Promise<ApiResponse<any>> => {
-    return livestockApiRequest<any>('/api/livestock-expenses/reports/summary');
-  },
+  getExpenseSummary: (): Promise<ApiResponse<Array<{ category: string; expense_count: number; total_amount: number }>>> => 
+    livestockApiRequest('/livestock-expenses/reports/summary'),
 
-  getFlockExpenseSummary: async (): Promise<ApiResponse<any>> => {
-    return livestockApiRequest<any>('/api/livestock-expenses/reports/flock-summary');
-  }
+  getFlockExpenseSummary: (): Promise<ApiResponse<FlockExpenseSummary[]>> => 
+    livestockApiRequest<FlockExpenseSummary[]>('/livestock-expenses/reports/flock-summary'),
 };
 
-// Medical treatments API
 export const medicalTreatmentApi = {
-  getAll: async (): Promise<ApiResponse<any[]>> => {
-    return livestockApiRequest<any[]>('/api/medical-treatments');
-  },
+  getAll: (): Promise<ApiResponse<MedicalTreatment[]>> => 
+    livestockApiRequest<MedicalTreatment[]>('/medical-treatments'),
 
-  getByLivestockId: async (livestockId: number): Promise<ApiResponse<any[]>> => {
-    return livestockApiRequest<any[]>(`/api/medical-treatments/livestock/${livestockId}`);
-  },
+  getByLivestockId: (livestockId: number): Promise<ApiResponse<MedicalTreatment[]>> => 
+    livestockApiRequest<MedicalTreatment[]>(`/medical-treatments/livestock/${livestockId}`),
 
-  getUpcoming: async (days?: number): Promise<ApiResponse<any[]>> => {
-    const url = days ? `/api/medical-treatments/upcoming?days=${days}` : '/api/medical-treatments/upcoming';
-    return livestockApiRequest<any[]>(url);
-  },
+  getUpcoming: (days?: number): Promise<ApiResponse<MedicalTreatment[]>> => 
+    livestockApiRequest<MedicalTreatment[]>(`/medical-treatments/upcoming?days=${days || 30}`),
 
-  create: async (treatmentData: any): Promise<ApiResponse<any>> => {
-    return livestockApiRequest<any>('/api/medical-treatments', {
+  getById: (id: number): Promise<ApiResponse<MedicalTreatment>> => 
+    livestockApiRequest<MedicalTreatment>(`/medical-treatments/${id}`),
+
+  create: (treatmentData: CreateMedicalTreatmentRequest): Promise<ApiResponse<MedicalTreatment>> => 
+    livestockApiRequest<MedicalTreatment>('/medical-treatments', {
       method: 'POST',
       body: JSON.stringify(treatmentData),
-    });
-  },
+    }),
 
-  update: async (id: number, treatmentData: any): Promise<ApiResponse<any>> => {
-    return livestockApiRequest<any>(`/api/medical-treatments/${id}`, {
+  update: (id: number, treatmentData: UpdateMedicalTreatmentRequest): Promise<ApiResponse<MedicalTreatment>> => 
+    livestockApiRequest<MedicalTreatment>(`/medical-treatments/${id}`, {
       method: 'PUT',
       body: JSON.stringify(treatmentData),
-    });
-  },
+    }),
 
-  delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return livestockApiRequest<{ message: string }>(`/api/medical-treatments/${id}`, {
+  delete: (id: number): Promise<ApiResponse<{ message: string }>> => 
+    livestockApiRequest<{ message: string }>(`/medical-treatments/${id}`, {
       method: 'DELETE',
-    });
-  }
+    }),
 };
 
-// Production records API
 export const productionApi = {
-  getAll: async (): Promise<ApiResponse<any[]>> => {
-    return livestockApiRequest<any[]>('/api/production-records');
-  },
+  getAll: (): Promise<ApiResponse<ProductionRecord[]>> => 
+    livestockApiRequest<ProductionRecord[]>('/production-records'),
 
-  getByFlockId: async (flockId: number): Promise<ApiResponse<any[]>> => {
-    return livestockApiRequest<any[]>(`/api/production-records/flock/${flockId}`);
-  },
+  getByFlockId: (flockId: number): Promise<ApiResponse<ProductionRecord[]>> => 
+    livestockApiRequest<ProductionRecord[]>(`/production-records/flock/${flockId}`),
 
-  getSummary: async (flockId?: number): Promise<ApiResponse<any>> => {
-    const url = flockId ? `/api/production-records/summary?flockId=${flockId}` : '/api/production-records/summary';
-    return livestockApiRequest<any>(url);
-  },
+  getSummary: (flockId?: number): Promise<ApiResponse<any>> => 
+    livestockApiRequest<any>(`/production-records/summary${flockId ? `?flockId=${flockId}` : ''}`),
 
-  create: async (recordData: any): Promise<ApiResponse<any>> => {
-    return livestockApiRequest<any>('/api/production-records', {
+  create: (recordData: Omit<ProductionRecord, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<ProductionRecord>> => 
+    livestockApiRequest<ProductionRecord>('/production-records', {
       method: 'POST',
       body: JSON.stringify(recordData),
-    });
-  }
+    }),
+};
+
+export const healthRecordsApi = {
+  getAll: (): Promise<ApiResponse<HealthRecord[]>> => 
+    livestockApiRequest<HealthRecord[]>('/health-records'),
+
+  getByLivestock: (livestockId: number): Promise<ApiResponse<HealthRecord[]>> => 
+    livestockApiRequest<HealthRecord[]>(`/health-records?livestockId=${livestockId}`),
+
+  getById: (id: number): Promise<ApiResponse<HealthRecord>> => 
+    livestockApiRequest<HealthRecord>(`/health-records/${id}`),
+
+  create: (data: CreateHealthRecordRequest): Promise<ApiResponse<HealthRecord>> => 
+    livestockApiRequest<HealthRecord>('/health-records', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: UpdateHealthRecordRequest): Promise<ApiResponse<HealthRecord>> => 
+    livestockApiRequest<HealthRecord>(`/health-records/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number): Promise<ApiResponse<{ message: string }>> => 
+    livestockApiRequest<{ message: string }>(`/health-records/${id}`, {
+      method: 'DELETE',
+    }),
 };
 
 // Re-export salesApi from the separate file

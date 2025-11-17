@@ -1,11 +1,9 @@
-// frontend/src/livestock/components/SalesRecordingForm.tsx
-
 import React, { useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Button, MenuItem, Alert
+  TextField, Button, MenuItem, Alert,Typography 
 } from '@mui/material';
-import { salesApi } from '../services/api';
+import { salesApi } from '../services/salesApi';
 import Grid from '@mui/material/Grid';
 
 interface SalesRecordingFormProps {
@@ -174,9 +172,9 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
                   required={formData.sale_type === 'animal'}
                 >
                   <MenuItem value="">Select Animal</MenuItem>
-                  {livestock?.map(animal => (
+                  {livestock?.filter(animal => animal.status === 'HEALTHY').map(animal => (
                     <MenuItem key={animal.id} value={animal.id}>
-                      {animal.tag_id} - {animal.breed}
+                      {animal.tag_number} - {animal.breed} ({animal.animal_type})
                     </MenuItem>
                   ))}
                 </TextField>
@@ -196,7 +194,7 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
                   <MenuItem value="">Select Flock</MenuItem>
                   {flocks?.map(flock => (
                     <MenuItem key={flock.id} value={flock.id}>
-                      {flock.name}
+                      {flock.name} ({flock.animal_type})
                     </MenuItem>
                   ))}
                 </TextField>
@@ -224,7 +222,7 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
                 value={formData.quantity}
                 onChange={handleInputChange('quantity')}
                 required
-                inputProps={{ min: 0.01, step: 0.01 }}
+                inputProps={{ min: 1, step: 1 }}
               />
             </Grid>
 
@@ -232,11 +230,11 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Unit Price *"
+                label="Unit Price (PKR) *"
                 type="number"
                 value={formData.unit_price}
                 onChange={handleInputChange('unit_price')}
-                InputProps={{ startAdornment: '$' }}
+                InputProps={{ startAdornment: <Typography sx={{ mr: 1 }}>₨</Typography> }}
                 required
                 inputProps={{ min: 0, step: 0.01 }}
               />
@@ -249,7 +247,7 @@ export const SalesRecordingForm: React.FC<SalesRecordingFormProps> = ({
                 label="Total Amount"
                 value={formData.total_amount.toFixed(2)}
                 InputProps={{ 
-                  startAdornment: '$',
+                  startAdornment: <Typography sx={{ mr: 1 }}>₨</Typography>,
                   readOnly: true 
                 }}
                 variant="filled"

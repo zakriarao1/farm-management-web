@@ -18,24 +18,33 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { httpMethod, queryStringParameters } = event;
+    const { httpMethod, queryStringParameters, path } = event;
     const { flockId } = queryStringParameters || {};
 
     if (httpMethod !== 'GET') {
       return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
     }
 
-    if (event.path.includes('/animal-summary')) {
-      // Get animal summary
+    // Animal Summary Endpoint
+    if (path.includes('/animal-summary')) {
       const animalSummaryQuery = `
         SELECT 
           COUNT(*) as total_animals,
-          COUNT(CASE WHEN status = 'ACTIVE' THEN 1 END) as active_animals,
+          COUNT(CASE WHEN status IN ('HEALTHY', 'SICK', 'PREGNANT') THEN 1 END) as active_animals,
           COUNT(CASE WHEN status = 'SOLD' THEN 1 END) as sold_animals,
-          COALESCE(SUM(purchase_cost), 0) as total_investment,
-          0 as total_revenue, -- Placeholder for sales revenue
-          85 as average_health_score -- Placeholder health score
+          COUNT(CASE WHEN status = 'DECEASED' THEN 1 END) as deceased_animals,
+          COALESCE(SUM(purchase_price), 0) as total_investment,
+          COALESCE(SUM(current_weight), 0) as total_weight,
+          COALESCE(AVG(
+            CASE 
+              WHEN status = 'HEALTHY' THEN 100
+              WHEN status = 'SICK' THEN 50
+              WHEN status = 'PREGNANT' THEN 80
+              ELSE 60 
+            END
+          ), 0) as average_health_score
         FROM livestock
+        WHERE status IS NOT NULL
       `;
 
       const result = await pool.query(animalSummaryQuery);
@@ -47,8 +56,8 @@ exports.handler = async (event, context) => {
       };
     }
 
-    if (event.path.includes('/summary')) {
-      // Get flock financial summary (existing code)
+    // Flock Financial Summary
+    if (path.includes('/summary')) {
       let flockCondition = '';
       const params = [];
 
@@ -61,20 +70,21 @@ exports.handler = async (event, context) => {
         SELECT 
           f.id as flock_id,
           f.name as flock_name,
-          COALESCE(f.total_purchase_cost, 0) as total_purchase_cost,
-          COALESCE(SUM(le.amount), 0) as total_expenses,
+          f.animal_type,
+          COALESCE(SUM(l.purchase_price), 0) as total_purchase_cost,
+          COALESCE(COUNT(l.id), 0) as total_animals,
           COALESCE(SUM(sr.total_amount), 0) as total_sales,
-          (COALESCE(SUM(sr.total_amount), 0) - COALESCE(f.total_purchase_cost, 0) - COALESCE(SUM(le.amount), 0)) as net_profit,
+          COALESCE(SUM(sr.total_amount), 0) - COALESCE(SUM(l.purchase_price), 0) as net_profit,
           CASE 
-            WHEN (COALESCE(f.total_purchase_cost, 0) + COALESCE(SUM(le.amount), 0)) > 0 
-            THEN ((COALESCE(SUM(sr.total_amount), 0) - COALESCE(f.total_purchase_cost, 0) - COALESCE(SUM(le.amount), 0)) / (COALESCE(f.total_purchase_cost, 0) + COALESCE(SUM(le.amount), 0))) * 100
+            WHEN COALESCE(SUM(l.purchase_price), 0) > 0 
+            THEN ((COALESCE(SUM(sr.total_amount), 0) - COALESCE(SUM(l.purchase_price), 0)) / COALESCE(SUM(l.purchase_price), 0)) * 100
             ELSE 0 
           END as roi_percentage
         FROM flocks f
-        LEFT JOIN livestock_expenses le ON f.id = le.flock_id
+        LEFT JOIN livestock l ON f.id = l.flock_id
         LEFT JOIN sales_records sr ON f.id = sr.flock_id
         ${flockCondition}
-        GROUP BY f.id, f.name, f.total_purchase_cost
+        GROUP BY f.id, f.name, f.animal_type
         ORDER BY net_profit DESC
       `;
 
@@ -87,22 +97,22 @@ exports.handler = async (event, context) => {
       };
     }
 
-    if (event.path.includes('/overall-metrics')) {
-      // Get overall financial metrics (existing code)
+    // Overall Metrics
+    if (path.includes('/overall-metrics')) {
       const metricsQuery = `
         SELECT 
           COUNT(DISTINCT f.id) as total_flocks,
-          COALESCE(SUM(f.total_purchase_cost), 0) as total_investment,
-          COALESCE(SUM(le.amount), 0) as total_expenses,
+          COUNT(l.id) as total_animals,
+          COALESCE(SUM(l.purchase_price), 0) as total_investment,
           COALESCE(SUM(sr.total_amount), 0) as total_revenue,
-          (COALESCE(SUM(sr.total_amount), 0) - COALESCE(SUM(f.total_purchase_cost), 0) - COALESCE(SUM(le.amount), 0)) as net_profit,
+          COALESCE(SUM(sr.total_amount), 0) - COALESCE(SUM(l.purchase_price), 0) as net_profit,
           CASE 
-            WHEN (COALESCE(SUM(f.total_purchase_cost), 0) + COALESCE(SUM(le.amount), 0)) > 0 
-            THEN ((COALESCE(SUM(sr.total_amount), 0) - COALESCE(SUM(f.total_purchase_cost), 0) - COALESCE(SUM(le.amount), 0)) / (COALESCE(SUM(f.total_purchase_cost), 0) + COALESCE(SUM(le.amount), 0))) * 100
+            WHEN COALESCE(SUM(l.purchase_price), 0) > 0 
+            THEN ((COALESCE(SUM(sr.total_amount), 0) - COALESCE(SUM(l.purchase_price), 0)) / COALESCE(SUM(l.purchase_price), 0)) * 100
             ELSE 0 
           END as average_roi
         FROM flocks f
-        LEFT JOIN livestock_expenses le ON f.id = le.flock_id
+        LEFT JOIN livestock l ON f.id = l.flock_id
         LEFT JOIN sales_records sr ON f.id = sr.flock_id
       `;
 
@@ -126,7 +136,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Internal server error' })
+      body: JSON.stringify({ error: 'Internal server error: ' + error.message })
     };
-  }
+  } 
 };

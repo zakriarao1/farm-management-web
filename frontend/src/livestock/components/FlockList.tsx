@@ -1,3 +1,5 @@
+// frontend/src/components/livestock/FlockList.tsx
+
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -20,9 +22,11 @@ import {
   DialogActions,
   TextField,
   Alert,
+  MenuItem,
+  LinearProgress,
 } from '@mui/material';
 import { Edit, Delete, Add, Pets } from '@mui/icons-material';
-import { flockApi } from '../../services/api';
+import { flockApi } from '../services/api';
 import { Flock } from '../types';
 import Grid from '@mui/material/Grid';
 
@@ -34,15 +38,19 @@ export const FlockList: React.FC = () => {
   const [editingFlock, setEditingFlock] = useState<Flock | null>(null);
   const [formData, setFormData] = useState({
     name: '',
+    animal_type: '',
+    breed: '',
+    total_animals: 1,
+    current_animals: 1,
+    purchase_date: new Date().toISOString().split('T')[0],
+    purchase_price: 0,
     description: '',
-    purchase_date: '',
-    total_purchase_cost: '',
-    // ADD THESE REQUIRED FIELDS:
-    breed: 'Unknown',
-    quantity: 1,
-    age: 0,
-    health_status: 'HEALTHY'
   });
+
+  // Animal type options
+  const ANIMAL_TYPES = [
+    'CHICKENS', 'GOATS', 'SHEEP', 'COWS', 'BUFFALOES','OTHER'
+  ];
 
   useEffect(() => {
     loadFlocks();
@@ -63,17 +71,22 @@ export const FlockList: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.name || !formData.animal_type || formData.total_animals <= 0) {
+      setError('Name, animal type, and total animals are required');
+      return;
+    }
+
     try {
       if (editingFlock) {
-        await flockApi.update(editingFlock.id, {
-          ...formData,
-          total_purchase_cost: formData.total_purchase_cost ? parseFloat(formData.total_purchase_cost) : undefined
-        });
+        await flockApi.update(editingFlock.id, formData);
       } else {
-        await flockApi.create({
+        // For new flocks, set current_animals equal to total_animals
+        const flockData = {
           ...formData,
-          total_purchase_cost: formData.total_purchase_cost ? parseFloat(formData.total_purchase_cost) : undefined,
-        });
+          current_animals: formData.total_animals
+        };
+        await flockApi.create(flockData);
       }
       setDialogOpen(false);
       resetForm();
@@ -84,7 +97,7 @@ export const FlockList: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this flock?')) {
+    if (window.confirm('Are you sure you want to delete this flock? This will remove the flock association from any animals.')) {
       try {
         await flockApi.delete(id);
         loadFlocks();
@@ -98,14 +111,13 @@ export const FlockList: React.FC = () => {
     setEditingFlock(flock);
     setFormData({
       name: flock.name,
+      animal_type: flock.animal_type,
+      breed: flock.breed || '',
+      total_animals: flock.total_animals,
+      current_animals: flock.current_animals,
+      purchase_date: flock.purchase_date ? flock.purchase_date.split('T')[0] : new Date().toISOString().split('T')[0],
+      purchase_price: flock.purchase_price || 0,
       description: flock.description || '',
-      purchase_date: flock.purchase_date || '',
-      total_purchase_cost: flock.total_purchase_cost?.toString() || '',
-      // ADD THESE MISSING FIELDS:
-      breed: flock.breed || 'Unknown',
-      quantity: flock.quantity || 1,
-      age: flock.age || 0,
-      health_status: flock.health_status || 'HEALTHY'
     });
     setDialogOpen(true);
   };
@@ -113,14 +125,13 @@ export const FlockList: React.FC = () => {
   const resetForm = () => {
     setFormData({
       name: '',
+      animal_type: '',
+      breed: '',
+      total_animals: 1,
+      current_animals: 1,
+      purchase_date: new Date().toISOString().split('T')[0],
+      purchase_price: 0,
       description: '',
-      purchase_date: '',
-      total_purchase_cost: '',
-      // ADD THE SAME FIELDS HERE:
-      breed: 'Unknown',
-      quantity: 1,
-      age: 0,
-      health_status: 'HEALTHY'
     });
     setEditingFlock(null);
   };
@@ -128,7 +139,31 @@ export const FlockList: React.FC = () => {
   const handleDialogClose = () => {
     setDialogOpen(false);
     resetForm();
+    setError('');
   };
+
+  const getAnimalTypeColor = (type: string) => {
+    const colors: Record<string, 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success' | 'default'> = {
+      CHICKENS: 'primary',
+      GOATS: 'success',
+      SHEEP: 'warning',
+      COWS: 'error',
+      BUFFALOES: 'info',
+      OTHER: 'secondary',
+    };
+    return colors[type] || 'default';
+  };
+
+  if (loading) {
+    return (
+      <Box>
+        <LinearProgress />
+        <Typography variant="body2" textAlign="center" sx={{ mt: 2 }}>
+          Loading flocks...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -159,50 +194,63 @@ export const FlockList: React.FC = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Name</TableCell>
+                  <TableCell>Animal Type</TableCell>
                   <TableCell>Breed</TableCell>
-                  <TableCell>Quantity</TableCell>
-                  <TableCell>Age</TableCell>
-                  <TableCell>Health Status</TableCell>
-                  <TableCell>Description</TableCell>
+                  <TableCell align="center">Animals</TableCell>
                   <TableCell>Purchase Date</TableCell>
-                  <TableCell>Purchase Cost</TableCell>
-                  <TableCell>Created</TableCell>
+                  <TableCell align="right">Purchase Price</TableCell>
+                  <TableCell>Description</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {flocks.map((flock) => (
-                  <TableRow key={flock.id}>
+                  <TableRow key={flock.id} hover>
                     <TableCell>
                       <Typography variant="subtitle1" fontWeight="bold">
                         {flock.name}
                       </Typography>
                     </TableCell>
-                    <TableCell>{flock.breed || '-'}</TableCell>
-                    <TableCell>{flock.quantity || 0}</TableCell>
-                    <TableCell>{flock.age || 0} months</TableCell>
                     <TableCell>
-                      <Chip 
-                        label={flock.health_status || 'HEALTHY'} 
-                        color={flock.health_status === 'HEALTHY' ? 'success' : 'warning'}
+                      <Chip
+                        label={flock.animal_type}
+                        color={getAnimalTypeColor(flock.animal_type)}
                         size="small"
                       />
                     </TableCell>
-                    <TableCell>{flock.description || '-'}</TableCell>
+                    <TableCell>{flock.breed || '-'}</TableCell>
+                    <TableCell align="center">
+                      <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
+                        <Pets color="primary" fontSize="small" />
+                        <Typography variant="body2" fontWeight="bold">
+                          {flock.current_animals} / {flock.total_animals}
+                        </Typography>
+                      </Box>
+                      {flock.current_animals < flock.total_animals && (
+                        <Typography variant="caption" color="error">
+                          {flock.total_animals - flock.current_animals} lost
+                        </Typography>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {flock.purchase_date ? new Date(flock.purchase_date).toLocaleDateString() : '-'}
                     </TableCell>
-                    <TableCell>
-                      {flock.total_purchase_cost ? `$${flock.total_purchase_cost}` : '-'}
+                    <TableCell align="right">
+                      <Typography variant="body2" fontWeight="bold">
+                        ₨{flock.purchase_price?.toLocaleString() || '0'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
-                      {new Date(flock.created_at).toLocaleDateString()}
+                      <Typography variant="body2" noWrap title={flock.description}>
+                        {flock.description || '-'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <IconButton
                         color="primary"
                         onClick={() => handleEdit(flock)}
                         size="small"
+                        title="Edit flock"
                       >
                         <Edit />
                       </IconButton>
@@ -210,6 +258,7 @@ export const FlockList: React.FC = () => {
                         color="error"
                         onClick={() => handleDelete(flock.id)}
                         size="small"
+                        title="Delete flock"
                       >
                         <Delete />
                       </IconButton>
@@ -236,16 +285,40 @@ export const FlockList: React.FC = () => {
         </DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+            
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Flock Name"
+                  label="Flock Name *"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                   margin="normal"
+                  placeholder="e.g., Layer Chickens Batch 1"
                 />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Animal Type *"
+                  value={formData.animal_type}
+                  onChange={(e) => setFormData({ ...formData, animal_type: e.target.value })}
+                  select
+                  required
+                  fullWidth
+                  margin="normal"
+                >
+                  {ANIMAL_TYPES.map(type => (
+                    <MenuItem key={type} value={type}>
+                      {type.charAt(0) + type.slice(1).toLowerCase()}
+                    </MenuItem>
+                  ))}
+                </TextField>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -254,39 +327,40 @@ export const FlockList: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
                   fullWidth
                   margin="normal"
+                  placeholder="e.g., Rhode Island Red, Saanen"
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  label="Quantity"
+                  label="Total Animals *"
                   type="number"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                  value={formData.total_animals}
+                  onChange={(e) => setFormData({ ...formData, total_animals: parseInt(e.target.value) || 0 })}
                   fullWidth
                   margin="normal"
-                  inputProps={{ min: 0 }}
+                  inputProps={{ min: 1 }}
+                  required
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Age (months)"
-                  type="number"
-                  value={formData.age}
-                  onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) || 0 })}
-                  fullWidth
-                  margin="normal"
-                  inputProps={{ min: 0 }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Health Status"
-                  value={formData.health_status}
-                  onChange={(e) => setFormData({ ...formData, health_status: e.target.value })}
-                  fullWidth
-                  margin="normal"
-                />
-              </Grid>
+              
+              {editingFlock && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Current Animals"
+                    type="number"
+                    value={formData.current_animals}
+                    onChange={(e) => setFormData({ ...formData, current_animals: parseInt(e.target.value) || 0 })}
+                    fullWidth
+                    margin="normal"
+                    inputProps={{ 
+                      min: 0, 
+                      max: formData.total_animals 
+                    }}
+                    helperText={`Max: ${formData.total_animals}`}
+                  />
+                </Grid>
+              )}
+              
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -301,11 +375,10 @@ export const FlockList: React.FC = () => {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Total Purchase Cost"
+                  label="Purchase Price (PKR)"
                   type="number"
-                  value={formData.total_purchase_cost}
-                  onChange={(e) => setFormData({ ...formData, total_purchase_cost: e.target.value })}
-                  InputProps={{ startAdornment: '$' }}
+                  value={formData.purchase_price}
+                  onChange={(e) => setFormData({ ...formData, purchase_price: parseFloat(e.target.value) || 0 })}
                   margin="normal"
                   inputProps={{ min: 0, step: 0.01 }}
                 />
@@ -319,13 +392,18 @@ export const FlockList: React.FC = () => {
                   multiline
                   rows={3}
                   margin="normal"
+                  placeholder="Additional notes about this flock..."
                 />
               </Grid>
             </Grid>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleDialogClose}>Cancel</Button>
-            <Button type="submit" variant="contained">
+            <Button 
+              type="submit" 
+              variant="contained"
+              disabled={!formData.name || !formData.animal_type || formData.total_animals <= 0}
+            >
               {editingFlock ? 'Update' : 'Create'} Flock
             </Button>
           </DialogActions>

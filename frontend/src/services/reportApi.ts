@@ -35,7 +35,7 @@ export const reportApi = {
     if (dateRange?.endDate) params.append('endDate', dateRange.endDate);
     
     const queryString = params.toString();
-    const url = queryString ? `/api/reports/analytics?${queryString}` : '/api/reports/analytics';
+    const url = queryString ? `/reports/analytics?${queryString}` : '/reports/analytics';
     
     return apiRequest(url);
   },
@@ -55,8 +55,8 @@ export const reportApi = {
     
     const queryString = params.toString();
     const url = queryString 
-      ? `/api/reports/crop-performance/${cropId}?${queryString}`
-      : `/api/reports/crop-performance/${cropId}`;
+      ? `/reports/crop-performance/${cropId}?${queryString}`
+      : `/reports/crop-performance/${cropId}`;
     
     return apiRequest(url);
   },

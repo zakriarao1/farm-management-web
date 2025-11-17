@@ -10,6 +10,10 @@ import {
   Alert,
   CircularProgress,
   Paper,
+  FormControl,
+  InputLabel,
+  Select,
+  SelectChangeEvent,
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -17,28 +21,26 @@ import {
   Pets as AnimalIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { livestockApi } from '../services/api';
+import { livestockApi, flockApi } from '../services/api';
 import type { 
   CreateLivestockRequest,
   UpdateLivestockRequest,
-  LivestockType,
-  LivestockStatus,
-  LivestockGender
+  Flock
 } from '../types';
 
-// Define a form data interface with required fields
 interface LivestockFormData {
-  tagId: string;
-  type: LivestockType;
+  tag_number: string;
+  animal_type: string;
   breed: string;
-  gender: LivestockGender;
-  dateOfBirth: string;
-  purchaseDate: string;
-  purchasePrice: number;
-  weight: number;
-  status: LivestockStatus;
+  gender: 'MALE' | 'FEMALE' | 'UNKNOWN';
+  date_of_birth: string;
+  purchase_date: string;
+  purchase_price: number;
+  current_weight: number;
+  status: 'HEALTHY' | 'SICK' | 'PREGNANT' | 'SOLD' | 'DECEASED';
   location: string;
   notes: string;
+  flock_id?: number;
 }
 
 export const LivestockForm: React.FC = () => {
@@ -50,27 +52,50 @@ export const LivestockForm: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
+  const [flocks, setFlocks] = useState<Flock[]>([]);
 
-  // Use our form data interface for state (all fields required)
   const [formData, setFormData] = useState<LivestockFormData>({
-    tagId: '',
-    type: 'CATTLE',
+    tag_number: '',
+    animal_type: 'CHICKENS',
     breed: '',
     gender: 'FEMALE',
-    dateOfBirth: '',
-    purchaseDate: new Date().toISOString().split('T')[0] || '',
-    purchasePrice: 0,
-    weight: 0,
-    status: 'active',
+    date_of_birth: '',
+    purchase_date: new Date().toISOString().split('T')[0],
+    purchase_price: 0,
+    current_weight: 0,
+    status: 'HEALTHY',
     location: '',
     notes: '',
+    flock_id: undefined,
   });
 
+  const ANIMAL_TYPES = [
+    'CHICKENS', 'GOATS', 'SHEEP', 'COWS', 'BUFFALOES', 'OTHER'
+  ];
+
+  const STATUS_OPTIONS = [
+    'HEALTHY', 'SICK', 'PREGNANT', 'SOLD', 'DECEASED'
+  ];
+
+  const GENDER_OPTIONS = [
+    'MALE', 'FEMALE', 'UNKNOWN'
+  ];
+
   useEffect(() => {
+    loadFlocks();
     if (isEdit && id) {
       loadAnimalData(parseInt(id));
     }
   }, [isEdit, id]);
+
+  const loadFlocks = async () => {
+    try {
+      const response = await flockApi.getAll();
+      setFlocks(response.data || []);
+    } catch (err) {
+      console.error('Error loading flocks:', err);
+    }
+  };
 
   const loadAnimalData = async (animalId: number) => {
     try {
@@ -78,21 +103,19 @@ export const LivestockForm: React.FC = () => {
       const response = await livestockApi.getById(animalId);
       const animal = response.data;
       
-      // Provide fallbacks for potentially undefined fields and ensure purchaseDate is always a string
-      const today = new Date().toISOString().split('T')[0] || '';
-      
       setFormData({
-        tagId: animal.tagId || '',
-        type: animal.type,
+        tag_number: animal.tag_number,
+        animal_type: animal.animal_type,
         breed: animal.breed || '',
         gender: animal.gender,
-        dateOfBirth: animal.dateOfBirth || '',
-        purchaseDate: animal.purchaseDate || today,
-        purchasePrice: animal.purchasePrice || 0,
-        weight: animal.weight || 0,
+        date_of_birth: animal.date_of_birth || '',
+        purchase_date: animal.purchase_date || new Date().toISOString().split('T')[0],
+        purchase_price: animal.purchase_price || 0,
+        current_weight: animal.current_weight || 0,
         status: animal.status,
         location: animal.location || '',
         notes: animal.notes || '',
+        flock_id: animal.flock_id,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load animal data');
@@ -108,59 +131,47 @@ export const LivestockForm: React.FC = () => {
     const value = event.target.value;
     setFormData(prev => ({
       ...prev,
-      [field]: field === 'purchasePrice' || field === 'weight' ? 
+      [field]: field === 'purchase_price' || field === 'current_weight' ? 
         (value === '' ? 0 : parseFloat(value)) : value
     }));
   };
 
-  const handleSelectChange = (field: keyof LivestockFormData) => (
-    event: React.ChangeEvent<{ value: unknown }>
-  ) => {
+  const handleFlockChange = (event: SelectChangeEvent<number>) => {
     const value = event.target.value;
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      flock_id: value === '' ? undefined : (value as number)
     }));
   };
 
-  // Convert form data to API request format with type assertion
-  const prepareSubmitData = (): CreateLivestockRequest => {
-    const submitData = {
-      tagId: formData.tagId,
-      type: formData.type,
-      breed: formData.breed,
-      gender: formData.gender,
-      dateOfBirth: formData.dateOfBirth || undefined,
-      purchaseDate: formData.purchaseDate,
-      purchasePrice: formData.purchasePrice,
-      weight: formData.weight,
-      status: formData.status,
-      location: formData.location,
-      notes: formData.notes || undefined,
-    };
-
-    // Use type assertion to handle the type mismatch
-    return submitData as unknown as CreateLivestockRequest;
+  const getAvailableFlocks = () => {
+    if (!formData.animal_type) return flocks;
+    return flocks.filter(flock => 
+      flock.animal_type === formData.animal_type && 
+      flock.current_animals > 0
+    );
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
-    // Basic validation - no TypeScript errors since all fields are guaranteed to exist
-    if (!formData.tagId.trim()) {
-      setError('Tag ID is required');
+    // Updated validation - breed and location are now optional
+    if (!formData.tag_number.trim()) {
+      setError('Tag number is required');
       return;
     }
-    if (!formData.breed.trim()) {
-      setError('Breed is required');
+    if (!formData.animal_type) {
+      setError('Animal type is required');
       return;
     }
-    if (formData.weight <= 0) {
-      setError('Weight must be greater than 0');
+    if (!formData.status) {
+      setError('Status is required');
       return;
     }
-    if (!formData.location.trim()) {
-      setError('Location is required');
+
+    // Validate weight is positive if provided
+    if (formData.current_weight && formData.current_weight <= 0) {
+      setError('Weight must be greater than 0 if provided');
       return;
     }
 
@@ -169,15 +180,13 @@ export const LivestockForm: React.FC = () => {
       setError('');
       setSuccess('');
 
-      // Prepare data for API
-      const submitData = prepareSubmitData();
-
       if (isEdit && id) {
-        const updateData: UpdateLivestockRequest = { ...submitData };
+        const updateData: UpdateLivestockRequest = { ...formData };
         await livestockApi.update(parseInt(id), updateData);
         setSuccess('Animal updated successfully!');
       } else {
-        await livestockApi.create(submitData);
+        const createData: CreateLivestockRequest = { ...formData };
+        await livestockApi.create(createData);
         setSuccess('Animal created successfully!');
       }
 
@@ -206,7 +215,6 @@ export const LivestockForm: React.FC = () => {
 
   return (
     <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
-      {/* Header */}
       <Box display="flex" alignItems="center" gap={2} mb={3}>
         <AnimalIcon sx={{ fontSize: 40, color: 'primary.main' }} />
         <Box>
@@ -233,9 +241,7 @@ export const LivestockForm: React.FC = () => {
 
       <form onSubmit={handleSubmit}>
         <Box display="flex" gap={3} flexDirection={{ xs: 'column', md: 'row' }}>
-          {/* Left Column - Basic Information & Health */}
           <Box flex={1} display="flex" flexDirection="column" gap={3}>
-            {/* Basic Information Card */}
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom color="primary">
@@ -245,67 +251,84 @@ export const LivestockForm: React.FC = () => {
                   <Box display="flex" gap={2} flexDirection={{ xs: 'column', sm: 'row' }}>
                     <TextField
                       fullWidth
-                      label="Tag ID *"
-                      value={formData.tagId}
-                      onChange={handleInputChange('tagId')}
+                      label="Tag Number *"
+                      value={formData.tag_number}
+                      onChange={handleInputChange('tag_number')}
                       required
+                      placeholder="e.g., CHK-001, GT-001"
                     />
                     <TextField
                       fullWidth
                       select
-                      label="Type *"
-                      value={formData.type}
-                      onChange={handleSelectChange('type')}
+                      label="Animal Type *"
+                      value={formData.animal_type}
+                      onChange={handleInputChange('animal_type')}
+                      required
                     >
-                      <MenuItem value="CATTLE">Cattle</MenuItem>
-                      <MenuItem value="POULTRY">Poultry</MenuItem>
-                      <MenuItem value="SHEEP">Sheep</MenuItem>
-                      <MenuItem value="GOATS">Goats</MenuItem>
-                      <MenuItem value="PIGS">Pigs</MenuItem>
-                      <MenuItem value="FISH">Fish</MenuItem>
-                      <MenuItem value="BEES">Bees</MenuItem>
-                      <MenuItem value="OTHER">Other</MenuItem>
+                      {ANIMAL_TYPES.map(type => (
+                        <MenuItem key={type} value={type}>
+                          {type.charAt(0) + type.slice(1).toLowerCase()}
+                        </MenuItem>
+                      ))}
                     </TextField>
                   </Box>
                   
                   <Box display="flex" gap={2} flexDirection={{ xs: 'column', sm: 'row' }}>
                     <TextField
                       fullWidth
-                      label="Breed *"
+                      label="Breed"
                       value={formData.breed}
                       onChange={handleInputChange('breed')}
-                      required
-                      error={!formData.breed.trim()}
-                      helperText={!formData.breed.trim() ? 'Breed is required' : ''}
+                      placeholder="e.g., Rhode Island Red, Saanen (Optional)"
                     />
                     <TextField
                       fullWidth
                       select
                       label="Gender *"
                       value={formData.gender}
-                      onChange={handleSelectChange('gender')}
+                      onChange={handleInputChange('gender')}
                     >
-                      <MenuItem value="MALE">Male</MenuItem>
-                      <MenuItem value="FEMALE">Female</MenuItem>
-                      <MenuItem value="CASTRATED">Castrated</MenuItem>
+                      {GENDER_OPTIONS.map(gender => (
+                        <MenuItem key={gender} value={gender}>
+                          {gender}
+                        </MenuItem>
+                      ))}
                     </TextField>
                   </Box>
+
+                  <FormControl fullWidth>
+                    <InputLabel>Flock (Optional)</InputLabel>
+                    <Select
+                      value={formData.flock_id || ''}
+                      onChange={handleFlockChange}
+                      label="Flock (Optional)"
+                    >
+                      <MenuItem value="">
+                        <em>No Flock</em>
+                      </MenuItem>
+                      {getAvailableFlocks().map(flock => (
+                        <MenuItem key={flock.id} value={flock.id}>
+                          {flock.name} ({flock.animal_type}) - {flock.current_animals}/{flock.total_animals} animals
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
 
                   <Box display="flex" gap={2} flexDirection={{ xs: 'column', sm: 'row' }}>
                     <TextField
                       fullWidth
                       label="Date of Birth"
                       type="date"
-                      value={formData.dateOfBirth}
-                      onChange={handleInputChange('dateOfBirth')}
+                      value={formData.date_of_birth}
+                      onChange={handleInputChange('date_of_birth')}
                       InputLabelProps={{ shrink: true }}
                     />
                     <TextField
                       fullWidth
                       label="Purchase Date *"
                       type="date"
-                      value={formData.purchaseDate}
-                      onChange={handleInputChange('purchaseDate')}
+                      value={formData.purchase_date}
+                      onChange={handleInputChange('purchase_date')}
                       InputLabelProps={{ shrink: true }}
                       required
                     />
@@ -314,7 +337,6 @@ export const LivestockForm: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Health & Status Card */}
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom color="primary">
@@ -327,25 +349,21 @@ export const LivestockForm: React.FC = () => {
                       select
                       label="Status *"
                       value={formData.status}
-                      onChange={handleSelectChange('status')}
+                      onChange={handleInputChange('status')}
+                      required
                     >
-                      <MenuItem value="active">Active</MenuItem>
-                      <MenuItem value="sick">Sick</MenuItem>
-                      <MenuItem value="pregnant">Pregnant</MenuItem>
-                      <MenuItem value="calving">Calving</MenuItem>
-                      <MenuItem value="milking">Milking</MenuItem>
-                      <MenuItem value="ready_for_sale">Ready for Sale</MenuItem>
-                      <MenuItem value="sold">Sold</MenuItem>
-                      <MenuItem value="deceased">Deceased</MenuItem>
+                      {STATUS_OPTIONS.map(status => (
+                        <MenuItem key={status} value={status}>
+                          {status}
+                        </MenuItem>
+                      ))}
                     </TextField>
                     <TextField
                       fullWidth
-                      label="Location *"
+                      label="Location"
                       value={formData.location}
                       onChange={handleInputChange('location')}
-                      required
-                      error={!formData.location.trim()}
-                      helperText={!formData.location.trim() ? 'Location is required' : ''}
+                      placeholder="e.g., North Field, Barn A (Optional)"
                     />
                   </Box>
                   <TextField
@@ -362,9 +380,7 @@ export const LivestockForm: React.FC = () => {
             </Card>
           </Box>
 
-          {/* Right Column - Financial & Actions */}
           <Box width={{ xs: '100%', md: 300 }} display="flex" flexDirection="column" gap={3}>
-            {/* Financial & Measurements Card */}
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom color="primary">
@@ -373,30 +389,27 @@ export const LivestockForm: React.FC = () => {
                 <Box display="flex" flexDirection="column" gap={2}>
                   <TextField
                     fullWidth
-                    label="Purchase Price ($)"
+                    label="Purchase Price (PKR)"
                     type="number"
-                    value={formData.purchasePrice}
-                    onChange={handleInputChange('purchasePrice')}
-                    InputProps={{ startAdornment: <Typography sx={{ mr: 1 }}>$</Typography> }}
+                    value={formData.purchase_price}
+                    onChange={handleInputChange('purchase_price')}
+                    InputProps={{ startAdornment: <Typography sx={{ mr: 1 }}>₨</Typography> }}
                     inputProps={{ min: 0, step: 0.01 }}
                   />
                   <TextField
                     fullWidth
-                    label="Weight (kg) *"
+                    label="Current Weight (kg)"
                     type="number"
-                    value={formData.weight}
-                    onChange={handleInputChange('weight')}
+                    value={formData.current_weight}
+                    onChange={handleInputChange('current_weight')}
                     InputProps={{ endAdornment: <Typography sx={{ ml: 1 }}>kg</Typography> }}
-                    required
-                    error={formData.weight <= 0}
-                    helperText={formData.weight <= 0 ? 'Weight must be greater than 0' : ''}
-                    inputProps={{ min: 0.1, step: 0.1 }}
+                    helperText="Optional - enter 0 if not applicable"
+                    inputProps={{ min: 0, step: 0.1 }}
                   />
                 </Box>
               </CardContent>
             </Card>
 
-            {/* Actions Card */}
             <Paper sx={{ p: 2 }}>
               <Typography variant="subtitle1" gutterBottom fontWeight="bold">
                 Actions

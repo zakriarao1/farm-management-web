@@ -1,133 +1,140 @@
-export type LivestockType = 'CATTLE' | 'POULTRY' | 'SHEEP' | 'GOATS'  | 'FISH'  | 'OTHER';
+// frontend/src/livestock/services/types/index.ts
+
+export type LivestockType = 'CHICKENS' | 'GOATS' | 'SHEEP' | 'COWS' | 'BUFFALOES' | 'DUCKS' | 'TURKEYS' | 'QUAILS' | 'RABBITS' | 'FISH' | 'BEES' | 'OTHER';
+
+export type LivestockStatus = 'HEALTHY' | 'SICK' | 'PREGNANT' | 'SOLD' | 'DECEASED';
+
+export type LivestockGender = 'MALE' | 'FEMALE' | 'UNKNOWN';
 
 
-export type LivestockStatus = 
-  | 'active' 
-  | 'sick' 
-  | 'pregnant' 
-  | 'calving' 
-  | 'milking' 
-  | 'ready_for_sale' 
-  | 'sold' 
-  | 'deceased';
-
-export type LivestockGender = 'MALE' | 'FEMALE' | 'CASTRATED';
-
-export interface Livestock {
-  id: number;
-  tagId: string;
-  type: LivestockType;
-  breed?: string;
-  gender: LivestockGender;
-  dateOfBirth?: string;
-  purchaseDate?: string;
-  purchasePrice?: number;
-  weight?: number;
-  status: LivestockStatus;
-  location?: string;
-  notes?: string;
-  created_at: string; // snake_case
-  updated_at: string; // snake_case
-  identifier?: string;
-  species?: string;
-  flock_name?: string;
-  flock_id?: number;
-}
-
-
-export interface AnimalEvent {
-  id: number;
-  livestock_id: number;
-  event_type: string;
-  event_date: string;
-  description: string;
-  cost?: number;
-  revenue?: number;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-  animal_identifier?: string;
-}
-
-export interface HealthRecord {
-  id: number;
-  date: string;
-  condition: string;
-  treatment: string;
-  medication?: string;
-  dosage?: string;
-  veterinarian?: string;
-  cost: number;
-  notes?: string;
-  created_at: string;
-  createdAt?: string; // Add this as optional
-}
 
 export interface BreedingRecord {
   id: number;
-  livestockId: number;
-  breedingDate: string;
-  expectedBirthDate?: string;
-  actualBirthDate?: string;
-  offspringCount?: number;
+  livestock_id: number;
+  breeding_date: string;
+  expected_birth_date?: string;
+  actual_birth_date?: string;
+  offspring_count?: number;
   notes?: string;
   status: 'PREGNANT' | 'SUCCESSFUL' | 'FAILED' | 'COMPLETED';
-  createdAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface MilkProduction {
   id: number;
-  livestockId: number;
+  livestock_id: number;
   date: string;
-  morningYield: number;
-  eveningYield: number;
-  totalYield: number;
-  qualityNotes?: string;
-  createdAt: string;
+  morning_yield: number;
+  evening_yield: number;
+  total_yield: number;
+  quality_notes?: string;
+  created_at: string;
+  updated_at: string;
 }
 
-// Remove the old CreateLivestockRequest and UpdateLivestockRequest interfaces
-// and replace with these:
-
-export interface CreateLivestockRequest extends Omit<Livestock, 'id' | 'createdAt' | 'updatedAt'> {}
-
-export interface UpdateLivestockRequest extends Partial<Omit<Livestock, 'id' | 'createdAt' | 'updatedAt'>> {}
-
-// Analytics types
-export interface LivestockStats {
-  totalAnimals: number;
-  byType: Record<string, number>;
-  byStatus: Record<string, number>;
-  averageWeight: number;
-  totalValue: number;
-  healthAlerts: number;
-  pregnantAnimals: number;
+export interface Livestock {
+  id: number;
+  tag_number: string;
+  animal_type: string;
+  breed?: string;
+  gender: LivestockGender;
+  date_of_birth?: string;
+  purchase_date?: string;
+  purchase_price?: number;
+  current_weight?: number;
+  status: LivestockStatus;
+  location?: string;
+  notes?: string;
+  flock_id?: number;
+  created_at: string;
+  updated_at: string;
+  
+  // For display purposes only
+  flock_name?: string;
 }
 
-export interface HealthAlert {
-  livestockId: number;
-  tagId: string;
-  type: string;
-  breed: string;
-  condition: string;
-  lastCheckup: string;
-  severity: 'LOW' | 'MEDIUM' | 'HIGH';
+export interface CreateLivestockRequest {
+  tag_number: string;
+  animal_type: string;
+  breed?: string;
+  gender: LivestockGender;
+  date_of_birth?: string;
+  purchase_date?: string;
+  purchase_price?: number;
+  current_weight?: number;
+  status: LivestockStatus;
+  location?: string;
+  notes?: string;
+  flock_id?: number;
+}
+
+export interface UpdateLivestockRequest {
+  tag_number?: string;
+  animal_type?: string;
+  breed?: string;
+  gender?: LivestockGender;
+  date_of_birth?: string;
+  purchase_date?: string;
+  purchase_price?: number;
+  current_weight?: number;
+  status?: LivestockStatus;
+  location?: string;
+  notes?: string;
+  flock_id?: number;
 }
 
 export interface Flock {
   id: number;
   name: string;
-  breed: string;
-  quantity: number;
-  age: number;
-  health_status: string;
-  total_purchase_cost?: number;
-  description?: string;
+  animal_type: string;
+  breed?: string;
+  total_animals: number;
+  current_animals: number;
   purchase_date?: string;
+  purchase_price?: number;
+  description?: string;
   created_at: string;
   updated_at: string;
 }
 
+export interface LivestockExpense {
+  id: number;
+  flock_id: number;
+  livestock_id?: number;
+  description: string;
+  category: string;
+  amount: number;
+  date: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  flock_name?: string;
+}
+
+export interface CreateLivestockExpenseRequest {
+  flock_id: number;
+  livestock_id?: number;
+  description: string;
+  category: string;
+  amount: number;
+  date: string;
+  notes?: string;
+}
+
+export interface FlockFinancialSummary {
+  flock_id: number;
+  flock_name: string;
+  total_purchase_cost: number;
+  total_expenses: number;
+  total_sales: number;
+  net_profit: number;
+  roi_percentage: number;
+  total_animals?: number;
+  sold_animals?: number;
+  active_animals?: number;
+  total_sale_revenue?: number;
+}
 export interface LivestockExpense {
   id: number;
   flock_id: number;
@@ -187,45 +194,40 @@ export interface MedicalTreatment {
   livestock_id: number;
   flock_id?: number;
   treatment_type: string;
-  medication_name: string;
-  dosage: string;
-  administration_method: string;
-  treatment_date: string;
-  next_treatment_date?: string;
-  veterinarian?: string;
+  medicine_name?: string;
+  dosage?: string;
+  administered_date: string;
+  next_due_date?: string;
   cost: number;
+  veterinarian?: string;
   notes?: string;
   created_at: string;
   updated_at: string;
-  
-  // Joined data
-  animal_identifier?: string;
-  flock_name?: string;
 }
 
 export interface CreateMedicalTreatmentRequest {
   livestock_id: number;
   flock_id?: number;
   treatment_type: string;
-  medication_name: string;
-  dosage: string;
-  administration_method: string;
-  treatment_date: string;
-  next_treatment_date?: string;
+  medicine_name?: string;
+  dosage?: string;
+  administered_date: string;
+  next_due_date?: string;
+  cost?: number;
   veterinarian?: string;
-  cost: number;
   notes?: string;
 }
 
 export interface UpdateMedicalTreatmentRequest {
+  livestock_id?: number;
+  flock_id?: number;
   treatment_type?: string;
-  medication_name?: string;
+  medicine_name?: string;
   dosage?: string;
-  administration_method?: string;
-  treatment_date?: string;
-  next_treatment_date?: string;
-  veterinarian?: string;
+  administered_date?: string;
+  next_due_date?: string;
   cost?: number;
+  veterinarian?: string;
   notes?: string;
 }
 
@@ -273,4 +275,44 @@ export interface AnimalFinancialSummary {
   current_value?: number;
   age_days: number;
   status: LivestockStatus;
+} 
+export interface HealthRecord {
+  id: number;
+  livestock_id: number;
+  record_date: string;
+  health_status: string;
+  diagnosis?: string;
+  treatment?: string;
+  medication?: string;
+  dosage?: string;
+  veterinarian?: string;
+  cost: number;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateHealthRecordRequest {
+  livestock_id: number;
+  record_date: string;
+  health_status: string;
+  diagnosis?: string;
+  treatment?: string;
+  medication?: string;
+  dosage?: string;
+  veterinarian?: string;
+  cost?: number;
+  notes?: string;
+}
+
+export interface UpdateHealthRecordRequest {
+  record_date?: string;
+  health_status?: string;
+  diagnosis?: string;
+  treatment?: string;
+  medication?: string;
+  dosage?: string;
+  veterinarian?: string;
+  cost?: number;
+  notes?: string;
 }

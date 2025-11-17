@@ -1,5 +1,3 @@
-// frontend/src/livestock/components/SaleRecordDialog.tsx
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -10,7 +8,7 @@ import {
   IconButton
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { livestockApi, flockApi } from '../../services/api';
+import { livestockApi, flockApi } from '../services/api';
 import { salesApi } from '../services/salesApi';
 import Grid from '@mui/material/Grid';
 
@@ -32,7 +30,7 @@ interface SaleItem {
 
 // Define proper sale data type that matches the API
 interface SaleFormData {
-  sale_date: string; // Required string, not optional
+  sale_date: string;
   customer_name: string;
   customer_contact: string;
   payment_method: string;
@@ -46,7 +44,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
   const [saleType, setSaleType] = useState<'individual' | 'bulk'>('individual');
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
   const [saleData, setSaleData] = useState<SaleFormData>({
-    sale_date: new Date().toISOString().split('T')[0] || '', // Ensure it's never undefined
+    sale_date: new Date().toISOString().split('T')[0] || '',
     customer_name: '',
     customer_contact: '',
     payment_method: 'cash',
@@ -82,7 +80,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
     setSaleType('individual');
     setSaleItems([]);
     setSaleData({
-      sale_date: new Date().toISOString().split('T')[0] || '', // Ensure it's never undefined
+      sale_date: new Date().toISOString().split('T')[0] || '',
       customer_name: '',
       customer_contact: '',
       payment_method: 'cash',
@@ -101,7 +99,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
     const newItem: SaleItem = {
       id: Date.now(),
       type: 'animal',
-      description: `${animal.tag_id} - ${animal.breed}`,
+      description: `${animal.tag_number} - ${animal.breed} (${animal.animal_type})`,
       quantity: 1,
       unitPrice: 0,
       total: 0,
@@ -114,12 +112,15 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
     if (!selectedFlock) return;
     
     const flock = flocks.find(f => f.id === selectedFlock);
-    const flockAnimals = livestock.filter(animal => animal.flock_id === selectedFlock && animal.status === 'active');
+    const flockAnimals = livestock.filter(animal => 
+      animal.flock_id === selectedFlock && 
+      animal.status === 'HEALTHY' // Updated status
+    );
     
     const flockItems: SaleItem[] = flockAnimals.map(animal => ({
       id: Date.now() + animal.id,
       type: 'animal',
-      description: `${animal.tag_id} - ${animal.breed}`,
+      description: `${animal.tag_number} - ${animal.breed} (${animal.animal_type})`,
       quantity: 1,
       unitPrice: 0,
       total: 0,
@@ -153,7 +154,6 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
       return;
     }
 
-    // Validate required fields
     if (!saleData.sale_date) {
       setError('Sale date is required');
       return;
@@ -165,12 +165,11 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
 
       // Record each sale item
       for (const item of saleItems) {
-        // Prepare sale data with proper types
         const saleRecordData = {
           livestock_id: item.livestockId,
-          flock_id: undefined as number | undefined, // You might want to set this based on context
+          flock_id: undefined as number | undefined,
           sale_type: item.type,
-          sale_date: saleData.sale_date, // This is now guaranteed to be a string
+          sale_date: saleData.sale_date,
           description: item.description,
           quantity: item.quantity,
           unit_price: item.unitPrice,
@@ -197,7 +196,6 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
   const steps = ['Select Animals', 'Set Prices', 'Customer Details'];
   const totalAmount = saleItems.reduce((sum, item) => sum + item.total, 0);
 
-  // Handle sale data changes safely
   const handleSaleDataChange = (field: keyof SaleFormData) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const value = event.target.value;
     setSaleData(prev => ({
@@ -245,7 +243,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                 <Typography variant="h6" gutterBottom>Select Animals</Typography>
                 <Grid container spacing={1}>
                   {livestock
-                    .filter(animal => animal.status === 'active')
+                    .filter(animal => animal.status === 'HEALTHY') // Updated status
                     .map(animal => (
                       <Grid item xs={12} sm={6} md={4} key={animal.id}>
                         <Card 
@@ -259,13 +257,13 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                         >
                           <CardContent sx={{ p: 2 }}>
                             <Typography variant="subtitle2" fontWeight="bold">
-                              {animal.tag_id}
+                              {animal.tag_number}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              {animal.breed} • {animal.type}
+                              {animal.breed} • {animal.animal_type}
                             </Typography>
                             <Typography variant="caption">
-                              Purchase: ${animal.purchase_price}
+                              Purchase: ₨{animal.purchase_price?.toLocaleString() || '0'}
                             </Typography>
                           </CardContent>
                         </Card>
@@ -289,7 +287,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                     >
                       {flocks.map(flock => (
                         <MenuItem key={flock.id} value={flock.id}>
-                          {flock.name} - {livestock.filter(a => a.flock_id === flock.id && a.status === 'active').length} animals
+                          {flock.name} - {livestock.filter(a => a.flock_id === flock.id && a.status === 'HEALTHY').length} animals
                         </MenuItem>
                       ))}
                     </Select>
@@ -332,6 +330,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                               onChange={(e) => updateItem(item.id, 'quantity', Number(e.target.value))}
                               size="small"
                               sx={{ width: 80 }}
+                              inputProps={{ min: 1 }}
                             />
                           </TableCell>
                           <TableCell align="right">
@@ -341,11 +340,12 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                               onChange={(e) => updateItem(item.id, 'unitPrice', Number(e.target.value))}
                               size="small"
                               sx={{ width: 100 }}
-                              InputProps={{ startAdornment: '$' }}
+                              InputProps={{ startAdornment: <Typography sx={{ mr: 1 }}>₨</Typography> }}
+                              inputProps={{ min: 0, step: 0.01 }}
                             />
                           </TableCell>
                           <TableCell align="right">
-                            ${item.total.toFixed(2)}
+                            ₨{item.total.toFixed(2)}
                           </TableCell>
                           <TableCell align="center">
                             <IconButton
@@ -363,7 +363,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                 </TableContainer>
                 <Box display="flex" justifyContent="flex-end" mt={2}>
                   <Typography variant="h6">
-                    Total: ${totalAmount.toFixed(2)}
+                    Total: ₨{totalAmount.toFixed(2)}
                   </Typography>
                 </Box>
               </Grid>
@@ -399,11 +399,12 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                             onChange={(e) => updateItem(item.id, 'unitPrice', Number(e.target.value))}
                             size="small"
                             sx={{ width: 100 }}
-                            InputProps={{ startAdornment: '$' }}
+                            InputProps={{ startAdornment: <Typography sx={{ mr: 1 }}>₨</Typography> }}
+                            inputProps={{ min: 0, step: 0.01 }}
                           />
                         </TableCell>
                         <TableCell align="right">
-                          ${item.total.toFixed(2)}
+                          ₨{item.total.toFixed(2)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -412,7 +413,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
               </TableContainer>
               <Box display="flex" justifyContent="flex-end" mt={2}>
                 <Typography variant="h6" color="primary">
-                  Grand Total: ${totalAmount.toFixed(2)}
+                  Grand Total: ₨{totalAmount.toFixed(2)}
                 </Typography>
               </Box>
             </Grid>
@@ -455,6 +456,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                 label="Customer Name"
                 value={saleData.customer_name}
                 onChange={handleSaleDataChange('customer_name')}
+                placeholder="Optional"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -463,6 +465,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                 label="Customer Contact"
                 value={saleData.customer_contact}
                 onChange={handleSaleDataChange('customer_contact')}
+                placeholder="Optional"
               />
             </Grid>
             <Grid item xs={12}>
@@ -473,6 +476,7 @@ export const SaleRecordDialog: React.FC<SaleRecordDialogProps> = ({
                 label="Notes"
                 value={saleData.notes}
                 onChange={handleSaleDataChange('notes')}
+                placeholder="Additional notes about the sale..."
               />
             </Grid>
           </Grid>

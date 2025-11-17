@@ -20,7 +20,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-import { financialSummaryApi, flockApi } from '../../services/api';
+import { financialSummaryApi, flockApi } from '../services/api';
 import { FlockFinancialSummary, Flock } from '../types';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];

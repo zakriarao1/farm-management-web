@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Tabs,
@@ -8,9 +8,10 @@ import {
 } from '@mui/material';
 import { LivestockList } from './LivestockList';
 import { LivestockForm } from './LivestockForm';
-import { HealthRecords } from './HealthRecords';
 import { LivestockExpenseList } from './LivestockExpenseList';
 import { LivestockExpenseReports } from './LivestockExpenseReports';
+import { FlockList } from './FlockList';
+import { HealthRecordsManagement } from './HealthRecordsManagement'; // Your new component
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -41,9 +42,14 @@ const a11yProps = (index: number) => {
 
 export const LivestockManagement: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
+  };
+
+  const handleRefresh = () => {
+    setRefreshTrigger(prev => prev + 1);
   };
 
   return (
@@ -61,13 +67,14 @@ export const LivestockManagement: React.FC = () => {
         >
           <Tab label="Animals" {...a11yProps(0)} />
           <Tab label="Add Animal" {...a11yProps(1)} />
-          <Tab label="Health Records" {...a11yProps(2)} />
-          <Tab label="Expenses" {...a11yProps(3)} />
-          <Tab label="Reports" {...a11yProps(4)} />
+          <Tab label="Flocks" {...a11yProps(2)} />
+          <Tab label="Health Records" {...a11yProps(3)} />
+          <Tab label="Expenses" {...a11yProps(4)} />
+          <Tab label="Reports" {...a11yProps(5)} />
         </Tabs>
 
         <TabPanel value={tabValue} index={0}>
-          <LivestockList />
+          <LivestockList refreshTrigger={refreshTrigger} />
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
@@ -75,14 +82,18 @@ export const LivestockManagement: React.FC = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
-          <HealthRecords livestockId={0} healthRecords={[]} onRecordAdded={() => {}} />
+          <FlockList />
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
-          <LivestockExpenseList />
+          <HealthRecordsManagement />
         </TabPanel>
 
         <TabPanel value={tabValue} index={4}>
+          <LivestockExpenseList />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={5}>
           <LivestockExpenseReports />
         </TabPanel>
       </Paper>
@@ -90,5 +101,4 @@ export const LivestockManagement: React.FC = () => {
   );
 };
 
-// Export as both named and default for flexibility
 export default LivestockManagement;

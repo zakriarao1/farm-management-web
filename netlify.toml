@@ -1,11 +1,31 @@
 [build]
-  command = "cd frontend && npm install --legacy-peer-deps && npm run build"
   publish = "frontend/build"
+  functions = "netlify/functions"
 
 [build.environment]
-  NODE_OPTIONS = "--openssl-legacy-provider"
+  NODE_VERSION = "18"
+  
+[dev]
+  targetPort = 3000
+  port = 8888
+  functions = "netlify/functions"
+  publish = "frontend/build"
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+[[redirects]]
+  from = "/.netlify/functions/crops/*/expenses"
+  to = "/.netlify/functions/expenses"
+  status = 200
+
+[[redirects]]
+  from = "/api/crops/*/expenses"
+  to = "/.netlify/functions/expenses"
   status = 200

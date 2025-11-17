@@ -1,34 +1,32 @@
 {
-    "homepage": ".",
-    "name": "farm-management-web",
-    "version": "1.0.0",
-    "description": "Farm Management System",
-    "private": true,
-    "dependencies": {
-        "@netlify/functions": "^1.6.0",
-        "bcryptjs": "^3.0.3",
-        "cors": "^2.8.5",
-        "jsonwebtoken": "^9.0.2",
-        "pg": "^8.16.3",
-        "react-scripts": "^5.0.1",
-        "uuid": "^9.0.1"
-    },
-    "scripts": {
-        "build": "cd frontend && npm install --legacy-peer-deps && npm run build",
-        "dev": "cd frontend && npm start",
-        "install-deps": "cd frontend && npm install --legacy-peer-deps",
-        "functions:dev": "netlify dev"
-    },
-    "engines": {
-        "node": ">=18.0.0",
-        "npm": ">=8.0.0"
-    },
-    "keywords": [
-        "farm",
-        "management",
-        "livestock",
-        "react"
-    ],
-    "author": "Your Name",
-    "license": "MIT"
+  "name": "farm-management-web",
+  "version": "1.0.0",
+  "description": "Farm Management System",
+  "private": true,
+  "dependencies": {
+    "@netlify/functions": "^1.6.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.3",
+    "uuid": "^9.0.1"
+  },
+  "scripts": {
+    "build": "cd frontend && npm install --legacy-peer-deps && npm run build",
+    "start": "cd frontend && npm start",
+    "dev": "netlify dev",
+    "dev:manual": "concurrently \"netlify functions:serve --port 8888\" \"cd frontend && npm start\""
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "farm",
+    "management",
+    "livestock",
+    "react"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
 }

@@ -26,8 +26,13 @@ export interface RegisterRequest {
 class AuthService {
   private token: string | null = null;
   private tokenExpiry: number | null = null;
+  private readonly API_BASE_URL: string;
 
   constructor() {
+    // Use localhost for development, relative path for production
+    this.API_BASE_URL = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:8888/.netlify/functions'
+      : '/.netlify/functions';
     this.loadTokenFromStorage();
   }
 
@@ -80,8 +85,8 @@ class AuthService {
 
   async login(email: string, password: string): Promise<AuthResponse> {
     try {
-      // Use Netlify functions endpoint
-      const response = await fetch('/.netlify/functions/auth-login', {
+      // Use Netlify functions endpoint with correct URL
+      const response = await fetch(`${this.API_BASE_URL}/auth-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -90,12 +95,16 @@ class AuthService {
       });
 
       if (!response.ok) {
-        // If Netlify function fails, use mock data for development
-        console.warn('Netlify function failed, using mock data');
-        return this.mockLogin(email, password);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Login failed');
       }
 
       const result = await response.json();
+      
+      if (!result.data) {
+        throw new Error('Invalid response format');
+      }
+
       const authResponse = result.data as AuthResponse;
 
       if (authResponse.token) {
@@ -109,16 +118,15 @@ class AuthService {
       return authResponse;
 
     } catch (error) {
-      console.error('Login failed, using mock data:', error);
-      // Fallback to mock data for development
-      return this.mockLogin(email, password);
+      console.error('Login failed:', error);
+      throw error;
     }
   }
 
   async register(name: string, email: string, password: string): Promise<AuthResponse> {
     try {
-      // Use Netlify functions endpoint
-      const response = await fetch('/.netlify/functions/auth-register', {
+      // Use Netlify functions endpoint with correct URL
+      const response = await fetch(`${this.API_BASE_URL}/auth-register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,12 +135,16 @@ class AuthService {
       });
 
       if (!response.ok) {
-        // If Netlify function fails, use mock data for development
-        console.warn('Netlify function failed, using mock data');
-        return this.mockRegister(name, email, password);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Registration failed');
       }
 
       const result = await response.json();
+      
+      if (!result.data) {
+        throw new Error('Invalid response format');
+      }
+
       const authResponse = result.data as AuthResponse;
 
       if (authResponse.token) {
@@ -146,76 +158,9 @@ class AuthService {
       return authResponse;
 
     } catch (error) {
-      console.error('Registration failed, using mock data:', error);
-      // Fallback to mock data for development
-      return this.mockRegister(name, email, password);
+      console.error('Registration failed:', error);
+      throw error;
     }
-  }
-
-  // Mock login for development
-  private async mockLogin(email: string, password: string): Promise<AuthResponse> {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Mock validation - accept any credentials for demo
-    if (!email || !password) {
-      throw new Error('Email and password are required');
-    }
-
-    const mockUser: User = {
-      id: 1,
-      email: email,
-      name: email.split('@')[0] || 'Demo User'
-    };
-
-    const authResponse: AuthResponse = {
-      user: mockUser,
-      token: 'mock-jwt-token-' + Date.now(),
-      expiresIn: 24 * 60 * 60 * 1000 // 24 hours
-    };
-
-    this.saveTokenToStorage(authResponse.token, authResponse.expiresIn);
-    
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('user', JSON.stringify(authResponse.user));
-    }
-
-    return authResponse;
-  }
-
-  // Mock registration for development
-  private async mockRegister(name: string, email: string, password: string): Promise<AuthResponse> {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Mock validation
-    if (!name || !email || !password) {
-      throw new Error('Name, email and password are required');
-    }
-
-    if (password.length < 6) {
-      throw new Error('Password must be at least 6 characters');
-    }
-
-    const mockUser: User = {
-      id: Date.now(), // Use timestamp as ID for new users
-      email: email,
-      name: name
-    };
-
-    const authResponse: AuthResponse = {
-      user: mockUser,
-      token: 'mock-jwt-token-' + Date.now(),
-      expiresIn: 24 * 60 * 60 * 1000 // 24 hours
-    };
-
-    this.saveTokenToStorage(authResponse.token, authResponse.expiresIn);
-    
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('user', JSON.stringify(authResponse.user));
-    }
-
-    return authResponse;
   }
 
   setToken(token: string, expiresIn?: number) {

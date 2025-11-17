@@ -1,8 +1,14 @@
 // frontend/src/livestock/services/salesApi.ts
 import { authService } from '../../services/authService';
 
-const API_BASE_URL = 'http://localhost:5000';
+const getApiBaseUrl = (): string => {
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:8888/.netlify/functions';
+  }
+  return '/.netlify/functions';
+};
 
+const API_BASE_URL = getApiBaseUrl();
 interface ApiResponse<T> {
   data: T;
   message?: string;
@@ -76,7 +82,7 @@ export interface SaleRecord {
 export const salesApi = {
   // Record a new sale
   recordSale: async (saleData: Omit<SaleRecord, 'id'>): Promise<ApiResponse<SaleRecord>> => {
-    return salesApiRequest<SaleRecord>('/api/sales', {
+    return salesApiRequest<SaleRecord>('/sales', {
       method: 'POST',
       body: JSON.stringify(saleData),
     });
@@ -84,12 +90,12 @@ export const salesApi = {
 
   // Get all sales
   getAll: async (): Promise<ApiResponse<SaleRecord[]>> => {
-    return salesApiRequest<SaleRecord[]>('/api/sales');
+    return salesApiRequest<SaleRecord[]>('/sales');
   },
 
   // Get sales summary
   getSummary: async (startDate?: string, endDate?: string): Promise<ApiResponse<any>> => {
-    let url = '/api/sales/summary';
+    let url = '/sales/summary';
     const params = new URLSearchParams();
     
     if (startDate) params.append('startDate', startDate);
@@ -104,18 +110,18 @@ export const salesApi = {
 
   // Delete a sale
   delete: async (saleId: number): Promise<ApiResponse<{ message: string }>> => {
-    return salesApiRequest<{ message: string }>(`/api/sales/${saleId}`, {
+    return salesApiRequest<{ message: string }>(`/sales/${saleId}`, {
       method: 'DELETE',
     });
   },
 
   // Get sales by flock
   getByFlock: async (flockId: number): Promise<ApiResponse<SaleRecord[]>> => {
-    return salesApiRequest<SaleRecord[]>(`/api/sales/flock/${flockId}`);
+    return salesApiRequest<SaleRecord[]>(`/sales/flock/${flockId}`);
   },
 
   // Get recent sales
   getRecent: async (limit: number = 10): Promise<ApiResponse<SaleRecord[]>> => {
-    return salesApiRequest<SaleRecord[]>(`/api/sales/recent?limit=${limit}`);
+    return salesApiRequest<SaleRecord[]>(`/sales/recent?limit=${limit}`);
   }
 };

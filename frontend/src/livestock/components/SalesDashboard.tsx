@@ -1,4 +1,3 @@
-// frontend/src/livestock/components/SalesDashboard.tsx
 import React, { useState, useEffect } from 'react';
 import {
   Box, Card, CardContent, Typography, Button, 
@@ -12,7 +11,7 @@ import {
   Add as AddIcon,
   TrendingUp as TrendIcon
 } from '@mui/icons-material';
-import { livestockApi, flockApi } from '../../services/api';
+import { livestockApi, flockApi } from '../services/api';
 import { salesApi } from '../services/salesApi';
 
 import { SaleRecordDialog } from './SaleRecordDialog';
@@ -140,7 +139,7 @@ export const SalesDashboard: React.FC = () => {
                     Total Revenue
                   </Typography>
                   <Typography variant="h5" fontWeight="bold">
-                    ${stats.totalRevenue.toLocaleString()}
+                    ₨{stats.totalRevenue.toLocaleString()}
                   </Typography>
                 </Box>
               </Box>
@@ -176,7 +175,7 @@ export const SalesDashboard: React.FC = () => {
                     Avg Sale Price
                   </Typography>
                   <Typography variant="h5" fontWeight="bold">
-                    ${stats.averageSalePrice.toFixed(2)}
+                    ₨{stats.averageSalePrice.toFixed(2)}
                   </Typography>
                 </Box>
               </Box>

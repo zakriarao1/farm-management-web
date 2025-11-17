@@ -15,41 +15,29 @@ import { useNavigate } from 'react-router-dom';
 import { cropApi } from '../services/api';
 import type { CreateCropRequest } from '../types';
 
-// Crop data with names, types, and varieties
-const CROP_DATA = {
-  wheat: {
-    types: ['Spring Wheat', 'Winter Wheat', 'Durum Wheat'],
-    varieties: ['Hard Red Winter', 'Soft Red Winter', 'Hard White', 'Soft White', 'Durum']
-  },
-  rice: {
-    types: ['Basmati Rice', 'Jasmine Rice', 'Brown Rice', 'White Rice'],
-    varieties: ['Long Grain', 'Medium Grain', 'Short Grain', 'Aromatic', 'Sticky']
-  },
-  corn: {
-    types: ['Sweet Corn', 'Field Corn', 'Popcorn'],
-    varieties: ['Yellow Dent', 'White Dent', 'Flint Corn', 'Flour Corn', 'Sweet Corn']
-  },
-  cotton: {
-    types: ['Upland Cotton', 'Pima Cotton'],
-    varieties: ['American Upland', 'Egyptian Cotton', 'Supima', 'Organic Cotton']
-  },
-  sugarcane: {
-    types: ['Chewing Cane', 'Crystal Cane', 'Syrup Cane'],
-    varieties: ['Noble Cane', 'Commercial Hybrids', 'Traditional Varieties']
-  },
-  potato: {
-    types: ['Russet Potato', 'Red Potato', 'Sweet Potato'],
-    varieties: ['Russet Burbank', 'Yukon Gold', 'Red Norland', 'Kenbec', 'Purple Majesty']
-  },
-  tomato: {
-    types: ['Cherry Tomato', 'Beefsteak Tomato', 'Roma Tomato'],
-    varieties: ['Heirloom', 'Hybrid', 'Grape Tomato', 'Plum Tomato', 'Campari']
-  },
-  onion: {
-    types: ['Yellow Onion', 'Red Onion', 'White Onion', 'Sweet Onion'],
-    varieties: ['Vidalia', 'Walla Walla', 'Texas Sweet', 'Spanish Yellow', 'Red Burgundy']
-  }
-};
+// Crop data with names only (types and varieties are now free text)
+const CROP_NAMES = [
+  'Wheat',
+  'Rice', 
+  'Corn',
+  'Cotton',
+  'Sugarcane',
+  'Potato',
+  'Tomato',
+  'Onion',
+  'Barley',
+  'Soybean',
+  'Sunflower',
+  'Canola',
+  'Alfalfa',
+  'Oats',
+  'Millet',
+  'Sorghum',
+  'Peanuts',
+  'Chickpeas',
+  'Lentils',
+  'Beans'
+];
 
 export const CropForm: React.FC = () => {
   const navigate = useNavigate();
@@ -80,27 +68,6 @@ export const CropForm: React.FC = () => {
 
   const isMarketPriceRequired = formData.status === 'SOLD';
   const showActualYieldFields = formData.status === 'HARVESTED' || formData.status === 'SOLD';
-
-  // Reset dependent fields when crop name changes
-  useEffect(() => {
-    if (formData.name) {
-      setFormData(prev => ({
-        ...prev,
-        type: '', // Reset type
-        variety: '' // Reset variety
-      }));
-    }
-  }, [formData.name]);
-
-  // Reset variety when crop type changes
-  useEffect(() => {
-    if (formData.type) {
-      setFormData(prev => ({
-        ...prev,
-        variety: '' // Reset variety when type changes
-      }));
-    }
-  }, [formData.type]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -153,18 +120,6 @@ export const CropForm: React.FC = () => {
     }
   };
 
-  const getCropTypes = () => {
-    if (!formData.name) return [];
-    const crop = CROP_DATA[formData.name as keyof typeof CROP_DATA];
-    return crop ? crop.types : [];
-  };
-
-  const getCropVarieties = () => {
-    if (!formData.name || !formData.type) return [];
-    const crop = CROP_DATA[formData.name as keyof typeof CROP_DATA];
-    return crop ? crop.varieties : [];
-  };
-
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
@@ -206,50 +161,34 @@ export const CropForm: React.FC = () => {
                   required
                 >
                   <MenuItem value="">Select Crop</MenuItem>
-                  {Object.keys(CROP_DATA).map(crop => (
+                  {CROP_NAMES.map(crop => (
                     <MenuItem key={crop} value={crop}>
-                      {crop.charAt(0).toUpperCase() + crop.slice(1)}
+                      {crop}
                     </MenuItem>
                   ))}
                 </TextField>
                 
                 <TextField
                   sx={{ flex: '1 1 300px' }}
-                  label="Crop Type *"
+                  label="Crop Type (Optional)"
                   name="type"
                   value={formData.type}
                   onChange={handleChange}
-                  select
-                  required
-                  disabled={!formData.name}
-                >
-                  <MenuItem value="">Select Type</MenuItem>
-                  {getCropTypes().map(type => (
-                    <MenuItem key={type} value={type}>
-                      {type}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                  placeholder="e.g., Spring Wheat, Basmati Rice"
+                  fullWidth
+                />
               </Box>
 
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <TextField
                   sx={{ flex: '1 1 300px' }}
-                  label="Variety *"
+                  label="Variety (Optional)"
                   name="variety"
                   value={formData.variety}
                   onChange={handleChange}
-                  select
-                  required
-                  disabled={!formData.type}
-                >
-                  <MenuItem value="">Select Variety</MenuItem>
-                  {getCropVarieties().map(variety => (
-                    <MenuItem key={variety} value={variety}>
-                      {variety}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                  placeholder="e.g., Hard Red Winter, Long Grain"
+                  fullWidth
+                />
                 
                 <TextField
                   sx={{ flex: '1 1 300px' }}

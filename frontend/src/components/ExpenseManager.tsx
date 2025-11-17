@@ -31,7 +31,7 @@ import {
   Delete as DeleteIcon,
   AttachMoney as MoneyIcon,
 } from '@mui/icons-material';
-import { cropApi } from '../services/api';
+import { expenseApi } from '../services/api';
 import type { Expense, CreateExpenseRequest, ExpenseCategory } from '../types';
 
 interface ExpenseManagerProps {
@@ -39,6 +39,28 @@ interface ExpenseManagerProps {
   cropName: string;
   onExpensesUpdated?: () => void;
 }
+
+// Safe formatting functions - Updated to PKR
+const safeFormatCurrency = (amount: number | undefined | null): string => {
+  if (amount === undefined || amount === null) return '₨0.00';
+  try {
+    return new Intl.NumberFormat('en-PK', {
+      style: 'currency',
+      currency: 'PKR'
+    }).format(amount);
+  } catch (error) {
+    return '₨0.00';
+  }
+};
+
+const safeFormatDate = (dateString: string | undefined | null): string => {
+  if (!dateString) return 'N/A';
+  try {
+    return new Date(dateString).toLocaleDateString();
+  } catch (error) {
+    return 'Invalid Date';
+  }
+};
 
 export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   cropId,
@@ -53,38 +75,67 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   const [formData, setFormData] = useState<CreateExpenseRequest>({
     cropId,
     description: '',
-    category: 'OTHER',
+    category: 'OTHER' as ExpenseCategory,
     amount: 0,
     date: new Date().toISOString().split('T')[0]!,
     notes: '',
   });
 
+  // Load expenses function
   const loadExpenses = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await cropApi.getExpenses(cropId);
-      setExpenses(response.data || []);
+      setError('');
+      
+      // Get ALL expenses and filter by crop_id
+      const response = await fetch(`/.netlify/functions/expenses`);
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to load expenses');
+      }
+      
+      // Filter expenses for this specific crop
+      const expensesForCrop = (result.data || []).filter((expense: any) => {
+        return expense.crop_id === cropId;
+      });
+      
+      // Map the data properly
+      const mappedExpenses = expensesForCrop.map((expense: any) => ({
+        id: expense.id,
+        cropId: expense.crop_id,
+        description: expense.description || 'No description',
+        category: expense.category || 'OTHER',
+        amount: parseFloat(expense.amount) || 0,
+        date: expense.date,
+        notes: expense.notes || '',
+      }));
+      
+      setExpenses(mappedExpenses);
+      
     } catch (err) {
-      console.error('Failed to load expenses:', err);
       setError('Failed to load expenses');
+      setExpenses([]);
     } finally {
       setLoading(false);
     }
   }, [cropId]);
 
+  // Load expenses on component mount
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);
 
+  // Open dialog for add/edit
   const handleOpenDialog = (expense?: Expense) => {
     if (expense) {
       setEditingExpense(expense);
       setFormData({
         cropId,
-        description: expense.description,
-        category: expense.category,
-        amount: expense.amount,
-        date: expense.date,
+        description: expense.description || '',
+        category: expense.category || 'OTHER',
+        amount: expense.amount || 0,
+        date: expense.date ? expense.date.split('T')[0] : new Date().toISOString().split('T')[0]!,
         notes: expense.notes || '',
       });
     } else {
@@ -99,56 +150,108 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       });
     }
     setOpenDialog(true);
+    setError('');
   };
 
+  // Close dialog
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setEditingExpense(null);
     setError('');
   };
 
+  // Handle form submission (Add/Edit)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!formData.description || formData.amount <= 0) {
-      setError('Description and amount are required');
+    // Validation
+    if (!formData.description?.trim()) {
+      setError('Description is required');
+      return;
+    }
+    if (!formData.amount || formData.amount <= 0) {
+      setError('Amount must be greater than 0');
+      return;
+    }
+    if (!formData.date) {
+      setError('Date is required');
       return;
     }
 
     try {
       if (editingExpense) {
-        await cropApi.updateExpense(editingExpense.id, formData);
+        // Update existing expense
+        await expenseApi.update(editingExpense.id.toString(), {
+          description: formData.description,
+          category: formData.category,
+          amount: formData.amount,
+          date: formData.date,
+          notes: formData.notes,
+        });
       } else {
-        await cropApi.addExpense(formData);
+        // Create new expense
+        const response = await fetch(`/.netlify/functions/expenses`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            cropId: cropId,
+            description: formData.description,
+            category: formData.category,
+            amount: formData.amount,
+            date: formData.date,
+            notes: formData.notes,
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create expense');
+        }
       }
       
+      // Reload expenses
       await loadExpenses();
       handleCloseDialog();
       onExpensesUpdated?.();
+      
     } catch (err) {
-      console.error('Failed to save expense:', err);
       setError(err instanceof Error ? err.message : 'Failed to save expense');
     }
   };
 
+  // Handle delete expense
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this expense?')) {
       return;
     }
 
     try {
-      await cropApi.deleteExpense(id);
+      setError('');
+      
+      const response = await fetch(`/.netlify/functions/expenses/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete expense');
+      }
+      
       await loadExpenses();
       onExpensesUpdated?.();
+      
     } catch (err) {
-      console.error('Failed to delete expense:', err);
       setError('Failed to delete expense');
     }
   };
 
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  // Calculate total expenses
+  const totalExpenses = expenses.reduce((sum, expense) => sum + (expense?.amount || 0), 0);
 
+  // Category color mapping
   const getCategoryColor = (category: ExpenseCategory): string => {
     const colors: Record<ExpenseCategory, string> = {
       SEEDS: 'primary',
@@ -162,11 +265,19 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       TRANSPORTATION: 'secondary',
       OTHER: 'default',
     };
-    return colors[category];
+    return colors[category] || 'default';
   };
 
+  // Loading state
   if (loading) {
-    return <LinearProgress />;
+    return (
+      <Box>
+        <LinearProgress />
+        <Typography variant="body2" textAlign="center" sx={{ mt: 2 }}>
+          Loading expenses...
+        </Typography>
+      </Box>
+    );
   }
 
   return (
@@ -185,6 +296,21 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         </Button>
       </Box>
 
+      {/* Error Alert */}
+      {error && !openDialog && (
+        <Alert 
+          severity="error" 
+          sx={{ mb: 3 }}
+          action={
+            <Button color="inherit" size="small" onClick={loadExpenses}>
+              Retry
+            </Button>
+          }
+        >
+          {error}
+        </Alert>
+      )}
+
       {/* Summary Card */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
@@ -200,18 +326,12 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
             <Box display="flex" alignItems="center" gap={1}>
               <MoneyIcon color="primary" />
               <Typography variant="h4" component="div" color="primary" fontWeight="bold">
-                ${totalExpenses.toLocaleString()}
+                {safeFormatCurrency(totalExpenses)}
               </Typography>
             </Box>
           </Box>
         </CardContent>
       </Card>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
 
       {/* Expenses Table */}
       {expenses.length > 0 ? (
@@ -229,30 +349,30 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
             </TableHead>
             <TableBody>
               {expenses.map((expense) => (
-                <TableRow key={expense.id}>
+                <TableRow key={expense.id} hover>
                   <TableCell>
-                    {new Date(expense.date).toLocaleDateString()}
+                    {safeFormatDate(expense?.date)}
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight="medium">
-                      {expense.description}
+                      {expense?.description || 'No description'}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={expense.category}
-                      color={getCategoryColor(expense.category) as 'primary' | 'success' | 'warning' | 'error' | 'secondary' | 'info' | 'default'}
+                      label={expense?.category || 'OTHER'}
+                      color={getCategoryColor(expense?.category || 'OTHER') as any}
                       size="small"
                     />
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" fontWeight="bold">
-                      ${expense.amount.toLocaleString()}
+                      {safeFormatCurrency(expense?.amount)}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="text.secondary">
-                      {expense.notes || '-'}
+                      {expense?.notes || '-'}
                     </Typography>
                   </TableCell>
                   <TableCell align="center">
@@ -260,6 +380,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                       size="small"
                       onClick={() => handleOpenDialog(expense)}
                       color="primary"
+                      title="Edit expense"
                     >
                       <EditIcon />
                     </IconButton>
@@ -267,6 +388,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                       size="small"
                       onClick={() => handleDelete(expense.id)}
                       color="error"
+                      title="Delete expense"
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -278,10 +400,29 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         </TableContainer>
       ) : (
         <Card>
-          <CardContent>
-            <Typography textAlign="center" color="text.secondary" py={4}>
-              No expenses recorded yet. Add your first expense to track costs.
+          <CardContent sx={{ textAlign: 'center', py: 4 }}>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              No Expenses Found
             </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {error ? 'Error loading expenses' : 'No expenses recorded yet for this crop.'}
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenDialog()}
+            >
+              Add Your First Expense
+            </Button>
+            {error && (
+              <Button 
+                variant="outlined" 
+                onClick={loadExpenses}
+                sx={{ mt: 1, ml: 1 }}
+              >
+                Retry Loading
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
@@ -291,7 +432,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
         <DialogTitle>
           {editingExpense ? 'Edit Expense' : 'Add New Expense'}
         </DialogTitle>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <DialogContent>
             {error && (
               <Alert severity="error" sx={{ mb: 2 }}>
@@ -299,20 +440,27 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
               </Alert>
             )}
             
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
               <TextField
                 label="Description *"
+                name="description"
+                id="expense-description"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 required
+                fullWidth
+                autoComplete="off"
               />
               
               <TextField
-                label="Category"
+                label="Category *"
+                name="category"
+                id="expense-category"
                 value={formData.category}
                 onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as ExpenseCategory }))}
                 select
                 required
+                fullWidth
               >
                 <MenuItem value="SEEDS">Seeds</MenuItem>
                 <MenuItem value="FERTILIZERS">Fertilizers</MenuItem>
@@ -328,18 +476,23 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
               
               <TextField
                 label="Amount (PKR) *"
+                name="amount"
+                id="expense-amount"
                 type="number"
                 value={formData.amount}
                 onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
                 inputProps={{ 
-                  min: "0",
-                  step: "1"
+                  min: "0.01",
+                  step: "0.01"
                 }}
                 required
+                fullWidth
               />
               
               <TextField
-                label="Date"
+                label="Date *"
+                name="date"
+                id="expense-date"
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
@@ -347,21 +500,29 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                   shrink: true,
                 }}
                 required
+                fullWidth
               />
               
               <TextField
                 label="Notes"
+                name="notes"
+                id="expense-notes"
                 value={formData.notes}
                 onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                 multiline
                 rows={3}
                 placeholder="Additional notes about this expense..."
+                fullWidth
               />
             </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseDialog}>Cancel</Button>
-            <Button type="submit" variant="contained">
+            <Button 
+              type="submit" 
+              variant="contained"
+              disabled={!formData.description || !formData.amount || formData.amount <= 0}
+            >
               {editingExpense ? 'Update Expense' : 'Add Expense'}
             </Button>
           </DialogActions>

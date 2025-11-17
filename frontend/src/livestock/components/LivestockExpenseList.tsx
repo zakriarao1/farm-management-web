@@ -26,7 +26,7 @@ import {
   Select,
 } from '@mui/material';
 import { Edit, Delete, Add, AttachMoney } from '@mui/icons-material';
-import { livestockExpenseApi, flockApi } from '../../services/api';
+import { livestockExpenseApi, flockApi } from '../services/api';
 import { LivestockExpense, Flock, CreateLivestockExpenseRequest } from '../types';
 import Grid from '@mui/material/Grid';
 
@@ -43,7 +43,7 @@ export const LivestockExpenseList: React.FC = () => {
     description: '',
     category: '',
     amount: 0,
-    date: new Date().toISOString().slice(0, 10),
+    date: new Date().toISOString().split('T')[0],
     notes: '',
   });
 
@@ -82,6 +82,12 @@ export const LivestockExpenseList: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.flock_id || !formData.description || !formData.category || formData.amount <= 0) {
+      setError('Please fill all required fields with valid values');
+      return;
+    }
+
     try {
       if (editingExpense) {
         await livestockExpenseApi.update(editingExpense.id, formData);
@@ -115,7 +121,7 @@ export const LivestockExpenseList: React.FC = () => {
       description: expense.description,
       category: expense.category,
       amount: expense.amount,
-      date: expense.date,
+      date: expense.date.split('T')[0],
       notes: expense.notes || '',
     });
     setDialogOpen(true);
@@ -129,7 +135,7 @@ export const LivestockExpenseList: React.FC = () => {
       description: '',
       category: '',
       amount: 0,
-      date: new Date().toISOString().slice(0, 10),
+      date: new Date().toISOString().split('T')[0],
       notes: '',
     });
   };
@@ -142,6 +148,21 @@ export const LivestockExpenseList: React.FC = () => {
   const getFlockName = (flockId: number) => {
     const flock = flocks.find(f => f.id === flockId);
     return flock ? flock.name : 'Unknown Flock';
+  };
+
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success' | 'default'> = {
+      'Feed': 'primary',
+      'Veterinary': 'error',
+      'Medication': 'warning',
+      'Equipment': 'info',
+      'Shelter': 'secondary',
+      'Labor': 'success',
+      'Transportation': 'primary',
+      'Supplies': 'info',
+      'Other': 'default'
+    };
+    return colors[category] || 'default';
   };
 
   return (
@@ -184,6 +205,7 @@ export const LivestockExpenseList: React.FC = () => {
                   <TableCell>Flock</TableCell>
                   <TableCell>Amount</TableCell>
                   <TableCell>Date</TableCell>
+                  <TableCell>Notes</TableCell>
                   <TableCell>Created</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
@@ -195,28 +217,28 @@ export const LivestockExpenseList: React.FC = () => {
                       <Typography variant="subtitle2">
                         {expense.description}
                       </Typography>
-                      {expense.notes && (
-                        <Typography variant="caption" color="textSecondary">
-                          {expense.notes}
-                        </Typography>
-                      )}
                     </TableCell>
                     <TableCell>
                       <Chip 
                         label={expense.category} 
                         size="small" 
-                        color="primary" 
+                        color={getCategoryColor(expense.category)}
                         variant="outlined" 
                       />
                     </TableCell>
                     <TableCell>{getFlockName(expense.flock_id)}</TableCell>
                     <TableCell>
                       <Typography fontWeight="bold" color="primary">
-                        ${expense.amount}
+                        ₨{expense.amount.toLocaleString()}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       {new Date(expense.date).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="caption" color="textSecondary">
+                        {expense.notes || 'N/A'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       {new Date(expense.created_at).toLocaleDateString()}
@@ -268,9 +290,10 @@ export const LivestockExpenseList: React.FC = () => {
                     label="Flock"
                     onChange={(e) => setFormData({ ...formData, flock_id: Number(e.target.value) })}
                   >
+                    <MenuItem value={0}>Select Flock</MenuItem>
                     {flocks.map((flock) => (
                       <MenuItem key={flock.id} value={flock.id}>
-                        {flock.name}
+                        {flock.name} ({flock.animal_type})
                       </MenuItem>
                     ))}
                   </Select>
@@ -284,6 +307,7 @@ export const LivestockExpenseList: React.FC = () => {
                     label="Category"
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   >
+                    <MenuItem value="">Select Category</MenuItem>
                     {expenseCategories.map((category) => (
                       <MenuItem key={category} value={category}>
                         {category}
@@ -295,21 +319,22 @@ export const LivestockExpenseList: React.FC = () => {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Description"
+                  label="Description *"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   required
                   margin="normal"
+                  placeholder="Describe the expense..."
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Amount"
+                  label="Amount (PKR) *"
                   type="number"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                  InputProps={{ startAdornment: '$' }}
+                  InputProps={{ startAdornment: <Typography sx={{ mr: 1 }}>₨</Typography> }}
                   required
                   margin="normal"
                   inputProps={{ min: 0, step: 0.01 }}
@@ -318,7 +343,7 @@ export const LivestockExpenseList: React.FC = () => {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Date"
+                  label="Date *"
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
@@ -336,13 +361,18 @@ export const LivestockExpenseList: React.FC = () => {
                   multiline
                   rows={3}
                   margin="normal"
+                  placeholder="Additional notes about this expense..."
                 />
               </Grid>
             </Grid>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleDialogClose}>Cancel</Button>
-            <Button type="submit" variant="contained">
+            <Button 
+              type="submit" 
+              variant="contained"
+              disabled={!formData.flock_id || !formData.description || !formData.category || formData.amount <= 0}
+            >
               {editingExpense ? 'Update' : 'Create'} Expense
             </Button>
           </DialogActions>

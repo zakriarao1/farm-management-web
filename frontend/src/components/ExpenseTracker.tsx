@@ -51,13 +51,35 @@ interface ExpenseFormData {
   unitPrice?: number;
 }
 
+// Safe formatting functions
+const safeFormatCurrency = (amount: number | undefined | null): string => {
+  if (amount === undefined || amount === null) return '$0.00';
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  } catch (error) {
+    return '$0.00';
+  }
+};
+
+const safeFormatDate = (dateString: string | undefined | null): string => {
+  if (!dateString) return 'N/A';
+  try {
+    return new Date(dateString).toLocaleDateString();
+  } catch (error) {
+    return 'Invalid Date';
+  }
+};
+
 export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState<ExpenseFormData>({
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split('T')[0]!,
     category: EXPENSE_CATEGORIES.OTHER,
     description: '',
     amount: 0,
@@ -119,7 +141,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
       
       // Reset form after successful submission
       setFormData({
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split('T')[0]!,
         category: EXPENSE_CATEGORIES.OTHER,
         description: '',
         amount: 0,
@@ -167,7 +189,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
   };
 
   // Calculate total expenses
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const totalExpenses = expenses.reduce((sum, expense) => sum + (expense?.amount || 0), 0);
 
   return (
     <Box>
@@ -300,7 +322,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
             </Box>
             <Box sx={{ textAlign: 'right' }}>
               <Typography variant="h5" color="error" fontWeight="bold">
-                ${totalExpenses.toLocaleString()}
+                {safeFormatCurrency(totalExpenses)}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Total Expenses
@@ -345,34 +367,34 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                   <TableRow key={expense.id} hover>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
-                        {new Date(expense.date).toLocaleDateString()}
+                        {safeFormatDate(expense?.date)}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={expense.category.toLowerCase()}
-                        color={getCategoryColor(expense.category)}
+                        label={(expense?.category || 'OTHER').toLowerCase()}
+                        color={getCategoryColor(expense?.category || 'OTHER')}
                         size="small"
                       />
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {expense.description}
+                        {expense?.description || 'No description'}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {expense.quantity ?? 'N/A'} {expense.unit ?? ''}
+                        {expense?.quantity ? `${expense.quantity} ${expense.unit || ''}`.trim() : 'N/A'}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {expense.unitPrice ? `$${expense.unitPrice.toLocaleString()}` : 'N/A'}
+                        {expense?.unitPrice ? safeFormatCurrency(expense.unitPrice) : 'N/A'}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="bold" color="error">
-                        ${expense.amount.toLocaleString()}
+                        {safeFormatCurrency(expense?.amount)}
                       </Typography>
                     </TableCell>
                     <TableCell>

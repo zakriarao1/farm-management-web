@@ -1,325 +1,225 @@
-const { pool, parsePath, sendResponse } = require('./db.js');
+const { Pool } = require('pg');
 
-exports.handler = async (event) => {
-  const { httpMethod, path, body } = event;
-  const { resource, id } = parsePath(path);
-  
-  // Handle OPTIONS for CORS
-  if (httpMethod === 'OPTIONS') {
-    return sendResponse(200, {});
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
+exports.handler = async (event, context) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Content-Type': 'application/json'
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
   }
-  
+
   try {
-    // GET /flocks - Get all flocks
-    if (httpMethod === 'GET' && resource === 'flocks' && !id) {
-      return await getAllFlocks();
+    const { httpMethod, path } = event;
+    const id = path.split('/').pop();
+
+    switch (httpMethod) {
+      case 'GET':
+        if (id && !isNaN(id)) {
+          const result = await pool.query('SELECT * FROM flocks WHERE id = $1', [id]);
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ data: result.rows[0] || null })
+          };
+        } else {
+          const result = await pool.query('SELECT * FROM flocks ORDER BY created_at DESC');
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ data: result.rows })
+          };
+        }
+
+      case 'POST':
+        console.log('🚨 Flocks POST Request received');
+        
+        const requestBody = JSON.parse(event.body || '{}');
+        console.log('📦 Flocks request data:', JSON.stringify(requestBody, null, 2));
+        
+        const { 
+          name, 
+          animal_type,
+          total_animals, 
+          current_animals, 
+          total_purchase_cost, 
+          description,  // Your table has 'description' not 'notes'
+          purchase_date,
+          notes  // Handle both 'description' and 'notes' from frontend
+        } = requestBody;
+
+        console.log('🔍 Extracted flock values:', {
+          name,
+          animal_type,
+          total_animals,
+          current_animals,
+          total_purchase_cost,
+          description,
+          notes
+        });
+
+        // Validate required fields
+        if (!name) {
+          return { 
+            statusCode: 400, 
+            headers, 
+            body: JSON.stringify({ 
+              error: 'Flock name is required',
+              received: requestBody
+            }) 
+          };
+        }
+
+        if (!animal_type) {
+          return { 
+            statusCode: 400, 
+            headers, 
+            body: JSON.stringify({ 
+              error: 'Animal type is required',
+              received: requestBody
+            }) 
+          };
+        }
+
+        // Use description from frontend, fallback to notes, or empty string
+        const finalDescription = description || notes || '';
+
+        const insertResult = await pool.query(
+          `INSERT INTO flocks (
+            name, animal_type, total_animals, current_animals, 
+            total_purchase_cost, description, purchase_date
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7) 
+           RETURNING *`,
+          [
+            name,
+            animal_type,
+            total_animals || 0,
+            current_animals || 0,
+            total_purchase_cost || 0,
+            finalDescription,
+            purchase_date || null
+          ]
+        );
+
+        console.log('✅ Flock created successfully with ID:', insertResult.rows[0].id);
+
+        return {
+          statusCode: 201,
+          headers,
+          body: JSON.stringify({ 
+            data: insertResult.rows[0],
+            message: 'Flock created successfully'
+          })
+        };
+
+      case 'PUT':
+        if (!id || isNaN(id)) {
+          return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid ID' }) };
+        }
+
+        const updateData = JSON.parse(event.body);
+        const updateFields = [];
+        const updateValues = [];
+        let paramCount = 1;
+
+        const fieldMap = {
+          name: 'name',
+          animal_type: 'animal_type',
+          total_animals: 'total_animals',
+          current_animals: 'current_animals',
+          total_purchase_cost: 'total_purchase_cost',
+          description: 'description',
+          notes: 'description',  // Map 'notes' to 'description' column
+          purchase_date: 'purchase_date'
+        };
+
+        Object.keys(updateData).forEach(key => {
+          if (updateData[key] !== undefined && fieldMap[key]) {
+            updateFields.push(`${fieldMap[key]} = $${paramCount}`);
+            
+            // Handle mapping notes to description
+            if (key === 'notes') {
+              updateValues.push(updateData[key]);
+            } else {
+              updateValues.push(updateData[key]);
+            }
+            
+            paramCount++;
+          }
+        });
+
+        if (updateFields.length === 0) {
+          return { statusCode: 400, headers, body: JSON.stringify({ error: 'No valid fields to update' }) };
+        }
+
+        updateValues.push(id);
+        const updateQuery = `UPDATE flocks SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${paramCount} RETURNING *`;
+        
+        console.log('🔧 Executing flock update:', updateQuery);
+        console.log('📊 With parameters:', updateValues);
+
+        const updateResult = await pool.query(updateQuery, updateValues);
+        
+        if (updateResult.rows.length === 0) {
+          return { statusCode: 404, headers, body: JSON.stringify({ error: 'Flock not found' }) };
+        }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ data: updateResult.rows[0] })
+        };
+
+      case 'DELETE':
+        if (!id || isNaN(id)) {
+          return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid ID' }) };
+        }
+
+        // Check if flock has animals before deleting
+        const animalsCheck = await pool.query('SELECT COUNT(*) FROM livestock WHERE flock_id = $1', [id]);
+        const animalCount = parseInt(animalsCheck.rows[0].count);
+        
+        if (animalCount > 0) {
+          return { 
+            statusCode: 400, 
+            headers, 
+            body: JSON.stringify({ 
+              error: `Cannot delete flock with ${animalCount} animals. Remove animals first.` 
+            }) 
+          };
+        }
+
+        const deleteResult = await pool.query('DELETE FROM flocks WHERE id = $1', [id]);
+        
+        if (deleteResult.rowCount === 0) {
+          return { statusCode: 404, headers, body: JSON.stringify({ error: 'Flock not found' }) };
+        }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ message: 'Flock deleted successfully' })
+        };
+
+      default:
+        return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
     }
-    
-    // GET /flocks/:id - Get specific flock
-    if (httpMethod === 'GET' && resource === 'flocks' && id && !path.includes('/stats')) {
-      return await getFlockById(id);
-    }
-    
-    // GET /flocks/:id/stats - Get flock statistics
-    if (httpMethod === 'GET' && resource === 'flocks' && id && path.includes('/stats')) {
-      return await getFlockStats(id);
-    }
-    
-    // POST /flocks - Create new flock
-    if (httpMethod === 'POST' && resource === 'flocks' && !id) {
-      return await createFlock(body);
-    }
-    
-    // PUT /flocks/:id - Update flock
-    if (httpMethod === 'PUT' && resource === 'flocks' && id) {
-      return await updateFlock(id, body);
-    }
-    
-    // DELETE /flocks/:id - Delete flock
-    if (httpMethod === 'DELETE' && resource === 'flocks' && id) {
-      return await deleteFlock(id);
-    }
-    
-    return sendResponse(404, { 
-      data: null,
-      message: 'Route not found',
-      success: false 
-    });
-    
   } catch (error) {
-    console.error('Flock function error:', error);
-    return sendResponse(500, { 
-      data: null,
-      message: 'Internal server error',
-      success: false
-    });
+    console.error('❌ Flocks API Error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: 'Internal server error: ' + error.message
+      })
+    };
   }
 };
-
-// EXACT replica of your FlockController methods
-async function getAllFlocks() {
-  try {
-    const flocks = await flockRepositoryFindAll();
-    
-    // ✅ EXACT same response format as your controller
-    return sendResponse(200, {
-      data: flocks,
-      message: 'Flocks retrieved successfully',
-      success: true
-    });
-  } catch (error) {
-    console.error('Get flocks error:', error);
-    return sendResponse(500, { 
-      data: null,
-      message: 'Failed to fetch flocks',
-      success: false
-    });
-  }
-}
-
-async function getFlockById(id) {
-  try {
-    const parsedId = parseInt(id);
-    if (isNaN(parsedId)) {
-      return sendResponse(400, { 
-        data: null,
-        message: 'Invalid flock ID',
-        success: false 
-      });
-    }
-    
-    const flock = await flockRepositoryFindById(parsedId);
-    
-    if (!flock) {
-      return sendResponse(404, { 
-        data: null,
-        message: 'Flock not found',
-        success: false 
-      });
-    }
-    
-    // ✅ EXACT same response format
-    return sendResponse(200, {
-      data: flock,
-      message: 'Flock retrieved successfully',
-      success: true
-    });
-  } catch (error) {
-    console.error('Get flock error:', error);
-    return sendResponse(500, { 
-      data: null,
-      message: 'Failed to fetch flock',
-      success: false
-    });
-  }
-}
-
-async function createFlock(body) {
-  try {
-    const flockData = JSON.parse(body);
-    const flock = await flockRepositoryCreate(flockData);
-    
-    // ✅ EXACT same response format
-    return sendResponse(201, {
-      data: flock,
-      message: 'Flock created successfully',
-      success: true
-    });
-  } catch (error) {
-    console.error('Create flock error:', error);
-    return sendResponse(500, { 
-      data: null,
-      message: 'Failed to create flock',
-      success: false
-    });
-  }
-}
-
-async function updateFlock(id, body) {
-  try {
-    const parsedId = parseInt(id);
-    if (isNaN(parsedId)) {
-      return sendResponse(400, { 
-        data: null,
-        message: 'Invalid flock ID',
-        success: false 
-      });
-    }
-    
-    const flockData = JSON.parse(body);
-    const flock = await flockRepositoryUpdate(parsedId, flockData);
-    
-    if (!flock) {
-      return sendResponse(404, { 
-        data: null,
-        message: 'Flock not found',
-        success: false 
-      });
-    }
-    
-    // ✅ EXACT same response format
-    return sendResponse(200, {
-      data: flock,
-      message: 'Flock updated successfully',
-      success: true
-    });
-  } catch (error) {
-    console.error('Update flock error:', error);
-    return sendResponse(500, { 
-      data: null,
-      message: 'Failed to update flock',
-      success: false
-    });
-  }
-}
-
-async function deleteFlock(id) {
-  try {
-    const parsedId = parseInt(id);
-    if (isNaN(parsedId)) {
-      return sendResponse(400, { 
-        data: null,
-        message: 'Invalid flock ID',
-        success: false 
-      });
-    }
-    
-    const deleted = await flockRepositoryDelete(parsedId);
-    
-    if (!deleted) {
-      return sendResponse(404, { 
-        data: null,
-        message: 'Flock not found',
-        success: false 
-      });
-    }
-    
-    // ✅ EXACT same response format
-    return sendResponse(200, {
-      data: { message: 'Flock deleted successfully' },
-      message: 'Flock deleted successfully',
-      success: true
-    });
-  } catch (error) {
-    console.error('Delete flock error:', error);
-    return sendResponse(500, { 
-      data: null,
-      message: 'Failed to delete flock',
-      success: false
-    });
-  }
-}
-
-async function getFlockStats(id) {
-  try {
-    const parsedId = parseInt(id);
-    if (isNaN(parsedId)) {
-      return sendResponse(400, { 
-        data: null,
-        message: 'Invalid flock ID',
-        success: false 
-      });
-    }
-    
-    const stats = await flockRepositoryGetStats(parsedId);
-    
-    if (!stats) {
-      return sendResponse(404, { 
-        data: null,
-        message: 'Flock not found',
-        success: false 
-      });
-    }
-    
-    // ✅ EXACT same response format
-    return sendResponse(200, {
-      data: stats,
-      message: 'Flock stats retrieved successfully',
-      success: true
-    });
-  } catch (error) {
-    console.error('Get flock stats error:', error);
-    return sendResponse(500, { 
-      data: null,
-      message: 'Failed to fetch flock stats',
-      success: false
-    });
-  }
-}
-
-// ✅ EXACT replica of your FlockRepository queries
-async function flockRepositoryFindAll() {
-  const result = await pool.query('SELECT * FROM flocks ORDER BY name');
-  return result.rows;
-}
-
-async function flockRepositoryFindById(id) {
-  const result = await pool.query('SELECT * FROM flocks WHERE id = $1', [id]);
-  return result.rows[0] || null;
-}
-
-async function flockRepositoryCreate(flockData) {
-  const { name, description, purchase_date, total_purchase_cost } = flockData;
-
-  const query = `
-    INSERT INTO flocks (name, description, purchase_date, total_purchase_cost, created_at, updated_at)
-    VALUES ($1, $2, $3, $4, NOW(), NOW())
-    RETURNING *
-  `;
-
-  const result = await pool.query(query, [
-    name,
-    description || null,
-    purchase_date || null,
-    total_purchase_cost || null
-  ]);
-
-  return result.rows[0];
-}
-
-async function flockRepositoryUpdate(id, flockData) {
-  const { name, description, purchase_date, total_purchase_cost } = flockData;
-
-  const query = `
-    UPDATE flocks
-    SET name = COALESCE($1, name),
-        description = COALESCE($2, description),
-        purchase_date = COALESCE($3, purchase_date),
-        total_purchase_cost = COALESCE($4, total_purchase_cost),
-        updated_at = NOW()
-    WHERE id = $5
-    RETURNING *
-  `;
-
-  const result = await pool.query(query, [
-    name,
-    description,
-    purchase_date,
-    total_purchase_cost,
-    id
-  ]);
-
-  return result.rows[0] || null;
-}
-
-async function flockRepositoryDelete(id) {
-  const result = await pool.query('DELETE FROM flocks WHERE id = $1', [id]);
-  return result.rowCount > 0;
-}
-
-async function flockRepositoryGetStats(flockId) {
-  const query = `
-    SELECT
-      f.*,
-      COUNT(l.id) as animal_count,
-      COALESCE(SUM(le.amount), 0) as total_expenses
-    FROM flocks f
-    LEFT JOIN livestock l ON f.id = l.flock_id
-    LEFT JOIN livestock_expenses le ON f.id = le.flock_id
-    WHERE f.id = $1
-    GROUP BY f.id
-  `;
-
-  const result = await pool.query(query, [flockId]);
-  return result.rows[0] || null;
-}

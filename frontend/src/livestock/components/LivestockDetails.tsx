@@ -30,7 +30,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { livestockApi } from '../services/api';
-import type { Livestock, HealthRecord, BreedingRecord, MilkProduction } from '../types';
+import type { Livestock, HealthRecord, BreedingRecord } from '../types';
 import { HealthRecords } from './HealthRecords';
 
 interface TabPanelProps {
@@ -61,7 +61,6 @@ export const LivestockDetails: React.FC = () => {
   const [animal, setAnimal] = useState<Livestock | null>(null);
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
   const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
-  const [milkProductions] = useState<MilkProduction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
@@ -81,8 +80,8 @@ export const LivestockDetails: React.FC = () => {
       ]);
 
       setAnimal(animalResponse.data);
-      setHealthRecords(healthResponse.data);
-      setBreedingRecords(breedingResponse.data);
+      setHealthRecords(healthResponse.data || []);
+      setBreedingRecords(breedingResponse.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load animal data');
       console.error('Error loading animal details:', err);
@@ -96,31 +95,26 @@ export const LivestockDetails: React.FC = () => {
   };
 
   const getStatusColor = (status: string) => {
-    const colors: Record<string, 'success' | 'error' | 'warning' | 'info'> = {
+    const colors: Record<string, 'success' | 'error' | 'warning' | 'info' | 'default'> = {
       HEALTHY: 'success',
       SICK: 'error',
       PREGNANT: 'warning',
-      CALVING: 'info',
-      MILKING: 'info',
-      READY_FOR_SALE: 'warning',
-      SOLD: 'success',
-      DECEASED: 'error',
+      SOLD: 'info',
+      DECEASED: 'default',
     };
     return colors[status] || 'default';
   };
 
   const getTypeColor = (type: string) => {
-    const colors: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'info'> = {
-      CATTLE: 'primary',
-      POULTRY: 'secondary',
-      SHEEP: 'success',
-      GOATS: 'warning',
-      PIGS: 'info',
-      FISH: 'primary',
-      BEES: 'secondary',
-      OTHER: 'primary', // Changed from 'default' to 'primary'
+    const colors: Record<string, 'primary' | 'secondary' | 'success' | 'warning'| 'error' | 'info' | 'default'> = {
+      CHICKENS: 'primary',
+      GOATS: 'success',
+      SHEEP: 'warning',
+      COWS: 'error',
+      BUFFALOES: 'info',
+      OTHER: 'secondary',
     };
-    return colors[type] || 'primary'; // Changed from 'default' to 'primary'
+    return colors[type] || 'default';
   };
 
   const handleEdit = () => {
@@ -161,10 +155,10 @@ export const LivestockDetails: React.FC = () => {
           <AnimalIcon sx={{ fontSize: 40, color: 'primary.main' }} />
           <Box>
             <Typography variant="h4" fontWeight="bold">
-              {animal.tagId}
+              {animal.tag_number}
             </Typography>
             <Typography color="text.secondary">
-              {animal.breed} • {animal.type}
+              {animal.breed} • {animal.animal_type}
             </Typography>
           </Box>
         </Box>
@@ -195,9 +189,9 @@ export const LivestockDetails: React.FC = () => {
                     primary="Type" 
                     secondary={
                       <Chip 
-                        label={animal.type} 
+                        label={animal.animal_type} 
                         size="small" 
-                        color={getTypeColor(animal.type)}
+                        color={getTypeColor(animal.animal_type)}
                         variant="outlined"
                       />
                     } 
@@ -208,7 +202,7 @@ export const LivestockDetails: React.FC = () => {
                   <ListItemIcon>
                     <AnimalIcon color="action" />
                   </ListItemIcon>
-                  <ListItemText primary="Breed" secondary={animal.breed} />
+                  <ListItemText primary="Breed" secondary={animal.breed || 'Not specified'} />
                 </ListItem>
 
                 <ListItem>
@@ -224,8 +218,8 @@ export const LivestockDetails: React.FC = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Date of Birth" 
-                    secondary={animal.dateOfBirth ? 
-                      new Date(animal.dateOfBirth).toLocaleDateString() : 'Not specified'
+                    secondary={animal.date_of_birth ? 
+                      new Date(animal.date_of_birth).toLocaleDateString() : 'Not specified'
                     } 
                   />
                 </ListItem>
@@ -236,7 +230,10 @@ export const LivestockDetails: React.FC = () => {
                   </ListItemIcon>
                   <ListItemText 
                     primary="Purchase Date" 
-secondary={animal.purchaseDate ? new Date(animal.purchaseDate).toLocaleDateString() : 'Not specified'}                  />
+                    secondary={animal.purchase_date ? 
+                      new Date(animal.purchase_date).toLocaleDateString() : 'Not specified'
+                    } 
+                  />
                 </ListItem>
 
                 <ListItem>
@@ -245,21 +242,35 @@ secondary={animal.purchaseDate ? new Date(animal.purchaseDate).toLocaleDateStrin
                   </ListItemIcon>
                   <ListItemText 
                     primary="Purchase Price" 
-secondary={animal.purchaseDate ? new Date(animal.purchaseDate).toLocaleDateString() : 'Not specified'}                  />
+                    secondary={animal.purchase_price ? `₨${animal.purchase_price.toLocaleString()}` : 'Not specified'}
+                  />
                 </ListItem>
 
                 <ListItem>
                   <ListItemIcon>
                     <WeightIcon color="action" />
                   </ListItemIcon>
-                  <ListItemText primary="Weight" secondary={`${animal.weight} kg`} />
+                  <ListItemText 
+                    primary="Current Weight" 
+                    secondary={animal.current_weight ? `${animal.current_weight} kg` : 'Not specified'} 
+                  />
                 </ListItem>
 
                 <ListItem>
                   <ListItemIcon>
                     <LocationIcon color="action" />
                   </ListItemIcon>
-                  <ListItemText primary="Location" secondary={animal.location} />
+                  <ListItemText primary="Location" secondary={animal.location || 'Not specified'} />
+                </ListItem>
+
+                <ListItem>
+                  <ListItemIcon>
+                    <AnimalIcon color="action" />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="Flock" 
+                    secondary={animal.flock_name || 'No Flock'} 
+                  />
                 </ListItem>
 
                 <ListItem>
@@ -272,7 +283,7 @@ secondary={animal.purchaseDate ? new Date(animal.purchaseDate).toLocaleDateStrin
                       <Chip 
                         label={animal.status} 
                         size="small" 
-                        color={getStatusColor(animal.status) as 'success' | 'error' | 'warning' | 'info' | 'primary' | 'secondary' | 'default'}
+                        color={getStatusColor(animal.status)}
                       />
                     } 
                   />
@@ -300,7 +311,6 @@ secondary={animal.purchaseDate ? new Date(animal.purchaseDate).toLocaleDateStrin
             <Tabs value={tabValue} onChange={handleTabChange} aria-label="livestock tabs">
               <Tab label="Health Records" icon={<HealthIcon />} iconPosition="start" />
               <Tab label="Breeding History" icon={<BreedingIcon />} iconPosition="start" />
-              <Tab label="Milk Production" icon={<AnimalIcon />} iconPosition="start" />
             </Tabs>
 
             {/* Health Records Tab */}
@@ -308,7 +318,7 @@ secondary={animal.purchaseDate ? new Date(animal.purchaseDate).toLocaleDateStrin
               <HealthRecords 
                 livestockId={animal.id}
                 healthRecords={healthRecords}
-                onRecordAdded={(record) => setHealthRecords(prev => [record, ...prev])}
+                onRecordAdded={() => loadAnimalData(animal.id)}
               />
             </TabPanel>
 
@@ -330,7 +340,7 @@ secondary={animal.purchaseDate ? new Date(animal.purchaseDate).toLocaleDateStrin
                   {breedingRecords.map((record) => (
                     <ListItem key={record.id} divider>
                       <ListItemText
-                        primary={`Breeding on ${new Date(record.breedingDate).toLocaleDateString()}`}
+                        primary={`Breeding on ${new Date(record.breeding_date).toLocaleDateString()}`}
                         secondary={
                           <Box>
                             <Typography variant="body2">
@@ -340,49 +350,13 @@ secondary={animal.purchaseDate ? new Date(animal.purchaseDate).toLocaleDateStrin
                                 color={record.status === 'SUCCESSFUL' ? 'success' : record.status === 'FAILED' ? 'error' : 'warning'}
                               />
                             </Typography>
-                            {record.expectedBirthDate && (
+                            {record.expected_birth_date && (
                               <Typography variant="body2">
-                                Expected: {new Date(record.expectedBirthDate).toLocaleDateString()}
+                                Expected: {new Date(record.expected_birth_date).toLocaleDateString()}
                               </Typography>
                             )}
                             {record.notes && (
                               <Typography variant="body2">Notes: {record.notes}</Typography>
-                            )}
-                          </Box>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              )}
-            </TabPanel>
-
-            {/* Milk Production Tab */}
-            <TabPanel value={tabValue} index={2}>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Typography variant="h6">Milk Production</Typography>
-                <Button variant="outlined" size="small">
-                  Add Milk Record
-                </Button>
-              </Box>
-              
-              {milkProductions.length === 0 ? (
-                <Typography color="text.secondary" textAlign="center" py={4}>
-                  No milk production records found
-                </Typography>
-              ) : (
-                <List>
-                  {milkProductions.map((record) => (
-                    <ListItem key={record.id} divider>
-                      <ListItemText
-                        primary={`${new Date(record.date).toLocaleDateString()} - Total: ${record.totalYield}L`}
-                        secondary={
-                          <Box>
-                            <Typography variant="body2">
-                              Morning: {record.morningYield}L • Evening: {record.eveningYield}L
-                            </Typography>
-                            {record.qualityNotes && (
-                              <Typography variant="body2">Quality: {record.qualityNotes}</Typography>
                             )}
                           </Box>
                         }

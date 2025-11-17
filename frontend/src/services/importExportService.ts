@@ -1,4 +1,5 @@
 import type { Crop, Expense, InventoryItem } from '../types';
+import { cropApi, expenseApi, inventoryApi } from './api';
 
 export interface ExportData {
   crops: Crop[];
@@ -22,11 +23,11 @@ interface CSVExportable {
 
 export class ImportExportService {
   async exportData(): Promise<Blob> {
-    // Fetch all data
+    // Use your API services instead of direct fetch
     const [cropsResponse, expensesResponse, inventoryResponse] = await Promise.all([
-      fetch('/api/crops').then(r => r.json()),
-      fetch('/api/expenses').then(r => r.json()),
-      fetch('/api/inventory').then(r => r.json()),
+      cropApi.getAll(),
+      expenseApi.getAll(),
+      inventoryApi.getAll(),
     ]);
 
     const exportData: ExportData = {
@@ -99,31 +100,19 @@ export class ImportExportService {
 
   private async importCrops(crops: Crop[]): Promise<void> {
     for (const crop of crops) {
-      await fetch('/api/crops', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(crop),
-      });
+      await cropApi.create(crop);
     }
   }
 
   private async importExpenses(expenses: Expense[]): Promise<void> {
     for (const expense of expenses) {
-      await fetch('/api/expenses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(expense),
-      });
+      await expenseApi.create(expense);
     }
   }
 
   private async importInventory(inventory: InventoryItem[]): Promise<void> {
     for (const item of inventory) {
-      await fetch('/api/inventory', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(item),
-      });
+      await inventoryApi.addItem(item);
     }
   }
 
@@ -131,7 +120,7 @@ export class ImportExportService {
   exportToCSV<T extends CSVExportable>(data: T[], filename: string): void {
     if (data.length === 0) return;
 
-const headers = data && data.length > 0 ? Object.keys(data[0] as object) : [];
+    const headers = data && data.length > 0 ? Object.keys(data[0] as object) : [];
     const csvContent = [
       headers.join(','),
       ...data.map(row => headers.map(header => {
@@ -147,6 +136,26 @@ const headers = data && data.length > 0 ? Object.keys(data[0] as object) : [];
     link.download = `${filename}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  // Additional helper method for downloading template
+  downloadTemplate(): void {
+    const templateData = [
+      {
+        name: 'Sample Crop',
+        type: 'VEGETABLE',
+        variety: 'Sample Variety',
+        planting_date: '2024-01-01',
+        area: 1.0,
+        area_unit: 'ACRES',
+        expected_yield: 100,
+        yield_unit: 'KILOGRAMS',
+        market_price: 2.5,
+        status: 'PLANNED'
+      }
+    ];
+
+    this.exportToCSV(templateData, 'farm-data-template');
   }
 }
 

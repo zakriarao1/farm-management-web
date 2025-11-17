@@ -34,9 +34,13 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { livestockApi } from '../services/api';
-import type { Livestock, LivestockType, LivestockStatus } from '../types';
+import type { Livestock } from '../types';
 
-export const LivestockList: React.FC = () => {
+interface LivestockListProps {
+  refreshTrigger?: number;
+}
+
+export const LivestockList: React.FC<LivestockListProps> = ({ refreshTrigger = 0 }) => {
   const navigate = useNavigate();
   const [livestock, setLivestock] = useState<Livestock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,12 +48,15 @@ export const LivestockList: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [animalToDelete, setAnimalToDelete] = useState<Livestock | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<LivestockType | 'ALL'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<LivestockStatus | 'ALL'>('ALL');
+  const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  const ANIMAL_TYPES = ['CHICKENS', 'GOATS', 'SHEEP', 'COWS', 'BUFFALOES', 'OTHER'];
+  const STATUS_OPTIONS = ['HEALTHY', 'SICK', 'PREGNANT', 'SOLD', 'DECEASED'];
 
   useEffect(() => {
     loadLivestock();
-  }, []);
+  }, [refreshTrigger]);
 
   const loadLivestock = async () => {
     try {
@@ -88,43 +95,36 @@ export const LivestockList: React.FC = () => {
     setAnimalToDelete(null);
   };
 
-  const getStatusColor = (status: LivestockStatus) => {
-    const colors: Record<LivestockStatus, 'success' | 'error' | 'warning' | 'info'> = {
-      active: 'success',
-      sick: 'error',
-      pregnant: 'warning',
-      calving: 'info',
-      milking: 'info',
-      ready_for_sale: 'warning',
-      sold: 'success',
-      deceased: 'error',
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, 'success' | 'error' | 'warning' | 'info' | 'default'> = {
+      HEALTHY: 'success',
+      SICK: 'error',
+      PREGNANT: 'warning',
+      SOLD: 'info',
+      DECEASED: 'default',
     };
-    return colors[status];
+    return colors[status] || 'default';
   };
 
-  const getTypeColor = (type: LivestockType) => {
-    const colors: Record<LivestockType, 'primary' | 'secondary' | 'success' | 'warning' | 'info'> = {
-      CATTLE: 'primary',
-      POULTRY: 'secondary',
-      SHEEP: 'success',
-      GOATS: 'warning',
-      FISH: 'info',
-      OTHER: 'primary',
+  const getTypeColor = (type: string) => {
+    const colors: Record<string, 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info' | 'default'> = {
+      CHICKENS: 'primary',
+      GOATS: 'success',
+      SHEEP: 'warning',
+      COWS: 'error',
+      BUFFALOES: 'info',
+     OTHER: 'secondary',
     };
-    return colors[type];
+    return colors[type] || 'default';
   };
 
   const filteredLivestock = livestock.filter(animal => {
-    const tagId = animal.tagId || '';
-    const breed = animal.breed || '';
-    const location = (animal as any).location || ''; // Temporary fix for location property
-    
     const matchesSearch = 
-      tagId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      breed.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      location.toLowerCase().includes(searchTerm.toLowerCase());
+      animal.tag_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      animal.breed?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      animal.location?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesType = typeFilter === 'ALL' || animal.type === typeFilter;
+    const matchesType = typeFilter === 'ALL' || animal.animal_type === typeFilter;
     const matchesStatus = statusFilter === 'ALL' || animal.status === statusFilter;
     
     return matchesSearch && matchesType && matchesStatus;
@@ -140,7 +140,6 @@ export const LivestockList: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
           <Typography variant="h4" fontWeight="bold" gutterBottom>
@@ -182,27 +181,19 @@ export const LivestockList: React.FC = () => {
             />
             <TextField
               select
-              label="Type"
+              label="Animal Type"
               variant="outlined"
               size="small"
               value={typeFilter}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === 'ALL' || ['CATTLE', 'POULTRY', 'SHEEP', 'GOATS',  'FISH',  'OTHER'].includes(value)) {
-                  setTypeFilter(value as LivestockType | 'ALL');
-                }
-              }}
-              sx={{ minWidth: 120 }}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              sx={{ minWidth: 140 }}
             >
               <MenuItem value="ALL">All Types</MenuItem>
-              <MenuItem value="CATTLE">Cattle</MenuItem>
-              <MenuItem value="POULTRY">Poultry</MenuItem>
-              <MenuItem value="SHEEP">Sheep</MenuItem>
-              <MenuItem value="GOATS">Goats</MenuItem>
-              <MenuItem value="PIGS">Pigs</MenuItem>
-              <MenuItem value="FISH">Fish</MenuItem>
-              <MenuItem value="BEES">Bees</MenuItem>
-              <MenuItem value="OTHER">Other</MenuItem>
+              {ANIMAL_TYPES.map(type => (
+                <MenuItem key={type} value={type}>
+                  {type.charAt(0) + type.slice(1).toLowerCase()}
+                </MenuItem>
+              ))}
             </TextField>
             <TextField
               select
@@ -210,23 +201,15 @@ export const LivestockList: React.FC = () => {
               variant="outlined"
               size="small"
               value={statusFilter}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === 'ALL' || ['active', 'sick', 'pregnant', 'calving', 'milking', 'ready_for_sale', 'sold', 'deceased'].includes(value)) {
-                  setStatusFilter(value as LivestockStatus | 'ALL');
-                }
-              }}
+              onChange={(e) => setStatusFilter(e.target.value)}
               sx={{ minWidth: 140 }}
             >
               <MenuItem value="ALL">All Status</MenuItem>
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="sick">Sick</MenuItem>
-              <MenuItem value="pregnant">Pregnant</MenuItem>
-              <MenuItem value="calving">Calving</MenuItem>
-              <MenuItem value="milking">Milking</MenuItem>
-              <MenuItem value="ready_for_sale">Ready for Sale</MenuItem>
-              <MenuItem value="sold">Sold</MenuItem>
-              <MenuItem value="deceased">Deceased</MenuItem>
+              {STATUS_OPTIONS.map(status => (
+                <MenuItem key={status} value={status}>
+                  {status}
+                </MenuItem>
+              ))}
             </TextField>
           </Box>
         </CardContent>
@@ -242,13 +225,14 @@ export const LivestockList: React.FC = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Tag ID</TableCell>
-              <TableCell>Type</TableCell>
+              <TableCell>Tag Number</TableCell>
+              <TableCell>Animal Type</TableCell>
               <TableCell>Breed</TableCell>
               <TableCell>Gender</TableCell>
-              <TableCell>Weight</TableCell>
+              <TableCell>Weight (kg)</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Location</TableCell>
+              <TableCell>Flock</TableCell>
               <TableCell>Purchase Date</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
@@ -259,14 +243,14 @@ export const LivestockList: React.FC = () => {
                 <TableCell>
                   <Box display="flex" alignItems="center" gap={1}>
                     <AnimalIcon fontSize="small" color="action" />
-                    <Typography fontWeight="bold">{animal.tagId || 'N/A'}</Typography>
+                    <Typography fontWeight="bold">{animal.tag_number}</Typography>
                   </Box>
                 </TableCell>
                 <TableCell>
                   <Chip 
-                    label={animal.type} 
+                    label={animal.animal_type}
                     size="small" 
-                    color={getTypeColor(animal.type)}
+                    color={getTypeColor(animal.animal_type)}
                     variant="outlined"
                   />
                 </TableCell>
@@ -275,11 +259,11 @@ export const LivestockList: React.FC = () => {
                   <Chip 
                     label={animal.gender} 
                     size="small" 
-                    color="default" // This is fine here since it's not using the getTypeColor function
+                    color="default"
                     variant="outlined"
                   />
                 </TableCell>
-                <TableCell>{animal.weight} kg</TableCell>
+                <TableCell>{animal.current_weight || 'N/A'}</TableCell>
                 <TableCell>
                   <Chip 
                     label={animal.status} 
@@ -287,9 +271,10 @@ export const LivestockList: React.FC = () => {
                     color={getStatusColor(animal.status)}
                   />
                 </TableCell>
-                <TableCell>{(animal as any).location || 'N/A'}</TableCell>
+                <TableCell>{animal.location || 'N/A'}</TableCell>
+                <TableCell>{animal.flock_name || 'No Flock'}</TableCell>
                 <TableCell>
-                  {animal.purchaseDate ? new Date(animal.purchaseDate).toLocaleDateString() : 'N/A'}
+                  {animal.purchase_date ? new Date(animal.purchase_date).toLocaleDateString() : 'N/A'}
                 </TableCell>
                 <TableCell>
                   <Box display="flex" gap={1}>
@@ -337,7 +322,7 @@ export const LivestockList: React.FC = () => {
         <DialogTitle>Delete Animal</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete animal with tag ID "{animalToDelete?.tagId}"? 
+            Are you sure you want to delete animal with tag number "{animalToDelete?.tag_number}"? 
             This action cannot be undone.
           </DialogContentText>
         </DialogContent>
