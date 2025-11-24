@@ -3,9 +3,17 @@ const { Pool } = require('pg');
 console.log('🔧 Initializing database connection...');
 
 let pool = null;
+let initializationAttempted = false;
 
 // Function to initialize the database pool
 const initializePool = () => {
+  if (initializationAttempted && !pool) {
+    console.log('⚠️ Pool initialization already attempted and failed');
+    return null;
+  }
+  
+  initializationAttempted = true;
+  
   try {
     // Try multiple ways to get the DATABASE_URL
     const connectionString = process.env.DATABASE_URL;
@@ -16,7 +24,7 @@ const initializePool = () => {
     
     if (!connectionString) {
       console.error('❌ DATABASE_URL is not set in environment variables');
-      console.log('💡 Please create a .env file with DATABASE_URL=your_connection_string');
+      console.log('💡 Available environment variables:', Object.keys(process.env).filter(key => key.includes('DATABASE') || key.includes('DB')));
       return null;
     }
 
@@ -41,11 +49,16 @@ const initializePool = () => {
       console.error('❌ Database pool error:', err);
     });
 
+    pool.on('remove', () => {
+      console.log('ℹ️ Database connection removed');
+    });
+
     console.log('✅ Database pool initialized successfully');
     return pool;
 
   } catch (error) {
     console.error('❌ Failed to initialize database pool:', error);
+    pool = null;
     return null;
   }
 };
@@ -55,8 +68,10 @@ initializePool();
 
 // Test connection function
 const testConnection = async () => {
+  console.log('🔍 testConnection called');
+  
   if (!pool) {
-    console.log('🔄 Attempting to initialize database pool...');
+    console.log('🔄 Database pool not initialized, attempting to initialize...');
     initializePool();
     
     if (!pool) {
@@ -65,30 +80,37 @@ const testConnection = async () => {
   }
 
   try {
-    console.log('🔍 Testing database connection...');
+    console.log('🔍 Testing database connection with simple query...');
     const client = await pool.connect();
     
     // Test a simple query
-    const result = await client.query('SELECT NOW() as current_time, version() as version');
+    const result = await client.query('SELECT NOW() as current_time');
     console.log('✅ Database connection test successful');
     console.log('⏰ Database time:', result.rows[0].current_time);
-    console.log('📊 Database version:', result.rows[0].version.split('\n')[0]);
     
     client.release();
     return true;
   } catch (error) {
     console.error('❌ Database connection test failed:', error.message);
+    console.error('Full error:', error);
     throw new Error(`Database connection failed: ${error.message}`);
   }
 };
 
+// Function to get pool with retry
+const getPool = () => {
+  if (!pool) {
+    console.log('🔄 Pool not available, reinitializing...');
+    initializePool();
+  }
+  return pool;
+};
+
 module.exports = {
   get pool() {
-    if (!pool) {
-      initializePool();
-    }
-    return pool;
+    return getPool();
   },
   testConnection,
-  initializePool
+  initializePool,
+  getPool
 };
