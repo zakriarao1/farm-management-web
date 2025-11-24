@@ -11,39 +11,39 @@ interface YieldAnalysisChartProps {
 
 interface HarvestedCrop {
   name: string;
-  expectedYield: number;
-  actualYield: number;
+  yield: number;
+  area: number;
 }
 
 export const YieldAnalysisChart: React.FC<YieldAnalysisChartProps> = ({ crops }) => {
-  // Filter and type the harvested crops
+  // Filter harvested crops with yield data
   const harvestedCrops: HarvestedCrop[] = crops
-    .filter((crop: Crop): crop is Crop & { actualYield: number; expectedYield: number } => 
-      crop.actualYield !== undefined && 
-      crop.expectedYield !== undefined &&
-      crop.actualYield > 0
+    .filter((crop: Crop): crop is Crop & { yield: number } => 
+      crop.yield !== undefined && 
+      crop.yield > 0
     )
     .map(crop => ({
       name: crop.name,
-      expectedYield: crop.expectedYield,
-      actualYield: crop.actualYield
+      yield: crop.yield,
+      area: crop.area || 0
     }));
 
+  // Show yield and yield per area
   const chartData = {
     labels: harvestedCrops.map(crop => crop.name),
     datasets: [
       {
-        label: 'Expected Yield',
-        data: harvestedCrops.map(crop => crop.expectedYield),
-        backgroundColor: 'rgba(54, 162, 235, 0.6)',
-        borderColor: 'rgba(54, 162, 235, 1)',
+        label: 'Yield',
+        data: harvestedCrops.map(crop => crop.yield),
+        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+        borderColor: 'rgba(75, 192, 192, 1)',
         borderWidth: 1,
       },
       {
-        label: 'Actual Yield',
-        data: harvestedCrops.map(crop => crop.actualYield),
-        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-        borderColor: 'rgba(75, 192, 192, 1)',
+        label: 'Yield per Area',
+        data: harvestedCrops.map(crop => crop.area > 0 ? crop.yield / crop.area : 0),
+        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+        borderColor: 'rgba(54, 162, 235, 1)',
         borderWidth: 1,
       }
     ]
@@ -54,10 +54,10 @@ export const YieldAnalysisChart: React.FC<YieldAnalysisChartProps> = ({ crops })
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Yield Performance: Expected vs Actual
+            Yield Analysis
           </Typography>
           <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>
-            No harvest data available. Actual yield data will appear here after crops are harvested.
+            No yield data available. Yield data will appear here after crops are harvested.
           </Typography>
         </CardContent>
       </Card>
@@ -68,7 +68,7 @@ export const YieldAnalysisChart: React.FC<YieldAnalysisChartProps> = ({ crops })
     <Card>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          Yield Performance: Expected vs Actual
+          Yield Analysis
         </Typography>
         <Box sx={{ height: 300 }}>
           <Bar 
@@ -86,11 +86,15 @@ export const YieldAnalysisChart: React.FC<YieldAnalysisChartProps> = ({ crops })
                       const value = context.parsed.y;
                       const crop = harvestedCrops[context.dataIndex];
                       
-                      if (label === 'Expected Yield') {
+                      // FIXED: Handle null value
+                      if (value === null || value === undefined) {
+                        return `${label}: 0 units`;
+                      }
+                      
+                      if (label === 'Yield') {
                         return `${label}: ${value} units`;
-                      } else if (label === 'Actual Yield' && crop) {
-                        const percentage = ((crop.actualYield / crop.expectedYield) * 100).toFixed(1);
-                        return `${label}: ${value} units (${percentage}% of expected)`;
+                      } else if (label === 'Yield per Area' && crop) {
+                        return `${label}: ${value.toFixed(2)} units per area`;
                       }
                       return `${label}: ${value}`;
                     }
@@ -119,23 +123,21 @@ export const YieldAnalysisChart: React.FC<YieldAnalysisChartProps> = ({ crops })
         {/* Summary Statistics */}
         <Box sx={{ mt: 2, p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
-            Performance Summary:
+            Yield Summary:
           </Typography>
-          {harvestedCrops.map((crop, index) => {
-            const efficiency = ((crop.actualYield / crop.expectedYield) * 100);
-            return (
-              <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
-                <Typography variant="body2">{crop.name}</Typography>
-                <Typography 
-                  variant="body2" 
-                  color={efficiency >= 100 ? 'success.main' : efficiency >= 80 ? 'warning.main' : 'error.main'}
-                  fontWeight="medium"
-                >
-                  {efficiency.toFixed(1)}%
-                </Typography>
-              </Box>
-            );
-          })}
+          {harvestedCrops.map((crop, index) => (
+            <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+              <Typography variant="body2">{crop.name}</Typography>
+              <Typography variant="body2" fontWeight="medium" color="primary">
+                {crop.yield} units
+              </Typography>
+            </Box>
+          ))}
+          <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #ddd' }}>
+            <Typography variant="body2" fontWeight="bold">
+              Total Yield: {harvestedCrops.reduce((sum, crop) => sum + crop.yield, 0).toFixed(1)} units
+            </Typography>
+          </Box>
         </Box>
       </CardContent>
     </Card>

@@ -7,8 +7,6 @@ import {
   FormControl, InputLabel, Select, MenuItem, CircularProgress
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
-
-// FIXED: Import Recharts components properly
 import {
   BarChart,
   Bar,
@@ -21,12 +19,60 @@ import {
 } from 'recharts';
 
 import { financialSummaryApi, flockApi } from '../services/api';
-import { FlockFinancialSummary, Flock } from '../types';
+import { Flock } from '../types';
+
+// Define the interface locally if not in types.ts
+interface FlockFinancialData {
+  id: number;
+  name: string;
+  animal_type: string;
+  total_animals: number;
+  active_animals: number;
+  sold_animals: number;
+  deceased_animals: number;
+  livestock_investment: number;
+  sales_revenue: number;
+  total_expenses: number;
+  net_profit: number;
+  roi_percentage: number;
+}
+
+// Type guard to check if data matches our expected structure
+function isFlockFinancialData(data: any): data is FlockFinancialData {
+  return (
+    data &&
+    typeof data.id === 'number' &&
+    typeof data.name === 'string' &&
+    'livestock_investment' in data
+  );
+}
+
+// Helper function to transform API response to our expected format
+function transformFinancialData(apiData: any[]): FlockFinancialData[] {
+  if (!apiData || !Array.isArray(apiData)) {
+    return [];
+  }
+
+  return apiData.map(item => ({
+    id: item.id || 0,
+    name: item.name || 'Unknown Flock',
+    animal_type: item.animal_type || 'Unknown Type',
+    total_animals: Number(item.total_animals) || 0,
+    active_animals: Number(item.active_animals) || 0,
+    sold_animals: Number(item.sold_animals) || 0,
+    deceased_animals: Number(item.deceased_animals) || 0,
+    livestock_investment: Number(item.livestock_investment) || 0,
+    sales_revenue: Number(item.sales_revenue) || 0,
+    total_expenses: Number(item.total_expenses) || 0,
+    net_profit: Number(item.net_profit) || 0,
+    roi_percentage: Number(item.roi_percentage) || 0
+  }));
+}
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
 export const LivestockExpenseReports: React.FC = () => {
-  const [flockSummary, setFlockSummary] = useState<FlockFinancialSummary[]>([]);
+  const [flockSummary, setFlockSummary] = useState<FlockFinancialData[]>([]);
   const [flocks, setFlocks] = useState<Flock[]>([]);
   const [selectedFlock, setSelectedFlock] = useState<number | 'all'>('all');
   const [loading, setLoading] = useState(true);
@@ -39,49 +85,62 @@ export const LivestockExpenseReports: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError('');
+      
+      console.log('🔄 Loading financial data...');
+      
       const [summaryResponse, flocksResponse] = await Promise.all([
         financialSummaryApi.getFlockSummary(selectedFlock === 'all' ? undefined : selectedFlock),
         flockApi.getAll()
       ]);
-      setFlockSummary(summaryResponse.data || []);
+      
+      console.log('📊 Raw API response:', summaryResponse);
+      
+      // Transform the API data to match our expected structure
+      const financialData = transformFinancialData(summaryResponse.data);
+      setFlockSummary(financialData);
       setFlocks(flocksResponse.data || []);
+      
+      console.log('✅ Processed financial data:', financialData);
+      
     } catch (err) {
-      setError('Failed to load reports');
-      console.error('Error loading reports:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load reports';
+      setError(errorMessage);
+      console.error('❌ Error loading reports:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // FIXED: Use safe access for potentially missing fields
+  // Calculate total metrics
   const totalMetrics = React.useMemo(() => {
-    const initialMetrics = {
+    if (!flockSummary || flockSummary.length === 0) {
+      return {
+        totalPurchase: 0,
+        totalRevenue: 0,
+        totalExpenses: 0,
+        totalProfit: 0
+      };
+    }
+
+    return flockSummary.reduce((acc, flock) => {
+      const purchaseCost = flock.livestock_investment;
+      const saleRevenue = flock.sales_revenue;
+      const expenses = flock.total_expenses;
+      const netProfit = flock.net_profit;
+
+      return {
+        totalPurchase: acc.totalPurchase + purchaseCost,
+        totalRevenue: acc.totalRevenue + saleRevenue,
+        totalExpenses: acc.totalExpenses + expenses,
+        totalProfit: acc.totalProfit + netProfit
+      };
+    }, {
       totalPurchase: 0,
       totalRevenue: 0,
       totalExpenses: 0,
       totalProfit: 0
-    };
-
-    if (!flockSummary || flockSummary.length === 0) {
-      return initialMetrics;
-    }
-
-    return flockSummary.reduce((acc, flock) => {
-      // FIXED: Use safe access with type assertion for missing fields
-      const purchaseCost = Number(flock.total_purchase_cost) || 0;
-      const saleRevenue = Number((flock as any).total_sale_revenue) || 0;
-      const productionRevenue = Number((flock as any).total_production_revenue) || 0;
-      const expenses = Number(flock.total_expenses) || 0;
-      const medicalCosts = Number((flock as any).total_medical_costs) || 0;
-      const netProfit = Number((flock as any).net_profit_loss) || 0;
-
-      return {
-        totalPurchase: acc.totalPurchase + purchaseCost,
-        totalRevenue: acc.totalRevenue + saleRevenue + productionRevenue,
-        totalExpenses: acc.totalExpenses + expenses + medicalCosts,
-        totalProfit: acc.totalProfit + netProfit
-      };
-    }, initialMetrics);
+    });
   }, [flockSummary]);
 
   const getProfitLossColor = (profitLoss: number) => {
@@ -90,27 +149,25 @@ export const LivestockExpenseReports: React.FC = () => {
     return 'default';
   };
 
-  // Fix: Updated to use Pakistani Rupee (Rs) sign
   const formatCurrency = (value: number) => {
     if (typeof value !== 'number' || isNaN(value)) {
       return 'Rs 0.00';
     }
-    return `Rs ${value.toFixed(2)}`;
+    return `Rs ${value.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // FIXED: Prepare chart data safely with type assertions
+  // Prepare chart data
   const chartData = React.useMemo(() => {
     if (!flockSummary || flockSummary.length === 0) {
       return [];
     }
 
     return flockSummary.map(flock => ({
-      name: flock.flock_name || 'Unknown Flock',
-      purchaseCost: Number(flock.total_purchase_cost) || 0,
-      // FIXED: Use type assertion for missing fields
-      saleRevenue: Number((flock as any).total_sale_revenue) || 0,
-      expenses: (Number(flock.total_expenses) || 0) + (Number((flock as any).total_medical_costs) || 0),
-      netProfit: Number((flock as any).net_profit_loss) || 0
+      name: flock.name,
+      purchaseCost: flock.livestock_investment,
+      saleRevenue: flock.sales_revenue,
+      expenses: flock.total_expenses,
+      netProfit: flock.net_profit
     }));
   }, [flockSummary]);
 
@@ -223,7 +280,6 @@ export const LivestockExpenseReports: React.FC = () => {
                 <Typography variant="h6" gutterBottom>
                   Flock Performance Comparison
                 </Typography>
-                {/* FIXED: Recharts components should now work properly */}
                 <ResponsiveContainer width="100%" height={400}>
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -260,72 +316,56 @@ export const LivestockExpenseReports: React.FC = () => {
                         <TableCell align="right">Animals</TableCell>
                         <TableCell align="right">Purchase Cost</TableCell>
                         <TableCell align="right">Sale Revenue</TableCell>
-                        <TableCell align="right">Production Revenue</TableCell>
                         <TableCell align="right">Total Expenses</TableCell>
                         <TableCell align="right">Net Profit/Loss</TableCell>
                         <TableCell align="right">ROI</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {flockSummary.map((flock) => {
-                        // FIXED: Use safe access with type assertions for missing fields
-                        const purchaseCost = Number(flock.total_purchase_cost) || 0;
-                        const saleRevenue = Number((flock as any).total_sale_revenue) || 0;
-                        const productionRevenue = Number((flock as any).total_production_revenue) || 0;
-                        const expenses = (Number(flock.total_expenses) || 0) + (Number((flock as any).total_medical_costs) || 0);
-                        const netProfit = Number((flock as any).net_profit_loss) || 0;
-                        const roi = purchaseCost > 0 ? (netProfit / purchaseCost) * 100 : 0;
-
-                        return (
-                          <TableRow key={flock.flock_id}>
-                            <TableCell component="th" scope="row">
-                              <Typography fontWeight="bold">
-                                {flock.flock_name || 'Unknown Flock'}
-                              </Typography>
-                              <Typography variant="caption" color="textSecondary">
-                                {/* FIXED: Use safe access for animal counts */}
-                                {(flock as any).active_animals || 0} active, {(flock as any).sold_animals || 0} sold
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">{(flock as any).total_animals || 0}</TableCell>
-                            <TableCell align="right">
-                              <Typography color="primary">
-                                {formatCurrency(purchaseCost)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography color="success.main">
-                                {formatCurrency(saleRevenue)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography color="success.main">
-                                {formatCurrency(productionRevenue)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography color="error.main">
-                                {formatCurrency(expenses)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Chip 
-                                label={formatCurrency(netProfit)}
-                                color={getProfitLossColor(netProfit)}
-                                variant="outlined"
-                              />
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography 
-                                color={getProfitLossColor(netProfit)}
-                                fontWeight="bold"
-                              >
-                                {purchaseCost > 0 ? `${roi.toFixed(1)}%` : 'N/A'}
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
+                      {flockSummary.map((flock) => (
+                        <TableRow key={flock.id}>
+                          <TableCell component="th" scope="row">
+                            <Typography fontWeight="bold">
+                              {flock.name}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              {flock.active_animals} active, {flock.sold_animals} sold
+                              {flock.animal_type && ` • ${flock.animal_type}`}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">{flock.total_animals}</TableCell>
+                          <TableCell align="right">
+                            <Typography color="primary">
+                              {formatCurrency(flock.livestock_investment)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography color="success.main">
+                              {formatCurrency(flock.sales_revenue)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography color="error.main">
+                              {formatCurrency(flock.total_expenses)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Chip 
+                              label={formatCurrency(flock.net_profit)}
+                              color={getProfitLossColor(flock.net_profit)}
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography 
+                              color={getProfitLossColor(flock.net_profit)}
+                              fontWeight="bold"
+                            >
+                              {flock.roi_percentage !== 0 ? `${flock.roi_percentage}%` : 'N/A'}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </TableContainer>

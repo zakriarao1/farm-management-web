@@ -1,4 +1,4 @@
-// frontend/src/components/CropList.tsx
+// src/components/CropList.tsx
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -14,6 +14,8 @@ import {
   MenuItem,
   InputAdornment,
   CircularProgress,
+  Grid,
+  ChipProps,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -27,6 +29,22 @@ import { useNavigate } from 'react-router-dom';
 import { cropApi } from '../services/api';
 import type { Crop, CropStatus, StatusCounts } from '../types';
 
+const transformCropData = (crops: any[]): Crop[] => {
+  return crops.map(crop => ({
+    id: crop.id,
+    name: crop.name || 'Unnamed Crop',
+    plantingDate: crop.plantingDate || crop.planting_date || '',
+    harvestDate: crop.harvestDate || crop.harvest_date,
+    area: Number(crop.area || crop.area_value || 0),
+    areaUnit: (crop.areaUnit || crop.area_unit || 'UNITS') as any,
+    yield: Number(crop.yield || crop.yield_value || 0),
+    yieldUnit: (crop.yieldUnit || crop.yield_unit || 'UNITS') as any,
+    totalExpenses: Number(crop.totalExpenses || crop.total_expenses || 0),
+    marketPrice: Number(crop.marketPrice || crop.market_price || 0),
+    status: crop.status || 'PLANNED',
+    notes: crop.notes,
+  }));
+};
 export const CropList: React.FC = () => {
   const navigate = useNavigate();
   const [crops, setCrops] = useState<Crop[]>([]);
@@ -40,36 +58,17 @@ export const CropList: React.FC = () => {
   }, []);
 
   const loadCrops = async () => {
-    try {
-      setLoading(true);
-      const response = await cropApi.getAll();
-      setCrops(response.data || []);
-    } catch (error) {
-      console.error('Failed to load crops:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      loadCrops();
-      return;
-    }
-
-    try {
-      const response = await cropApi.search(searchQuery);
-      setCrops(response.data || []);
-    } catch (error) {
-      console.error('Search failed:', error);
-      // Fallback to client-side search if API fails
-      const filtered = crops.filter(crop => 
-        crop.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        crop.type?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setCrops(filtered);
-    }
-  };
+  try {
+    setLoading(true);
+    const response = await cropApi.getAll();
+    const transformedCrops = transformCropData(response.data || []);
+    setCrops(transformedCrops);
+  } catch (error) {
+    console.error('Failed to load crops:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this crop?')) {
@@ -89,7 +88,15 @@ export const CropList: React.FC = () => {
   const getAreaUnit = (crop: Crop): string => {
     if (!crop.areaUnit) return 'units';
     if (typeof crop.areaUnit === 'string') {
-      return crop.areaUnit.toLowerCase();
+      // Convert to readable format
+      const unitMap: { [key: string]: string } = {
+        'ACRES': 'acres',
+        'HECTARES': 'hectares',
+        'SQUARE_METERS': 'sq m',
+        'MARLA': 'marla',
+        'KANAL': 'kanal'
+      };
+      return unitMap[crop.areaUnit] || crop.areaUnit.toLowerCase();
     }
     return String(crop.areaUnit).toLowerCase();
   };
@@ -97,28 +104,52 @@ export const CropList: React.FC = () => {
   const getYieldUnit = (crop: Crop): string => {
     if (!crop.yieldUnit) return 'units';
     if (typeof crop.yieldUnit === 'string') {
-      return crop.yieldUnit.toLowerCase();
+      // Convert to readable format
+      const unitMap: { [key: string]: string } = {
+        'TONS': 'tons',
+        'KILOGRAMS': 'kg',
+        'POUNDS': 'lbs',
+        'BUSHELS': 'bushels',
+        'MONS': 'mons'
+      };
+      return unitMap[crop.yieldUnit] || crop.yieldUnit.toLowerCase();
     }
     return String(crop.yieldUnit).toLowerCase();
   };
 
-  const getStatusColor = (status: string): 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info' => {
-    const colors = {
-      PLANNED: 'default' as const,
-      PLANTED: 'primary' as const,
-      GROWING: 'info' as const,
-      READY_FOR_HARVEST: 'warning' as const,
-      HARVESTED: 'success' as const,
-      STOCKED: 'secondary' as const,
-      SOLD: 'success' as const,
-      FAILED: 'error' as const,
+  const getStatusColor = (status: string): ChipProps['color'] => {
+    const colors: Record<string, ChipProps['color']> = {
+      PLANNED: 'default',
+      PLANTED: 'primary',
+      GROWING: 'info',
+      READY_FOR_HARVEST: 'warning',
+      HARVESTED: 'success',
+      STOCKED: 'secondary',
+      SOLD: 'success',
+      FAILED: 'error',
     };
-    return colors[status as keyof typeof colors] || 'default';
+    return colors[status] || 'default';
+  };
+
+  const formatDate = (dateString: string): string => {
+    if (!dateString) return 'Not set';
+    try {
+      // Handle both ISO string and date object
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Invalid date';
+    }
   };
 
   const filteredCrops = crops.filter(crop => {
-    const matchesSearch = crop.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         crop.type?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = crop.name?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || crop.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -160,10 +191,9 @@ export const CropList: React.FC = () => {
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
             <TextField
               sx={{ flex: 1, minWidth: 200 }}
-              placeholder="Search crops by name or type..."
+              placeholder="Search crops by name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -197,101 +227,86 @@ export const CropList: React.FC = () => {
               ))}
             </Menu>
             <Button variant="outlined" onClick={loadCrops}>
-              Clear
-            </Button>
-            <Button variant="contained" onClick={handleSearch}>
-              Search
+              Refresh
             </Button>
           </Box>
         </CardContent>
       </Card>
 
       {/* Crops Grid */}
-      <Box sx={{ 
-        display: 'grid', 
-        gridTemplateColumns: { 
-          xs: '1fr', 
-          sm: 'repeat(2, 1fr)', 
-          md: 'repeat(3, 1fr)' 
-        },
-        gap: 3 
-      }}>
+      <Grid container spacing={3}>
         {filteredCrops.map((crop) => (
-          <Card 
-            key={crop.id}
-            sx={{ 
-              height: '100%',
-              transition: '0.3s',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: 4,
-              },
-            }}
-          >
-            <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                <Typography variant="h6" component="div" fontWeight="bold">
-                  {crop.name || 'Unnamed Crop'}
-                </Typography>
-                <Chip
-                  label={crop.status?.replace('_', ' ') || 'Unknown'}
-                  color={getStatusColor(crop.status || '')}
-                  size="small"
-                />
-              </Box>
-
-              <Typography color="text.secondary" gutterBottom component="div">
-                {crop.type || 'No type'}
-                {crop.variety && ` • ${crop.variety}`}
-              </Typography>
-
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="body2" gutterBottom component="div">
-                  <strong>Planted:</strong> {crop.plantingDate ? new Date(crop.plantingDate).toLocaleDateString() : 'Not set'}
-                </Typography>
-                <Typography variant="body2" gutterBottom component="div">
-                  <strong>Area:</strong> {crop.area || 0} {getAreaUnit(crop)}
-                </Typography>
-                <Typography variant="body2" gutterBottom component="div">
-                  <strong>Expected Yield:</strong> {crop.expectedYield || 0} {getYieldUnit(crop)}
-                </Typography>
-                <Typography variant="body2" gutterBottom component="div">
-                  <strong>Expenses:</strong> ${(crop.totalExpenses || 0).toLocaleString()}
-                </Typography>
-                {(crop.marketPrice || 0) > 0 && (
-                  <Typography variant="body2" gutterBottom component="div">
-                    <strong>Market Price:</strong> ${crop.marketPrice}/unit
+          <Grid item xs={12} sm={6} md={4} key={crop.id}>
+            <Card 
+              sx={{ 
+                height: '100%',
+                transition: '0.3s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4,
+                },
+              }}
+            >
+              <CardContent>
+                <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                  <Typography variant="h6" component="div" fontWeight="bold">
+                    {crop.name || 'Unnamed Crop'}
                   </Typography>
-                )}
-              </Box>
+                  <Chip
+                    label={crop.status?.replace('_', ' ') || 'Unknown'}
+                    color={getStatusColor(crop.status || '')}
+                    size="small"
+                  />
+                </Box>
 
-              <Box display="flex" justifyContent="space-between" mt={3}>
-                <IconButton
-                  size="small"
-                  onClick={() => navigate(`/crops/${crop.id}`)}
-                  color="primary"
-                >
-                  <ViewIcon />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={() => navigate(`/crops/${crop.id}/edit`)}
-                  color="secondary"
-                >
-                  <EditIcon />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={() => handleDelete(crop.id)}
-                  color="error"
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
-            </CardContent>
-          </Card>
+                {/* Crop Details */}
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Area: {crop.area || 0} {getAreaUnit(crop)}
+                  {crop.yield > 0 && ` • Yield: ${crop.yield} ${getYieldUnit(crop)}`}
+                </Typography>
+
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" gutterBottom component="div">
+                    <strong>Planted:</strong> {formatDate(crop.plantingDate)}
+                  </Typography>
+                  {crop.harvestDate && (
+                    <Typography variant="body2" gutterBottom component="div">
+                      <strong>Harvested:</strong> {formatDate(crop.harvestDate)}
+                    </Typography>
+                  )}
+                  <Typography variant="body2" gutterBottom component="div">
+                    <strong>Expenses:</strong> Rs {(crop.totalExpenses || 0).toLocaleString()}
+                  </Typography>
+                </Box>
+
+                <Box display="flex" justifyContent="space-between" mt={3}>
+                  <IconButton
+                    size="small"
+                    onClick={() => navigate(`/crops/${crop.id}`)}
+                    color="primary"
+                  >
+                    <ViewIcon />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => navigate(`/crops/${crop.id}/edit`)}
+                    color="secondary"
+                  >
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDelete(crop.id)}
+                    color="error"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
         ))}
-      </Box>
+      </Grid>
 
       {filteredCrops.length === 0 && (
         <Card>

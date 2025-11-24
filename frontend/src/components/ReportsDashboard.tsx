@@ -112,11 +112,11 @@ export const ReportsDashboard: React.FC = () => {
   const comparativeData = [
     { metric: 'Total Crops', current: 45, previous: 38, unit: '' },
     { metric: 'Active Crops', current: 32, previous: 28, unit: '' },
-    { metric: 'Total Expenses', current: 12500, previous: 9800, unit: '$', isCurrency: true },
-    { metric: 'Projected Revenue', current: 28700, previous: 23400, unit: '$', isCurrency: true },
+    { metric: 'Total Expenses', current: 12500, previous: 9800, unit: 'Rs', isCurrency: true },
+    { metric: 'Projected Revenue', current: 28700, previous: 23400, unit: 'Rs', isCurrency: true },
     { metric: 'Average Yield', current: 4500, previous: 4200, unit: 'kg' },
-    { metric: 'Expense per Crop', current: 278, previous: 258, unit: '$', isCurrency: true },
-    { metric: 'Revenue per Acre', current: 2733, previous: 2550, unit: '$', isCurrency: true },
+    { metric: 'Expense per Crop', current: 278, previous: 258, unit: 'Rs', isCurrency: true },
+    { metric: 'Revenue per Acre', current: 2733, previous: 2550, unit: 'Rs', isCurrency: true },
   ];
 
   if (loading && !analyticsData) {
@@ -235,7 +235,7 @@ export const ReportsDashboard: React.FC = () => {
                 <FinanceIcon color="warning" />
                 <Box>
                   <Typography variant="h4" fontWeight="bold">
-                    ${((analyticsData.summary.total_expenses || 0) / 1000).toFixed(1)}k
+                    Rs {((analyticsData.summary.total_expenses || 0) / 1000).toFixed(1)}k
                   </Typography>
                   <Typography color="text.secondary">Total Expenses</Typography>
                 </Box>
@@ -250,7 +250,7 @@ export const ReportsDashboard: React.FC = () => {
                 <FinanceIcon color="info" />
                 <Box>
                   <Typography variant="h4" fontWeight="bold">
-                    ${((analyticsData.summary.projected_revenue || 0) / 1000).toFixed(1)}k
+                    Rs {((analyticsData.summary.projected_revenue || 0) / 1000).toFixed(1)}k
                   </Typography>
                   <Typography color="text.secondary">Projected Revenue</Typography>
                 </Box>

@@ -25,8 +25,102 @@ exports.handler = async (event, context) => {
       return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
     }
 
+    console.log('📊 Financial Summary API Path:', path);
+
+    // Handle /financial-summary/flocks endpoint
+    if (path.includes('/flocks') || path.endsWith('/financial-summary/flocks')) {
+      console.log('🐑 Processing flocks financial summary request');
+      
+     const flocksQuery = `
+  SELECT 
+    f.id,
+    f.name,
+    f.animal_type,
+    f.total_purchase_cost,
+    COUNT(l.id) as total_animals,
+    COUNT(CASE WHEN l.status IN ('HEALTHY', 'SICK', 'PREGNANT') THEN 1 END) as active_animals,
+    COUNT(CASE WHEN l.status = 'SOLD' THEN 1 END) as sold_animals,
+    COUNT(CASE WHEN l.status = 'DECEASED' THEN 1 END) as deceased_animals,
+    COALESCE(SUM(l.purchase_price), 0) as livestock_investment,
+    
+    -- Sales revenue from animals in this flock
+    COALESCE((
+      SELECT SUM(sr.total_amount) 
+      FROM sales_records sr 
+      JOIN livestock l2 ON sr.livestock_id = l2.id 
+      WHERE l2.flock_id = f.id
+    ), 0) as total_revenue,
+    
+    -- Expenses for this flock
+    COALESCE((
+      SELECT SUM(le.amount) 
+      FROM livestock_expenses le 
+      WHERE le.flock_id = f.id
+    ), 0) as total_expenses,
+    
+    -- Calculate net profit
+    COALESCE((
+      SELECT SUM(sr.total_amount) 
+      FROM sales_records sr 
+      JOIN livestock l2 ON sr.livestock_id = l2.id 
+      WHERE l2.flock_id = f.id
+    ), 0) - COALESCE(SUM(l.purchase_price), 0) - COALESCE((
+      SELECT SUM(le.amount) 
+      FROM livestock_expenses le 
+      WHERE le.flock_id = f.id
+    ), 0) as net_profit,
+    
+    -- Calculate ROI
+    CASE 
+      WHEN (COALESCE(SUM(l.purchase_price), 0) + COALESCE((
+        SELECT SUM(le.amount) 
+        FROM livestock_expenses le 
+        WHERE le.flock_id = f.id
+      ), 0)) > 0 
+      THEN ROUND((
+        (COALESCE((
+          SELECT SUM(sr.total_amount) 
+          FROM sales_records sr 
+          JOIN livestock l2 ON sr.livestock_id = l2.id 
+          WHERE l2.flock_id = f.id
+        ), 0) - COALESCE(SUM(l.purchase_price), 0) - COALESCE((
+          SELECT SUM(le.amount) 
+          FROM livestock_expenses le 
+          WHERE le.flock_id = f.id
+        ), 0)) / 
+        (COALESCE(SUM(l.purchase_price), 0) + COALESCE((
+          SELECT SUM(le.amount) 
+          FROM livestock_expenses le 
+          WHERE le.flock_id = f.id
+        ), 0))
+      ) * 100, 2)
+      ELSE 0 
+    END as roi_percentage
+    
+  FROM flocks f
+  LEFT JOIN livestock l ON f.id = l.flock_id
+  GROUP BY f.id, f.name, f.animal_type, f.total_purchase_cost
+  ORDER BY f.name
+`;
+
+      console.log('🔍 Executing flocks query...');
+      const result = await pool.query(flocksQuery);
+      console.log(`✅ Found ${result.rows.length} flocks`);
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          data: result.rows,
+          message: 'Flocks financial summary retrieved successfully'
+        })
+      };
+    }
+
     // Animal Summary Endpoint
     if (path.includes('/animal-summary')) {
+      console.log('🐄 Processing animal summary request');
+      
       const animalSummaryQuery = `
         SELECT 
           COUNT(*) as total_animals,
@@ -58,6 +152,8 @@ exports.handler = async (event, context) => {
 
     // Flock Financial Summary
     if (path.includes('/summary')) {
+      console.log('💰 Processing flock summary request');
+      
       let flockCondition = '';
       const params = [];
 
@@ -99,6 +195,8 @@ exports.handler = async (event, context) => {
 
     // Overall Metrics
     if (path.includes('/overall-metrics')) {
+      console.log('📈 Processing overall metrics request');
+      
       const metricsQuery = `
         SELECT 
           COUNT(DISTINCT f.id) as total_flocks,
@@ -125,18 +223,22 @@ exports.handler = async (event, context) => {
       };
     }
 
+    console.log('❌ Endpoint not found:', path);
     return {
       statusCode: 404,
       headers,
-      body: JSON.stringify({ error: 'Endpoint not found' })
+      body: JSON.stringify({ error: 'Endpoint not found. Available endpoints: /flocks, /animal-summary, /summary, /overall-metrics' })
     };
 
   } catch (error) {
-    console.error('Financial Summary API Error:', error);
+    console.error('❌ Financial Summary API Error:', error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Internal server error: ' + error.message })
+      body: JSON.stringify({ 
+        error: 'Internal server error: ' + error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      })
     };
   } 
 };

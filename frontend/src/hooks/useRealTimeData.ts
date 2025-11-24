@@ -1,48 +1,33 @@
-// src/hooks/useRealTimeData.ts
+import { useState, useEffect } from 'react';
+import { reportApi } from '../services/reportApi';
+import type { AnalyticsData } from '../types';
 
-import { useState, useEffect, useRef } from 'react';
-import { reportApi, type AnalyticsData } from '../services/reportApi';
-
-interface UseRealTimeDataReturn {
-  data: AnalyticsData | null;
-  loading: boolean;
-  error: string;
-  refreshData: () => void;
-}
-
-export const useRealTimeData = (interval: number = 30000): UseRealTimeDataReturn => {
+export const useRealTimeData = (intervalMs: number = 60000) => {
   const [data, setData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>('');
-  const intervalRef = useRef<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // Change to string
 
   const fetchData = async () => {
     try {
+      setError(null);
       const response = await reportApi.getAnalytics();
       setData(response.data);
-      setError('');
     } catch (err) {
+      // Convert error to string
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(errorMessage);
       console.error('Failed to fetch real-time data:', err);
-      setError('Failed to update data');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Initial fetch
     fetchData();
 
-    // Set up interval for real-time updates
-    intervalRef.current = window.setInterval(fetchData, interval);
-
-    // Cleanup
-    return () => {
-      if (intervalRef.current) {
-        window.clearInterval(intervalRef.current);
-      }
-    };
-  }, [interval]);
+    const interval = setInterval(fetchData, intervalMs);
+    return () => clearInterval(interval);
+  }, [intervalMs]);
 
   const refreshData = () => {
     setLoading(true);

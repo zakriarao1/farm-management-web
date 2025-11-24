@@ -5,6 +5,59 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// Function to create table if it doesn't exist
+const ensureTableExists = async () => {
+  try {
+    // Check if table exists
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'sales_records'
+      );
+    `);
+    
+    if (!tableCheck.rows[0].exists) {
+      console.log('📊 Creating sales_records table...');
+      
+      await pool.query(`
+        CREATE TABLE sales_records (
+          id SERIAL PRIMARY KEY,
+          sale_type VARCHAR(20) NOT NULL CHECK (sale_type IN ('animal', 'product', 'other')),
+          livestock_id INTEGER REFERENCES livestock(id) ON DELETE SET NULL,
+          flock_id INTEGER REFERENCES flocks(id) ON DELETE SET NULL,
+          sale_date DATE NOT NULL,
+          description TEXT NOT NULL,
+          quantity INTEGER NOT NULL DEFAULT 1,
+          unit_price DECIMAL(10,2) NOT NULL,
+          total_amount DECIMAL(10,2) NOT NULL,
+          customer_name VARCHAR(255),
+          customer_contact VARCHAR(100),
+          payment_method VARCHAR(50) NOT NULL,
+          notes TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      // Create indexes
+      await pool.query(`
+        CREATE INDEX idx_sales_records_date ON sales_records(sale_date);
+        CREATE INDEX idx_sales_records_livestock ON sales_records(livestock_id);
+        CREATE INDEX idx_sales_records_flock ON sales_records(flock_id);
+        CREATE INDEX idx_sales_records_type ON sales_records(sale_type);
+      `);
+      
+      console.log('✅ sales_records table created successfully');
+    } else {
+      console.log('✅ sales_records table already exists');
+    }
+  } catch (error) {
+    console.error('❌ Error ensuring table exists:', error);
+    throw error;
+  }
+};
+
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -18,13 +71,15 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    // Ensure table exists before processing any request
+    await ensureTableExists();
+
     const { httpMethod, path, queryStringParameters } = event;
     const id = path.split('/').pop();
     const { flockId, livestockId, startDate, endDate } = queryStringParameters || {};
 
     switch (httpMethod) {
       case 'GET':
-        // Get sales with filtering options
         if (id && !isNaN(id)) {
           const result = await pool.query(`
             SELECT sr.*, 

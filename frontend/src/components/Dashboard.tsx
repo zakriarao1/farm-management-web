@@ -11,6 +11,7 @@ import {
   Button,
   Alert,
   Paper,
+  ChipProps,
 } from '@mui/material';
 import {
   Agriculture as CropIcon,
@@ -50,6 +51,39 @@ interface AnalyticsData {
   }>;
 }
 
+// Data transformation function
+const transformCropData = (crops: any[]): Crop[] => {
+  return crops.map(crop => ({
+    id: crop.id,
+    name: crop.name || 'Unnamed Crop',
+    // Handle both camelCase and snake_case date fields
+    plantingDate: crop.plantingDate || crop.planting_date || '',
+    harvestDate: crop.harvestDate || crop.harvest_date,
+    // Convert area to number and handle both field names
+    area: Number(crop.area || crop.area_value || 0),
+    // Handle both camelCase and snake_case unit fields
+    areaUnit: (crop.areaUnit || crop.area_unit || 'UNITS') as any,
+    // Convert yield to number and handle both field names
+    yield: Number(crop.yield || crop.yield_value || 0),
+    // Handle both camelCase and snake_case unit fields
+    yieldUnit: (crop.yieldUnit || crop.yield_unit || 'UNITS') as any,
+    // Convert expenses to number and handle both field names
+    totalExpenses: Number(crop.totalExpenses || crop.total_expenses || 0),
+    marketPrice: Number(crop.marketPrice || crop.market_price || 0),
+    status: crop.status || 'PLANNED',
+    notes: crop.notes,
+    // Keep original API fields for reference
+    planting_date: crop.planting_date,
+    harvest_date: crop.harvest_date,
+    area_value: crop.area_value,
+    yield_value: crop.yield_value,
+    total_expenses: crop.total_expenses,
+    area_unit: crop.area_unit,
+    yield_unit: crop.yield_unit,
+    market_price: crop.market_price,
+  }));
+};
+
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [crops, setCrops] = useState<Crop[]>([]);
@@ -72,7 +106,11 @@ export const Dashboard: React.FC = () => {
         expenseApi.getRecent()
       ]);
       
-      setCrops(cropsResponse.data || []);
+      // Transform crop data to ensure proper types
+      const transformedCrops = transformCropData(cropsResponse.data || []);
+      console.log('Transformed crops:', transformedCrops); // Debug log
+      
+      setCrops(transformedCrops);
       setAnalytics(analyticsResponse.data as AnalyticsData);
       setRecentExpenses(expensesResponse.data || []);
       
@@ -84,21 +122,57 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  // Safe helper functions
+  // Safe helper functions - FIXED to handle both camelCase and snake_case
   const getAreaUnit = (crop: Crop): string => {
-    if (!crop.areaUnit) return 'units';
-    if (typeof crop.areaUnit === 'string') {
-      return crop.areaUnit.toLowerCase();
+    // Use both camelCase and snake_case properties
+    const unit = crop.areaUnit || crop.area_unit;
+    if (!unit) return 'units';
+    if (typeof unit === 'string') {
+      const unitMap: { [key: string]: string } = {
+        'ACRES': 'acres',
+        'HECTARES': 'hectares',
+        'SQUARE_METERS': 'sq m',
+        'MARLA': 'marla',
+        'KANAL': 'kanal',
+        'UNITS': 'units'
+      };
+      return unitMap[unit] || unit.toLowerCase();
     }
-    return String(crop.areaUnit).toLowerCase();
+    return String(unit).toLowerCase();
   };
 
   const getYieldUnit = (crop: Crop): string => {
-    if (!crop.yieldUnit) return 'units';
-    if (typeof crop.yieldUnit === 'string') {
-      return crop.yieldUnit.toLowerCase();
+    // Use both camelCase and snake_case properties
+    const unit = crop.yieldUnit || crop.yield_unit;
+    if (!unit) return 'units';
+    if (typeof unit === 'string') {
+      const unitMap: { [key: string]: string } = {
+        'TONS': 'tons',
+        'KILOGRAMS': 'kg',
+        'POUNDS': 'lbs',
+        'BUSHELS': 'bushels',
+        'MONS': 'mons',
+        'UNITS': 'units'
+      };
+      return unitMap[unit] || unit.toLowerCase();
     }
-    return String(crop.yieldUnit).toLowerCase();
+    return String(unit).toLowerCase();
+  };
+
+  const formatDate = (dateString: string): string => {
+    if (!dateString) return 'Not set';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Invalid date';
+    }
   };
 
   const getStatusText = (status: string): string => {
@@ -106,19 +180,19 @@ export const Dashboard: React.FC = () => {
     return status.replace(/_/g, ' ');
   };
 
-  const getChipColor = (status: string): 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info' => {
-    const colors = {
-      PLANNED: 'default' as const,
-      PLANTED: 'primary' as const,
-      GROWING: 'info' as const,
-      READY_FOR_HARVEST: 'warning' as const,
-      HARVESTED: 'success' as const,
-      STOCKED: 'secondary' as const,
-      SOLD: 'success' as const,
-      FAILED: 'error' as const,
+  const getChipColor = (status: string): ChipProps['color'] => {
+    const colors: Record<string, ChipProps['color']> = {
+      PLANNED: 'default',
+      PLANTED: 'primary',
+      GROWING: 'info',
+      READY_FOR_HARVEST: 'warning',
+      HARVESTED: 'success',
+      STOCKED: 'secondary',
+      SOLD: 'success',
+      FAILED: 'error',
     };
     
-    return colors[status as keyof typeof colors] || 'default';
+    return colors[status] || 'default';
   };
 
   // Calculate statistics
@@ -230,7 +304,7 @@ export const Dashboard: React.FC = () => {
               <FinanceIcon color="warning" />
               <Box>
                 <Typography variant="h4" fontWeight="bold">
-                  PKR {(totalExpenses / 1000).toFixed(1)}k
+                  Rs {(totalExpenses / 1000).toFixed(1)}k
                 </Typography>
                 <Typography color="text.secondary">Total Expenses</Typography>
               </Box>
@@ -249,7 +323,7 @@ export const Dashboard: React.FC = () => {
                   fontWeight="bold" 
                   color={netProjection >= 0 ? 'success.main' : 'error.main'}
                 >
-                  PKR {(netProjection / 1000).toFixed(1)}k
+                  Rs {(netProjection / 1000).toFixed(1)}k
                 </Typography>
                 <Typography color="text.secondary">Projected Net</Typography>
               </Box>
@@ -270,7 +344,7 @@ export const Dashboard: React.FC = () => {
                 {expense.description}
               </Typography>
               <Typography variant="body2" color="error">
-                -PKR {expense.amount.toLocaleString()}
+                -Rs {Number(expense.amount).toLocaleString()}
               </Typography>
             </Box>
           ))}
@@ -351,7 +425,7 @@ export const Dashboard: React.FC = () => {
         },
         gap: 3 
       }}>
-        {/* Recent Crops Section */}
+        {/* Recent Crops Section - FIXED */}
         <Box>
           <Card sx={{ mb: 3 }}>
             <CardContent>
@@ -371,18 +445,25 @@ export const Dashboard: React.FC = () => {
                     '&:last-child': { borderBottom: 'none' },
                   }}
                 >
-                  <Box>
+                  <Box sx={{ flex: 1 }}>
                     <Typography variant="subtitle1" fontWeight="medium">
-                      {crop.name || 'Unnamed Crop'}
+                      {crop.name}
                     </Typography>
+                    {/* FIXED: Show proper units and values */}
                     <Typography variant="body2" color="text.secondary">
-                      {crop.type || 'No type'} • {crop.area || 0} {getAreaUnit(crop)}
-                      {crop.actualYield && ` • Actual: ${crop.actualYield} ${getYieldUnit(crop)}`}
+                      Area: {crop.area.toFixed(2)} {getAreaUnit(crop)}
+                      {crop.yield > 0 && ` • Yield: ${crop.yield.toFixed(2)} ${getYieldUnit(crop)}`}
                     </Typography>
+                    {/* FIXED: Show planting date */}
+                    {crop.plantingDate && crop.plantingDate !== 'Not set' && (
+                      <Typography variant="caption" color="text.secondary">
+                        Planted: {formatDate(crop.plantingDate)}
+                      </Typography>
+                    )}
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="body2" color="text.secondary">
-                      PKR {(crop.totalExpenses || 0).toLocaleString()}
+                      Rs {crop.totalExpenses.toLocaleString()}
                     </Typography>
                     <Chip
                       label={getStatusText(crop.status)}
@@ -513,4 +594,5 @@ export const Dashboard: React.FC = () => {
       </Box>
     </Box>
   );
+  
 };

@@ -46,64 +46,61 @@ export type InventoryCategory =
   | 'MAINTENANCE' 
   | 'OTHER';
 
+
 export interface Crop {
   id: number;
   name: string;
-  type: string;
-  variety: string;
   plantingDate: string;
-  expectedHarvestDate?: string;
-  actualHarvestDate?: string;
+  harvestDate?: string;
   area: number;
   areaUnit: AreaUnit;
-  expectedYield: number;
-  actualYield?: number;
+  yield: number;
   yieldUnit: YieldUnit;
   marketPrice: number;
   totalExpenses: number;
   status: CropStatus;
-  fieldLocation?: string;
   notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  expenses?: Expense[];
+  created_at?: string;
+  updated_at?: string;
+
+   planting_date?: string;
+  harvest_date?: string;
+  area_value?: number | string;
+  yield_value?: number | string;
+  total_expenses?: number | string;
+  area_unit?: AreaUnit;
+  yield_unit?: YieldUnit;
+  market_price?: number | string;
 }
 
 export interface CreateCropRequest {
   name: string;
-  type: string;
-  variety: string;
   plantingDate: string;
-  expectedHarvestDate?: string;
   area: number;
   areaUnit: AreaUnit;
-  expectedYield: number;
-  yieldUnit: YieldUnit;
-  marketPrice: number;
-  totalExpenses: number;
-  status: CropStatus;
-  fieldLocation?: string;
-  notes?: string;
-}
-
-export interface UpdateCropRequest {
-  name?: string;
-  type?: string;
-  variety?: string;
-  plantingDate?: string;
-  expectedHarvestDate?: string;
-  actualHarvestDate?: string;
-  area?: number;
-  areaUnit?: AreaUnit;
-  expectedYield?: number;
-  actualYield?: number;
+  yield?: number;
   yieldUnit?: YieldUnit;
   marketPrice?: number;
   totalExpenses?: number;
-  status?: CropStatus;
-  fieldLocation?: string;
+  status: CropStatus;
   notes?: string;
+  harvestDate?: string;
 }
+
+export interface UpdateCropRequest {
+  name: string;
+  plantingDate: string;
+  area: number;
+  areaUnit: AreaUnit;
+  yield?: number;
+  yieldUnit?: YieldUnit;
+  marketPrice?: number;
+  totalExpenses?: number;
+  status: CropStatus;
+  notes?: string;
+  harvestDate?: string;
+}
+
 
 export type ExpenseCategory = 
   | 'SEEDS'

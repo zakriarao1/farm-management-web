@@ -121,6 +121,20 @@ export interface CreateLivestockExpenseRequest {
   date: string;
   notes?: string;
 }
+export interface FlockFinancialData {
+  id: number;
+  name: string;
+  animal_type: string;
+  total_animals: number;
+  active_animals: number;
+  sold_animals: number;
+  deceased_animals: number;
+  livestock_investment: number;
+  sales_revenue: number;
+  total_expenses: number;
+  net_profit: number;
+  roi_percentage: number;
+}
 
 export interface FlockFinancialSummary {
   flock_id: number;

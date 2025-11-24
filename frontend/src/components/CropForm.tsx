@@ -1,6 +1,6 @@
 // frontend/src/components/CropForm.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
@@ -10,12 +10,13 @@ import {
   Button,
   Alert,
   MenuItem,
+  Grid,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { cropApi } from '../services/api';
 import type { CreateCropRequest } from '../types';
 
-// Crop data with names only (types and varieties are now free text)
+// Crop data with names only
 const CROP_NAMES = [
   'Wheat',
   'Rice', 
@@ -39,45 +40,58 @@ const CROP_NAMES = [
   'Beans'
 ];
 
+// Area units
+const AREA_UNITS = [
+  'ACRES',
+  'HECTARES',
+  'SQUARE_METERS',
+  'MARLA',
+  'KANAL'
+];
+
+// Yield units
+const YIELD_UNITS = [
+  'TONS',
+  'KILOGRAMS',
+  'POUNDS',
+  'BUSHELS',
+  'MONS'
+];
+
 export const CropForm: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState<CreateCropRequest & {
-    actualHarvestDate?: string;
-    actualYield?: number;
+    harvestDate?: string;
+    yield?: number;
+    marketPrice?: number;
   }>({
     name: '',
-    type: '',
-    variety: '',
     plantingDate: new Date().toISOString().split('T')[0]!,
-    expectedHarvestDate: '',
     area: 0,
     areaUnit: 'ACRES',
-    expectedYield: 0,
     yieldUnit: 'TONS',
     marketPrice: 0,
-    totalExpenses: 0,
+    totalExpenses: 0, // Will be calculated from expenses after creation
     status: 'PLANNED',
-    fieldLocation: '',
     notes: '',
-    actualHarvestDate: '',
-    actualYield: 0,
+    harvestDate: '',
+    yield: 0,
   });
 
-  const isMarketPriceRequired = formData.status === 'SOLD';
-  const showActualYieldFields = formData.status === 'HARVESTED' || formData.status === 'SOLD';
+  const showYieldFields = formData.status === 'HARVESTED' || formData.status === 'SOLD';
+  const showFinancialFields = formData.status === 'SOLD';
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: name.includes('area') || 
-               name.includes('Yield') || 
-               name.includes('Price') || 
-               name.includes('Expenses') 
-        ? parseFloat(value) || 0  // Use parseFloat for decimal values
+               name.includes('yield') || 
+               name.includes('marketPrice')
+        ? parseFloat(value) || 0
         : value
     }));
   };
@@ -88,22 +102,26 @@ export const CropForm: React.FC = () => {
     setError('');
 
     try {
-      // Create submission data without the UI-only fields
+      // Create submission data - totalExpenses will be 0 initially
       const submissionData: CreateCropRequest = {
         name: formData.name,
-        type: formData.type,
-        variety: formData.variety,
         plantingDate: formData.plantingDate,
-        expectedHarvestDate: formData.expectedHarvestDate,
         area: formData.area,
         areaUnit: formData.areaUnit,
-        expectedYield: formData.expectedYield,
         yieldUnit: formData.yieldUnit,
-        marketPrice: formData.status === 'SOLD' ? formData.marketPrice : 0,
-        totalExpenses: 0, // Expenses will be added separately
+        marketPrice: formData.marketPrice,
+        totalExpenses: 0, // Always 0 for new crops
         status: formData.status,
-        fieldLocation: formData.fieldLocation,
         notes: formData.notes,
+        // Only include harvest data if harvested/sold
+        ...(showYieldFields && {
+          harvestDate: formData.harvestDate,
+          yield: formData.yield,
+        }),
+        // Reset financial fields if not sold
+        ...(formData.status !== 'SOLD' && {
+          marketPrice: 0,
+        }),
       };
       
       await cropApi.create(submissionData);
@@ -143,16 +161,18 @@ export const CropForm: React.FC = () => {
           )}
 
           <form onSubmit={handleSubmit}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Grid container spacing={3}>
               
               {/* Basic Information */}
-              <Typography variant="h6" gutterBottom color="primary">
-                Basic Information
-              </Typography>
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom color="primary">
+                  Basic Information
+                </Typography>
+              </Grid>
               
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Grid item xs={12} sm={6}>
                 <TextField
-                  sx={{ flex: '1 1 300px' }}
+                  fullWidth
                   label="Crop Name *"
                   name="name"
                   value={formData.name}
@@ -167,37 +187,16 @@ export const CropForm: React.FC = () => {
                     </MenuItem>
                   ))}
                 </TextField>
-                
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
                 <TextField
-                  sx={{ flex: '1 1 300px' }}
-                  label="Crop Type (Optional)"
-                  name="type"
-                  value={formData.type}
-                  onChange={handleChange}
-                  placeholder="e.g., Spring Wheat, Basmati Rice"
                   fullWidth
-                />
-              </Box>
-
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <TextField
-                  sx={{ flex: '1 1 300px' }}
-                  label="Variety (Optional)"
-                  name="variety"
-                  value={formData.variety}
-                  onChange={handleChange}
-                  placeholder="e.g., Hard Red Winter, Long Grain"
-                  fullWidth
-                />
-                
-                <TextField
-                  sx={{ flex: '1 1 300px' }}
                   label="Status"
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
                   select
-                  fullWidth
                 >
                   <MenuItem value="PLANNED">Planned</MenuItem>
                   <MenuItem value="PLANTED">Planted</MenuItem>
@@ -208,16 +207,18 @@ export const CropForm: React.FC = () => {
                   <MenuItem value="SOLD">Sold</MenuItem>
                   <MenuItem value="FAILED">Failed</MenuItem>
                 </TextField>
-              </Box>
+              </Grid>
 
               {/* Dates */}
-              <Typography variant="h6" gutterBottom color="primary" sx={{ mt: 2 }}>
-                Dates
-              </Typography>
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom color="primary" sx={{ mt: 2 }}>
+                  Dates
+                </Typography>
+              </Grid>
               
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Grid item xs={12} sm={6}>
                 <TextField
-                  sx={{ flex: '1 1 300px' }}
+                  fullWidth
                   label="Planting Date *"
                   name="plantingDate"
                   type="date"
@@ -228,63 +229,18 @@ export const CropForm: React.FC = () => {
                     shrink: true,
                   }}
                 />
-                <TextField
-                  sx={{ flex: '1 1 300px' }}
-                  label="Expected Harvest Date"
-                  name="expectedHarvestDate"
-                  type="date"
-                  value={formData.expectedHarvestDate}
-                  onChange={handleChange}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                />
-              </Box>
+              </Grid>
 
-              {/* Actual Yield Section (Only shown when harvested/sold) */}
-              {showActualYieldFields && (
-                <>
-                  <Typography variant="h6" gutterBottom color="primary">
-                    Harvest Information
-                  </Typography>
-                  
-                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                    <TextField
-                      sx={{ flex: '1 1 300px' }}
-                      label="Actual Harvest Date"
-                      name="actualHarvestDate"
-                      type="date"
-                      value={formData.actualHarvestDate || ''}
-                      onChange={handleChange}
-                      InputLabelProps={{
-                        shrink: true,
-                      }}
-                    />
-                    <TextField
-                      sx={{ flex: '1 1 300px' }}
-                      label="Actual Yield"
-                      name="actualYield"
-                      type="number"
-                      value={formData.actualYield || 0}
-                      onChange={handleChange}
-                      inputProps={{ 
-                        min: "0",
-                        step: "1"
-                      }}
-                      helperText="Enter the actual yield after harvest"
-                    />
-                  </Box>
-                </>
-              )}
-
-              {/* Area and Expected Yield */}
-              <Typography variant="h6" gutterBottom color="primary" sx={{ mt: 2 }}>
-                Area & Expected Yield
-              </Typography>
+              {/* Area Information */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom color="primary" sx={{ mt: 2 }}>
+                  Area Information
+                </Typography>
+              </Grid>
               
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Grid item xs={12} sm={6}>
                 <TextField
-                  sx={{ flex: '1 1 200px' }}
+                  fullWidth
                   label="Area *"
                   name="area"
                   type="number"
@@ -292,128 +248,164 @@ export const CropForm: React.FC = () => {
                   onChange={handleChange}
                   inputProps={{ 
                     min: "0",
-                    step: "1"
+                    step: "0.01"
                   }}
                   required
                 />
+              </Grid>
+              <Grid item xs={12} sm={6}>
                 <TextField
-                  sx={{ flex: '1 1 200px' }}
+                  fullWidth
                   label="Area Unit *"
                   name="areaUnit"
                   value={formData.areaUnit}
                   onChange={handleChange}
                   select
-                  fullWidth
                   required
                 >
-                  <MenuItem value="ACRES">Acres</MenuItem>
-                  <MenuItem value="HECTARES">Hectares</MenuItem>
-                  <MenuItem value="SQUARE_METERS">Square Meters</MenuItem>
-                  <MenuItem value="MARLA">Marla</MenuItem>
-                  <MenuItem value="KANAL">Kanal</MenuItem>
+                  {AREA_UNITS.map(unit => (
+                    <MenuItem key={unit} value={unit}>
+                      {unit}
+                    </MenuItem>
+                  ))}
                 </TextField>
-                <TextField
-                  sx={{ flex: '1 1 200px' }}
-                  label="Expected Yield *"
-                  name="expectedYield"
-                  type="number"
-                  value={formData.expectedYield}
-                  onChange={handleChange}
-                  inputProps={{ 
-                    min: "0",
-                    step: "1"
-                  }}
-                  required
-                />
-              </Box>
+              </Grid>
 
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <TextField
-                  sx={{ flex: '1 1 300px' }}
-                  label="Yield Unit *"
-                  name="yieldUnit"
-                  value={formData.yieldUnit}
-                  onChange={handleChange}
-                  select
-                  fullWidth
-                  required
-                >
-                  <MenuItem value="TONS">Tons</MenuItem>
-                  <MenuItem value="KILOGRAMS">Kilograms</MenuItem>
-                  <MenuItem value="POUNDS">Pounds</MenuItem>
-                  <MenuItem value="BUSHELS">Bushels</MenuItem>
-                  <MenuItem value="MONS">Mons</MenuItem>
-                </TextField>
-              </Box>
-
-              {/* Market Price - Only show and require when status is SOLD */}
-              {formData.status === 'SOLD' && (
+              {/* Yield Section (Only shown when harvested/sold) */}
+              {showYieldFields && (
                 <>
-                  <Typography variant="h6" gutterBottom color="primary">
-                    Sales Information
-                  </Typography>
+                  <Grid item xs={12}>
+                    <Typography variant="h6" gutterBottom color="primary">
+                      Harvest Information
+                    </Typography>
+                  </Grid>
                   
-                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  <Grid item xs={12} sm={6}>
                     <TextField
-                      sx={{ flex: '1 1 300px' }}
-                      label="Market Price per Unit ($) *"
-                      name="marketPrice"
+                      fullWidth
+                      label="Harvest Date"
+                      name="harvestDate"
+                      type="date"
+                      value={formData.harvestDate || ''}
+                      onChange={handleChange}
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Yield"
+                      name="yield"
                       type="number"
-                      value={formData.marketPrice}
+                      value={formData.yield || 0}
                       onChange={handleChange}
                       inputProps={{ 
                         min: "0",
-                        step: "1"
+                        step: "0.01"
                       }}
-                      required={isMarketPriceRequired}
-                      helperText={isMarketPriceRequired ? "Required when status is Sold" : "Optional"}
+                      helperText="Enter the yield after harvest"
                     />
-                  </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Yield Unit"
+                      name="yieldUnit"
+                      value={formData.yieldUnit}
+                      onChange={handleChange}
+                      select
+                    >
+                      {YIELD_UNITS.map(unit => (
+                        <MenuItem key={unit} value={unit}>
+                          {unit}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+                </>
+              )}
+
+              {/* Financial Information (Only shown when sold) */}
+              {showFinancialFields && (
+                <>
+                  <Grid item xs={12}>
+                    <Typography variant="h6" gutterBottom color="primary">
+                      Financial Information
+                    </Typography>
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Market Price (PKR)"
+                      name="marketPrice"
+                      type="number"
+                      value={formData.marketPrice || 0}
+                      onChange={handleChange}
+                      inputProps={{ 
+                        min: "0",
+                        step: "0.01"
+                      }}
+                      helperText="Price per unit when sold"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Total Expenses (PKR)"
+                      name="totalExpenses"
+                      type="number"
+                      value={0}
+                      disabled
+                      helperText="Will be calculated from expenses"
+                    />
+                  </Grid>
                 </>
               )}
 
               {/* Additional Information */}
-              <Typography variant="h6" gutterBottom color="primary" sx={{ mt: 2 }}>
-                Additional Information
-              </Typography>
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom color="primary" sx={{ mt: 2 }}>
+                  Additional Information
+                </Typography>
+              </Grid>
               
-              <TextField
-                label="Field Location"
-                name="fieldLocation"
-                value={formData.fieldLocation}
-                onChange={handleChange}
-                placeholder="e.g., North Field, Plot A"
-              />
-
-              <TextField
-                label="Notes"
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                multiline
-                rows={4}
-                placeholder="Any additional notes about this crop..."
-              />
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Notes"
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleChange}
+                  multiline
+                  rows={4}
+                  placeholder="Any additional notes about this crop..."
+                />
+              </Grid>
 
               {/* Submit Buttons */}
-              <Box display="flex" gap={2} sx={{ mt: 2 }}>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  size="large"
-                  disabled={loading}
-                >
-                  {loading ? 'Creating Crop...' : 'Create Crop'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outlined"
-                  onClick={() => navigate('/crops')}
-                >
-                  Cancel
-                </Button>
-              </Box>
-            </Box>
+              <Grid item xs={12}>
+                <Box display="flex" gap={2} sx={{ mt: 2 }}>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    size="large"
+                    disabled={loading}
+                  >
+                    {loading ? 'Creating Crop...' : 'Create Crop'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    onClick={() => navigate('/crops')}
+                  >
+                    Cancel
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
           </form>
         </CardContent>
       </Card>

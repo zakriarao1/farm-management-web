@@ -13,6 +13,7 @@ import {
   Chip,
   LinearProgress,
   Alert,
+  Grid,
 } from '@mui/material';
 import { ArrowBack as BackIcon } from '@mui/icons-material';
 import { cropApi } from '../services/api';
@@ -38,7 +39,20 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other })
     </div>
   );
 };
-
+const transformCropData = (crop: any): Crop => ({
+  id: crop.id,
+  name: crop.name || 'Unnamed Crop',
+  plantingDate: crop.plantingDate || crop.planting_date || '',
+  harvestDate: crop.harvestDate || crop.harvest_date,
+  area: Number(crop.area || crop.area_value || 0),
+  areaUnit: (crop.areaUnit || crop.area_unit || 'UNITS') as any,
+  yield: Number(crop.yield || crop.yield_value || 0),
+  yieldUnit: (crop.yieldUnit || crop.yield_unit || 'UNITS') as any,
+  totalExpenses: Number(crop.totalExpenses || crop.total_expenses || 0),
+  marketPrice: Number(crop.marketPrice || crop.market_price || 0),
+  status: crop.status || 'PLANNED',
+  notes: crop.notes,
+});
 // Safe helper functions
 const getAreaUnit = (crop: Crop): string => {
   if (!crop.areaUnit) return 'units';
@@ -75,6 +89,19 @@ const getStatusColor = (status: string): 'default' | 'primary' | 'secondary' | '
   return colors[status as keyof typeof colors] || 'default';
 };
 
+const formatDate = (dateString: string): string => {
+  if (!dateString) return 'Not set';
+  try {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  } catch {
+    return 'Invalid date';
+  }
+};
+
 export const CropDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -84,21 +111,20 @@ export const CropDetails: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
 
   const loadCrop = useCallback(async () => {
-    if (!id) return;
-    
-    try {
-      setLoading(true);
-      console.log('🔄 Loading crop details for ID:', id);
-      const response = await cropApi.getById(parseInt(id));
-      console.log('✅ Crop details loaded:', response.data);
-      setCrop(response.data);
-    } catch (err) {
-      console.error('❌ Failed to load crop:', err);
-      setError('Failed to load crop details');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  if (!id) return;
+  
+  try {
+    setLoading(true);
+    const response = await cropApi.getById(parseInt(id));
+    const transformedCrop = transformCropData(response.data);
+    setCrop(transformedCrop);
+  } catch (err) {
+    console.error('Failed to load crop:', err);
+    setError('Failed to load crop details');
+  } finally {
+    setLoading(false);
+  }
+}, [id]);
 
   useEffect(() => {
     loadCrop();
@@ -127,11 +153,6 @@ export const CropDetails: React.FC = () => {
       </Box>
     );
   }
-
-  // Debug: Log the crop data to see what's missing
-  console.log('📊 Current crop data:', crop);
-  console.log('🔍 Crop areaUnit:', crop.areaUnit);
-  console.log('🔍 Crop yieldUnit:', crop.yieldUnit);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -167,57 +188,88 @@ export const CropDetails: React.FC = () => {
           <Tabs value={tabValue} onChange={handleTabChange}>
             <Tab label="Overview" />
             <Tab label="Expenses" />
-            <Tab label="Growth Timeline" />
           </Tabs>
         </Box>
 
         {/* Overview Tab */}
         <TabPanel value={tabValue} index={0}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>Basic Information</Typography>
-                <Typography><strong>Type:</strong> {crop.type || 'Not specified'}</Typography>
-                <Typography><strong>Variety:</strong> {crop.variety || 'Not specified'}</Typography>
-                <Typography><strong>Field Location:</strong> {crop.fieldLocation || 'Not specified'}</Typography>
-              </CardContent>
-            </Card>
-
-            <Card>
-  <CardContent>
-    <Typography variant="h6" gutterBottom>Area & Yield</Typography>
-    <Typography><strong>Area:</strong> {crop.area || 0} {getAreaUnit(crop)}</Typography>
-    <Typography><strong>Expected Yield:</strong> {crop.expectedYield || 0} {getYieldUnit(crop)}</Typography>
-    
-    {/* ADD THESE NEW LINES FOR ACTUAL YIELD */}
-    {crop.actualYield && (
-      <Typography><strong>Actual Yield:</strong> {crop.actualYield} {getYieldUnit(crop)}</Typography>
-    )}
-    {crop.actualHarvestDate && (
-      <Typography><strong>Actual Harvest Date:</strong> {new Date(crop.actualHarvestDate).toLocaleDateString()}</Typography>
-    )}
-    
-    <Typography><strong>Total Expenses:</strong> ${(crop.totalExpenses || 0).toLocaleString()}</Typography>
-  </CardContent>
-</Card>
-
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>Dates</Typography>
-                <Typography><strong>Planted:</strong> {crop.plantingDate ? new Date(crop.plantingDate).toLocaleDateString() : 'Not set'}</Typography>
-                <Typography><strong>Expected Harvest:</strong> {crop.expectedHarvestDate ? new Date(crop.expectedHarvestDate).toLocaleDateString() : 'Not set'}</Typography>
-              </CardContent>
-            </Card>
-
-            {crop.notes && (
+          <Grid container spacing={3}>
+            {/* Basic Information */}
+            <Grid item xs={12} md={6}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom>Notes</Typography>
-                  <Typography>{crop.notes}</Typography>
+                  <Typography variant="h6" gutterBottom color="primary">
+                    Basic Information
+                  </Typography>
+                  <Typography variant="body2" gutterBottom>
+                    <strong>Status:</strong> {getStatusText(crop.status)}
+                  </Typography>
+                  <Typography variant="body2" gutterBottom>
+                    <strong>Planted:</strong> {formatDate(crop.plantingDate)}
+                  </Typography>
+                  {crop.harvestDate && (
+                    <Typography variant="body2" gutterBottom>
+                      <strong>Harvested:</strong> {formatDate(crop.harvestDate)}
+                    </Typography>
+                  )}
                 </CardContent>
               </Card>
+            </Grid>
+
+            {/* Area & Yield Information */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom color="primary">
+                    Area & Yield
+                  </Typography>
+                  <Typography variant="body2" gutterBottom>
+                    <strong>Area:</strong> {crop.area || 0} {getAreaUnit(crop)}
+                  </Typography>
+                  {crop.yield > 0 && (
+                    <Typography variant="body2" gutterBottom>
+                      <strong>Yield:</strong> {crop.yield} {getYieldUnit(crop)}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Financial Information */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom color="primary">
+                    Financial Information
+                  </Typography>
+                  <Typography variant="body2" gutterBottom>
+                    <strong>Total Expenses:</strong> Rs {(crop.totalExpenses || 0).toLocaleString()}
+                  </Typography>
+                  {crop.marketPrice > 0 && (
+                    <Typography variant="body2" gutterBottom>
+                      <strong>Market Price:</strong> Rs {crop.marketPrice}/unit
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Notes */}
+            {crop.notes && (
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom color="primary">
+                      Notes
+                    </Typography>
+                    <Typography variant="body2">
+                      {crop.notes}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
             )}
-          </Box>
+          </Grid>
         </TabPanel>
 
         {/* Expenses Tab */}
@@ -227,17 +279,6 @@ export const CropDetails: React.FC = () => {
             cropName={crop.name || 'Unnamed Crop'}
             onExpensesUpdated={loadCrop}
           />
-        </TabPanel>
-
-        {/* Growth Timeline Tab */}
-        <TabPanel value={tabValue} index={2}>
-          <Typography variant="h6" gutterBottom>
-            Growth Timeline
-          </Typography>
-          <Typography color="text.secondary">
-            Growth timeline feature will be implemented here.
-          </Typography>
-          {/* You can add a timeline component here later */}
         </TabPanel>
       </Card>
     </Box>

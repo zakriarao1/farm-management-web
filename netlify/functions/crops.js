@@ -77,40 +77,37 @@ exports.handler = async (event, context) => {
         console.log('🆕 Creating new crop');
         const { 
           name, 
-          type, 
-          variety, 
           plantingDate, 
-          expectedHarvestDate, 
           area, 
           areaUnit, 
-          expectedYield, 
-          yieldUnit, 
-          marketPrice, 
           status, 
-          fieldLocation, 
-          notes 
+          notes,
+          harvestDate,
+          yield,
+          yieldUnit,
+          marketPrice,
+          totalExpenses
         } = JSON.parse(event.body || '{}');
         
-        // Validate required fields
-        if (!name || !type || !plantingDate) {
+        // Validate required fields - UPDATED: removed 'type' from required fields
+        if (!name || !plantingDate) {
           return {
             statusCode: 400,
             headers,
-            body: JSON.stringify({ error: 'Name, type, and planting date are required' })
+            body: JSON.stringify({ error: 'Name and planting date are required' })
           };
         }
 
         const insertResult = await pool.query(
           `INSERT INTO crops (
-            name, type, variety, planting_date, expected_harvest_date, 
-            area, area_unit, expected_yield, yield_unit, market_price, 
-            status, field_location, notes
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+            name, planting_date, area, area_unit, status, notes,
+            harvest_date, yield, yield_unit, market_price, total_expenses
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
           RETURNING *`,
           [
-            name, type, variety, plantingDate, expectedHarvestDate,
-            area || 0, areaUnit || 'ACRES', expectedYield || 0, yieldUnit || 'TONS',
-            marketPrice || 0, status || 'PLANNED', fieldLocation, notes
+            name, plantingDate, area || 0, areaUnit || 'ACRES', 
+            status || 'PLANNED', notes, harvestDate, yield || 0,
+            yieldUnit || 'TONS', marketPrice || 0, totalExpenses || 0
           ]
         );
 
@@ -138,23 +135,18 @@ exports.handler = async (event, context) => {
         const updateValues = [];
         let paramCount = 1;
 
-        // Convert camelCase to snake_case for database
+        // Convert camelCase to snake_case for database - UPDATED fields
         const fieldMap = {
           name: 'name',
-          type: 'type',
-          variety: 'variety',
           plantingDate: 'planting_date',
-          expectedHarvestDate: 'expected_harvest_date',
-          actualHarvestDate: 'actual_harvest_date',
+          harvestDate: 'harvest_date',
           area: 'area',
           areaUnit: 'area_unit',
-          expectedYield: 'expected_yield',
-          actualYield: 'actual_yield',
-          yieldUnit: 'yield_unit',
-          marketPrice: 'market_price',
-          totalExpenses: 'total_expenses',
+          yield: 'yield',
+          yieldUnit: 'yield_unit', // KEPT
+          marketPrice: 'market_price', // KEPT
+          totalExpenses: 'total_expenses', // KEPT
           status: 'status',
-          fieldLocation: 'field_location',
           notes: 'notes'
         };
 

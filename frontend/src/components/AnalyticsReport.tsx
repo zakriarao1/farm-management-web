@@ -11,8 +11,8 @@ interface AnalyticsReportProps {
   crops?: Array<{
     id: string;
     name: string;
-    actualYield?: number;
-    expectedYield?: number;
+    yield?: number;
+    area?: number;
   }>;
 }
 
@@ -75,13 +75,15 @@ export const AnalyticsReport: React.FC<AnalyticsReportProps> = ({ data, crops = 
     ],
   } : null;
 
-  // Yield Efficiency Data
-  const yieldEfficiencyData = crops.filter(crop => crop.actualYield && crop.expectedYield).map(crop => ({
-    name: crop.name,
-    expected: crop.expectedYield || 0,
-    actual: crop.actualYield || 0,
-    efficiency: ((crop.actualYield || 0) / (crop.expectedYield || 1) * 100).toFixed(1)
-  }));
+  // Yield data for harvested crops
+  const yieldData = crops
+    .filter(crop => crop.yield && crop.yield > 0)
+    .map(crop => ({
+      name: crop.name,
+      yield: crop.yield || 0,
+      area: crop.area || 0,
+      yieldPerArea: crop.area && crop.area > 0 ? (crop.yield || 0) / crop.area : 0
+    }));
 
   return (
     <Box>
@@ -122,13 +124,13 @@ export const AnalyticsReport: React.FC<AnalyticsReportProps> = ({ data, crops = 
       )}
 
       {/* Yield Performance Section */}
-      {yieldEfficiencyData.length > 0 && (
+      {yieldData.length > 0 && (
         <Card sx={{ mt: 3, mb: 3 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
               Yield Performance
             </Typography>
-            {yieldEfficiencyData.map((crop, index) => (
+            {yieldData.map((crop, index) => (
               <Box 
                 key={index} 
                 sx={{ 
@@ -136,30 +138,31 @@ export const AnalyticsReport: React.FC<AnalyticsReportProps> = ({ data, crops = 
                   justifyContent: 'space-between', 
                   alignItems: 'center',
                   py: 1,
-                  borderBottom: index < yieldEfficiencyData.length - 1 ? '1px solid' : 'none',
+                  borderBottom: index < yieldData.length - 1 ? '1px solid' : 'none',
                   borderColor: 'divider'
                 }}
               >
                 <Typography variant="body2" fontWeight="medium">
                   {crop.name}
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <Typography variant="body2" color="text.secondary">
-                    {crop.actual.toLocaleString()} / {crop.expected.toLocaleString()}
+                    Yield: {crop.yield.toLocaleString()} units
                   </Typography>
-                  <Typography 
-                    variant="body2" 
-                    fontWeight="bold"
-                    color={parseFloat(crop.efficiency) >= 100 ? 'success.main' : 'warning.main'}
-                  >
-                    {crop.efficiency}%
-                  </Typography>
+                  {crop.area > 0 && (
+                    <Typography variant="body2" color="primary">
+                      {crop.yieldPerArea.toFixed(2)}/area
+                    </Typography>
+                  )}
                 </Box>
               </Box>
             ))}
             <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="body2" fontWeight="bold">
+                Total Yield: {yieldData.reduce((sum, crop) => sum + crop.yield, 0).toLocaleString()} units
+              </Typography>
               <Typography variant="caption" color="text.secondary">
-                Shows crops with both expected and actual yield data. Percentage represents actual yield compared to expected target.
+                Shows crops with yield data after harvest.
               </Typography>
             </Box>
           </CardContent>
