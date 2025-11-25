@@ -32,6 +32,15 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { NotificationBell } from './NotificationBell';
 
+// --- CUSTOM COLORS BASED ON LOGO ---
+// Primary: Gold/Brown from the logo's circle/Urdu text
+const LOGO_PRIMARY_BROWN = '#C1A16C'; 
+// Secondary: Deep Black/Charcoal from the silhouette
+const LOGO_SECONDARY_DARK = '#333333';
+// Accent/Selected: A slightly lighter/more vibrant gold
+const LOGO_ACCENT_GOLD = '#E4C697'; 
+// ---
+
 const drawerWidth = 240;
 
 interface LayoutProps {
@@ -65,11 +74,27 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const drawer = (
     <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div" color="primary">
-          🌱 Farm Manager
+      {/* --- DRAWER HEADER: New Logo/Title Section --- */}
+      <Toolbar 
+        sx={{ 
+          backgroundColor: LOGO_SECONDARY_DARK,
+          minHeight: '64px !important',
+        }}
+      >
+        <ListItemIcon sx={{ color: LOGO_PRIMARY_BROWN, minWidth: 40 }}>
+          <LivestockIcon fontSize="large" /> 
+        </ListItemIcon>
+        <Typography 
+          variant="h6" 
+          noWrap 
+          component="div" 
+          color="white"
+          sx={{ fontWeight: 'bold', ml: 0.5 }}
+        >
+          Rao Sons Farm
         </Typography>
       </Toolbar>
+      {/* --- END DRAWER HEADER --- */}
       <List>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
@@ -81,17 +106,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               selected={location.pathname === item.path}
               sx={{
                 '&.Mui-selected': {
-                  backgroundColor: theme.palette.primary.light,
-                  color: 'white',
+                  backgroundColor: LOGO_PRIMARY_BROWN,
+                  color: LOGO_SECONDARY_DARK,
+                  fontWeight: 'bold',
                   '&:hover': {
-                    backgroundColor: theme.palette.primary.main,
+                    backgroundColor: LOGO_ACCENT_GOLD,
                   },
                 },
               }}
             >
               <ListItemIcon
                 sx={{
-                  color: location.pathname === item.path ? 'white' : 'inherit',
+                  color: location.pathname === item.path 
+                    ? LOGO_SECONDARY_DARK
+                    : LOGO_PRIMARY_BROWN,
                 }}
               >
                 {item.icon}
@@ -127,9 +155,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <AppBar 
         position="fixed" 
         sx={{ 
-          width: { md: `calc(100% - ${drawerWidth}px)` }, 
-          ml: { md: `${drawerWidth}px` },
-          backgroundColor: 'primary.main',
+          width: { md: `calc(100% - ${drawerWidth}px)` }, // FIXED: Use template literal
+          ml: { md: `${drawerWidth}px` }, // FIXED: Use template literal
+          backgroundColor: LOGO_SECONDARY_DARK,
         }}
       >
         <Toolbar>
@@ -146,7 +174,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               flexGrow: 1,
               fontWeight: 'bold',
               fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
-              textAlign: { xs: 'center', sm: 'left' }
+              textAlign: { xs: 'center', sm: 'left' },
+              color: LOGO_ACCENT_GOLD,
             }}
           >
             Rao Sons Cattle Farm Mitha Tiwana
@@ -156,7 +185,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <NotificationBell />
           
           <Button 
-            color="inherit" 
+            color="inherit"
             onClick={handleLogout} 
             startIcon={<LogoutIcon />} 
             sx={{ 
@@ -211,7 +240,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { md: `calc(100% - ${drawerWidth}px)` },
+          width: { md: `calc(100% - ${drawerWidth}px)` }, // FIXED: Use template literal
         }}
       >
         <Toolbar />
