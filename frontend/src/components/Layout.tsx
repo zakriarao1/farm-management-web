@@ -32,12 +32,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { NotificationBell } from './NotificationBell';
 
+// Import your logo - adjust the path based on where you store it
+import farmLogo from '../assets/images/farm-logo.png'; // Example path
+
 // --- CUSTOM COLORS BASED ON LOGO ---
-// Primary: Gold/Brown from the logo's circle/Urdu text
 const LOGO_PRIMARY_BROWN = '#C1A16C'; 
-// Secondary: Deep Black/Charcoal from the silhouette
 const LOGO_SECONDARY_DARK = '#333333';
-// Accent/Selected: A slightly lighter/more vibrant gold
 const LOGO_ACCENT_GOLD = '#E4C697'; 
 // ---
 
@@ -74,27 +74,48 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const drawer = (
     <div>
-      {/* --- DRAWER HEADER: New Logo/Title Section --- */}
+      {/* --- DRAWER HEADER: Logo Section --- */}
       <Toolbar 
         sx={{ 
           backgroundColor: LOGO_SECONDARY_DARK,
           minHeight: '64px !important',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          py: 1,
         }}
       >
-        <ListItemIcon sx={{ color: LOGO_PRIMARY_BROWN, minWidth: 40 }}>
-          <LivestockIcon fontSize="large" /> 
-        </ListItemIcon>
+        {/* Your Farm Logo */}
+        <Box 
+          component="img"
+          src={farmLogo}
+          alt="Rao Sons Farm Logo"
+          sx={{
+            height: 40, // Adjust based on your logo
+            width: 'auto',
+            maxWidth: 150, // Prevent logo from being too wide
+            objectFit: 'contain',
+            mb: 0.5,
+          }}
+        />
+        {/* Optional: Farm name below logo for clarity */}
         <Typography 
-          variant="h6" 
-          noWrap 
+          variant="caption" 
           component="div" 
           color="white"
-          sx={{ fontWeight: 'bold', ml: 0.5 }}
+          sx={{ 
+            fontWeight: 'bold',
+            fontSize: '0.7rem',
+            textAlign: 'center'
+          }}
         >
           Rao Sons Farm
         </Typography>
       </Toolbar>
       {/* --- END DRAWER HEADER --- */}
+      
+      {/* Rest of your drawer content remains the same */}
       <List>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
@@ -128,7 +149,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </ListItemButton>
           </ListItem>
         ))}
-        {/* Logout button */}
         <ListItem disablePadding>
           <ListItemButton
             onClick={handleLogout}
@@ -155,8 +175,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <AppBar 
         position="fixed" 
         sx={{ 
-          width: { md: `calc(100% - ${drawerWidth}px)` }, // FIXED: Use template literal
-          ml: { md: `${drawerWidth}px` }, // FIXED: Use template literal
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          ml: { md: `${drawerWidth}px` },
           backgroundColor: LOGO_SECONDARY_DARK,
         }}
       >
@@ -166,6 +186,23 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <MenuIcon />
             </IconButton>
           )}
+          
+          {/* Logo in AppBar for mobile */}
+          {isMobile && (
+            <Box 
+              component="img"
+              src={farmLogo}
+              alt="Rao Sons Farm Logo"
+              sx={{
+                height: 35,
+                width: 'auto',
+                maxWidth: 120,
+                objectFit: 'contain',
+                mr: 2,
+              }}
+            />
+          )}
+          
           <Typography 
             variant="h4" 
             noWrap 
@@ -178,10 +215,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               color: LOGO_ACCENT_GOLD,
             }}
           >
-            Rao Sons Cattle Farm Mitha Tiwana
+            Rao Sons Cattle Farm
           </Typography>
           
-          {/* Add Notification Bell */}
           <NotificationBell />
           
           <Button 
@@ -240,7 +276,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { md: `calc(100% - ${drawerWidth}px)` }, // FIXED: Use template literal
+          width: { md: `calc(100% - ${drawerWidth}px)` },
         }}
       >
         <Toolbar />
