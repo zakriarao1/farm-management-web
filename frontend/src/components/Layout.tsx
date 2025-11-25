@@ -202,15 +202,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               alt="Rao Sons Farm Logo"
               sx={{
                 height: '100%', // Full height of header
-                width: 'auto', // Maintain aspect ratio
                 maxWidth: '100%', // Don't exceed container width
                 objectFit: 'contain', // Show full logo without cropping
                 display: 'block',
                 ...(isMobile ? {
-                  width: 'auto',
                   maxHeight: '50px', // Slightly smaller on mobile
                 } : {
-                  width: 'auto',
+                  width: 'auto', // Maintain aspect ratio on desktop
                   maxWidth: '300px', // Limit width on desktop
                 })
               }}
