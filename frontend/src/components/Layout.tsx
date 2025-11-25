@@ -92,7 +92,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           src={farmLogo}
           alt="Rao Sons Farm Logo"
           sx={{
-            height: '100', // Adjust based on your logo
+            height: '64', // Adjust based on your logo
             width: '100',
             maxWidth: 150, // Prevent logo from being too wide
             objectFit: 'contain',
@@ -100,18 +100,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           }}
         />
         {/* Optional: Farm name below logo for clarity */}
-        <Typography 
-          variant="caption" 
-          component="div" 
-          color="white"
-          sx={{ 
-            fontWeight: 'bold',
-            fontSize: '0.7rem',
-            textAlign: 'center'
-          }}
-        >
-          Rao Sons Farm
-        </Typography>
+      
       </Toolbar>
       {/* --- END DRAWER HEADER --- */}
       
