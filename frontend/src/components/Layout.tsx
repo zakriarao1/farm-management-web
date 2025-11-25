@@ -32,8 +32,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { NotificationBell } from './NotificationBell';
 
-// Import your logo
-import farmLogo from '../assets/farm-logo.png';
+// Import your logo - adjust the path based on where you store it
+import farmLogo from '../assets/farm-logo.png'; // Example path
 
 // --- CUSTOM COLORS BASED ON LOGO ---
 const LOGO_PRIMARY_BROWN = '#C1A16C'; 
@@ -74,37 +74,48 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const drawer = (
     <div>
-      {/* --- DRAWER HEADER: Full Cover Logo --- */}
-      <Box 
+      {/* --- DRAWER HEADER: Logo Section --- */}
+      <Toolbar 
         sx={{ 
-          width: '100%',
-          height: '64px', // Same height as main header
           backgroundColor: LOGO_SECONDARY_DARK,
+          minHeight: '64px !important',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          p: 0,
-          m: 0,
-          overflow: 'hidden',
+          flexDirection: 'column',
+          py: 1,
         }}
       >
-        {/* Logo that covers entire sidebar header */}
+        {/* Your Farm Logo */}
         <Box 
           component="img"
           src={farmLogo}
           alt="Rao Sons Farm Logo"
           sx={{
-            width: '100%', // Full width of sidebar
-            height: '100%', // Full height of header (64px)
-            objectFit: 'cover', // Cover the entire area, may crop image
-            display: 'block',
-            m: 0,
-            p: 0,
+            height: '100', // Adjust based on your logo
+            width: '100',
+            maxWidth: 150, // Prevent logo from being too wide
+            objectFit: 'contain',
+            mb: 0.5,
           }}
         />
-      </Box>
+        {/* Optional: Farm name below logo for clarity */}
+        <Typography 
+          variant="caption" 
+          component="div" 
+          color="white"
+          sx={{ 
+            fontWeight: 'bold',
+            fontSize: '0.7rem',
+            textAlign: 'center'
+          }}
+        >
+          Rao Sons Farm
+        </Typography>
+      </Toolbar>
       {/* --- END DRAWER HEADER --- */}
       
+      {/* Rest of your drawer content remains the same */}
       <List>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
@@ -167,53 +178,45 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           width: { md: `calc(100% - ${drawerWidth}px)` },
           ml: { md: `${drawerWidth}px` },
           backgroundColor: LOGO_SECONDARY_DARK,
-          height: '64px', // Fixed height to match sidebar logo
         }}
       >
-        <Toolbar sx={{ height: '64px', minHeight: '64px !important', p: 0 }}>
+        <Toolbar>
           {isMobile && (
-            <IconButton 
-              color="inherit" 
-              onClick={handleDrawerToggle} 
-              sx={{ 
-                mr: 2,
-                color: LOGO_ACCENT_GOLD,
-              }}
-            >
+            <IconButton color="inherit" onClick={handleDrawerToggle} sx={{ mr: 2 }}>
               <MenuIcon />
             </IconButton>
           )}
           
-          {/* Main Header Logo - Also covers full width and height */}
-          <Box 
-            sx={{
-              flexGrow: 1,
-              height: '64px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: isMobile ? 'center' : 'flex-start',
-              backgroundColor: LOGO_SECONDARY_DARK,
-              overflow: 'hidden',
-            }}
-          >
+          {/* Logo in AppBar for mobile */}
+          {isMobile && (
             <Box 
               component="img"
               src={farmLogo}
               alt="Rao Sons Farm Logo"
               sx={{
-                height: '100%', // Full height of header
-                maxWidth: '100%', // Don't exceed container width
-                objectFit: 'contain', // Show full logo without cropping
-                display: 'block',
-                ...(isMobile ? {
-                  maxHeight: '50px', // Slightly smaller on mobile
-                } : {
-                  width: 'auto', // Maintain aspect ratio on desktop
-                  maxWidth: '300px', // Limit width on desktop
-                })
+                height: 35,
+                width: 'auto',
+                maxWidth: 120,
+                objectFit: 'contain',
+                mr: 2,
               }}
             />
-          </Box>
+          )}
+          
+          <Typography 
+            variant="h4" 
+            noWrap 
+            component="div" 
+            sx={{ 
+              flexGrow: 1,
+              fontWeight: 'bold',
+              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
+              textAlign: { xs: 'center', sm: 'left' },
+              color: LOGO_ACCENT_GOLD,
+            }}
+          >
+            Rao Sons Cattle Farm
+          </Typography>
           
           <NotificationBell />
           
@@ -223,8 +226,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             startIcon={<LogoutIcon />} 
             sx={{ 
               ml: 1,
-              fontSize: { xs: '0.8rem', sm: '0.9rem' },
-              color: LOGO_ACCENT_GOLD,
+              fontSize: { xs: '0.8rem', sm: '0.9rem' }
             }}
           >
             Logout
