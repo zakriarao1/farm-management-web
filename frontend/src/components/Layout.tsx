@@ -32,9 +32,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { NotificationBell } from './NotificationBell';
 
-// Import your logo - adjust the path based on where you store it
-import farmLogo from '../assets/farm-logo.png'; // Example path
-
 // --- CUSTOM COLORS BASED ON LOGO ---
 const LOGO_PRIMARY_BROWN = '#C1A16C'; 
 const LOGO_SECONDARY_DARK = '#333333';
@@ -74,7 +71,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const drawer = (
     <div>
-      {/* --- DRAWER HEADER: Logo Section --- */}
+      {/* --- DRAWER HEADER: Stretched Logo Section --- */}
       <Toolbar 
         sx={{ 
           backgroundColor: LOGO_SECONDARY_DARK,
@@ -82,40 +79,42 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          flexDirection: 'column',
-          py: 1,
+          p: 0,
+          m: 0,
         }}
       >
-        {/* Your Farm Logo */}
+        {/* Stretched Logo Container */}
         <Box 
-          component="img"
-          src={farmLogo}
-          alt="Rao Sons Farm Logo"
           sx={{
-            height: 40, // Adjust based on your logo
-            width: 'auto',
-            maxWidth: 150, // Prevent logo from being too wide
-            objectFit: 'contain',
-            mb: 0.5,
-          }}
-        />
-        {/* Optional: Farm name below logo for clarity */}
-        <Typography 
-          variant="caption" 
-          component="div" 
-          color="white"
-          sx={{ 
-            fontWeight: 'bold',
-            fontSize: '0.7rem',
-            textAlign: 'center'
+            width: '100%',
+            height: '64px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: LOGO_PRIMARY_BROWN,
+            px: 2,
           }}
         >
-          Rao Sons Farm
-        </Typography>
+          <Typography 
+            variant="h6" 
+            component="div" 
+            color={LOGO_SECONDARY_DARK}
+            sx={{ 
+              fontWeight: 'bold',
+              textAlign: 'center',
+              fontSize: '1.3rem',
+              width: '100%',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            RAO SONS FARM
+          </Typography>
+        </Box>
       </Toolbar>
-      {/* --- END DRAWER HEADER --- */}
+      {/* --- END DRAWER HEADER --- */
       
-      {/* Rest of your drawer content remains the same */}
       <List>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
@@ -178,45 +177,54 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           width: { md: `calc(100% - ${drawerWidth}px)` },
           ml: { md: `${drawerWidth}px` },
           backgroundColor: LOGO_SECONDARY_DARK,
+          p: 0,
+          m: 0,
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ p: 0, m: 0, minHeight: '64px !important' }}>
           {isMobile && (
-            <IconButton color="inherit" onClick={handleDrawerToggle} sx={{ mr: 2 }}>
+            <IconButton 
+              color="inherit" 
+              onClick={handleDrawerToggle} 
+              sx={{ 
+                mr: 2,
+                color: LOGO_ACCENT_GOLD,
+              }}
+            >
               <MenuIcon />
             </IconButton>
           )}
           
-          {/* Logo in AppBar for mobile */}
-          {isMobile && (
-            <Box 
-              component="img"
-              src={farmLogo}
-              alt="Rao Sons Farm Logo"
-              sx={{
-                height: 35,
-                width: 'auto',
-                maxWidth: 120,
-                objectFit: 'contain',
-                mr: 2,
-              }}
-            />
-          )}
-          
-          <Typography 
-            variant="h4" 
-            noWrap 
-            component="div" 
-            sx={{ 
+          {/* Stretched Main Title Bar */}
+          <Box 
+            sx={{
               flexGrow: 1,
-              fontWeight: 'bold',
-              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
-              textAlign: { xs: 'center', sm: 'left' },
-              color: LOGO_ACCENT_GOLD,
+              height: '64px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: LOGO_PRIMARY_BROWN,
+              px: 3,
             }}
           >
-            Rao Sons Cattle Farm
-          </Typography>
+            <Typography 
+              variant="h4" 
+              noWrap 
+              component="div" 
+              sx={{ 
+                fontWeight: 'bold',
+                fontSize: { xs: '1.3rem', sm: '1.8rem', md: '2.1rem' },
+                textAlign: 'center',
+                color: LOGO_SECONDARY_DARK,
+                width: '100%',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              RAO SONS CATTLE FARM MITHA TIWANA
+            </Typography>
+          </Box>
           
           <NotificationBell />
           
@@ -226,7 +234,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             startIcon={<LogoutIcon />} 
             sx={{ 
               ml: 1,
-              fontSize: { xs: '0.8rem', sm: '0.9rem' }
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
+              color: LOGO_ACCENT_GOLD,
+              backgroundColor: LOGO_SECONDARY_DARK,
+              '&:hover': {
+                backgroundColor: '#444444',
+              },
+              px: 2,
+              py: 1,
             }}
           >
             Logout
@@ -250,6 +265,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               '& .MuiDrawer-paper': {
                 boxSizing: 'border-box',
                 width: drawerWidth,
+                p: 0,
+                m: 0,
               },
             }}
           >
@@ -262,6 +279,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               '& .MuiDrawer-paper': {
                 boxSizing: 'border-box',
                 width: drawerWidth,
+                p: 0,
+                m: 0,
               },
             }}
             open
