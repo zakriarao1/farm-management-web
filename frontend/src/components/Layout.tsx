@@ -32,6 +32,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { NotificationBell } from './NotificationBell';
 
+// Import your logo
+import farmLogo from '../assets/farm-logo.png';
+
 // --- CUSTOM COLORS BASED ON LOGO ---
 const LOGO_PRIMARY_BROWN = '#C1A16C'; 
 const LOGO_SECONDARY_DARK = '#333333';
@@ -71,49 +74,36 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const drawer = (
     <div>
-      {/* --- DRAWER HEADER: Stretched Logo Section --- */}
-      <Toolbar 
+      {/* --- DRAWER HEADER: Full Cover Logo --- */}
+      <Box 
         sx={{ 
+          width: '100%',
+          height: '64px', // Same height as main header
           backgroundColor: LOGO_SECONDARY_DARK,
-          minHeight: '64px !important',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           p: 0,
           m: 0,
+          overflow: 'hidden',
         }}
       >
-        {/* Stretched Logo Container */}
+        {/* Logo that covers entire sidebar header */}
         <Box 
+          component="img"
+          src={farmLogo}
+          alt="Rao Sons Farm Logo"
           sx={{
-            width: '100%',
-            height: '64px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: LOGO_PRIMARY_BROWN,
-            px: 2,
+            width: '100%', // Full width of sidebar
+            height: '100%', // Full height of header (64px)
+            objectFit: 'cover', // Cover the entire area, may crop image
+            display: 'block',
+            m: 0,
+            p: 0,
           }}
-        >
-          <Typography 
-            variant="h6" 
-            component="div" 
-            color={LOGO_SECONDARY_DARK}
-            sx={{ 
-              fontWeight: 'bold',
-              textAlign: 'center',
-              fontSize: '1.3rem',
-              width: '100%',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            RAO SONS FARM
-          </Typography>
-        </Box>
-      </Toolbar>
-      {/* --- END DRAWER HEADER --- */
+        />
+      </Box>
+      {/* --- END DRAWER HEADER --- */}
       
       <List>
         {menuItems.map((item) => (
@@ -177,11 +167,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           width: { md: `calc(100% - ${drawerWidth}px)` },
           ml: { md: `${drawerWidth}px` },
           backgroundColor: LOGO_SECONDARY_DARK,
-          p: 0,
-          m: 0,
+          height: '64px', // Fixed height to match sidebar logo
         }}
       >
-        <Toolbar sx={{ p: 0, m: 0, minHeight: '64px !important' }}>
+        <Toolbar sx={{ height: '64px', minHeight: '64px !important', p: 0 }}>
           {isMobile && (
             <IconButton 
               color="inherit" 
@@ -195,35 +184,37 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </IconButton>
           )}
           
-          {/* Stretched Main Title Bar */}
+          {/* Main Header Logo - Also covers full width and height */}
           <Box 
             sx={{
               flexGrow: 1,
               height: '64px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: LOGO_PRIMARY_BROWN,
-              px: 3,
+              justifyContent: isMobile ? 'center' : 'flex-start',
+              backgroundColor: LOGO_SECONDARY_DARK,
+              overflow: 'hidden',
             }}
           >
-            <Typography 
-              variant="h4" 
-              noWrap 
-              component="div" 
-              sx={{ 
-                fontWeight: 'bold',
-                fontSize: { xs: '1.3rem', sm: '1.8rem', md: '2.1rem' },
-                textAlign: 'center',
-                color: LOGO_SECONDARY_DARK,
-                width: '100%',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+            <Box 
+              component="img"
+              src={farmLogo}
+              alt="Rao Sons Farm Logo"
+              sx={{
+                height: '100%', // Full height of header
+                width: 'auto', // Maintain aspect ratio
+                maxWidth: '100%', // Don't exceed container width
+                objectFit: 'contain', // Show full logo without cropping
+                display: 'block',
+                ...(isMobile ? {
+                  width: 'auto',
+                  maxHeight: '50px', // Slightly smaller on mobile
+                } : {
+                  width: 'auto',
+                  maxWidth: '300px', // Limit width on desktop
+                })
               }}
-            >
-              RAO SONS CATTLE FARM MITHA TIWANA
-            </Typography>
+            />
           </Box>
           
           <NotificationBell />
@@ -236,12 +227,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               ml: 1,
               fontSize: { xs: '0.8rem', sm: '0.9rem' },
               color: LOGO_ACCENT_GOLD,
-              backgroundColor: LOGO_SECONDARY_DARK,
-              '&:hover': {
-                backgroundColor: '#444444',
-              },
-              px: 2,
-              py: 1,
             }}
           >
             Logout
@@ -265,8 +250,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               '& .MuiDrawer-paper': {
                 boxSizing: 'border-box',
                 width: drawerWidth,
-                p: 0,
-                m: 0,
               },
             }}
           >
@@ -279,8 +262,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               '& .MuiDrawer-paper': {
                 boxSizing: 'border-box',
                 width: drawerWidth,
-                p: 0,
-                m: 0,
               },
             }}
             open
