@@ -33,7 +33,7 @@ import { authService } from '../services/authService';
 import { NotificationBell } from './NotificationBell';
 
 // Import your logo - adjust the path based on where you store it
-import farmLogo from '../assets/images/farm-logo.png'; // Example path
+import farmLogo from '../assets/farm-logo.png'; // Example path
 
 // --- CUSTOM COLORS BASED ON LOGO ---
 const LOGO_PRIMARY_BROWN = '#C1A16C'; 
