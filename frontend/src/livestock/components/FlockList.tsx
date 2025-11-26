@@ -43,7 +43,7 @@ export const FlockList: React.FC = () => {
     total_animals: 1,
     current_animals: 1,
     purchase_date: new Date().toISOString().split('T')[0],
-    purchase_price: 0,
+    total_purchase_cost: 0,
     description: '',
   });
 
@@ -116,7 +116,7 @@ export const FlockList: React.FC = () => {
       total_animals: flock.total_animals,
       current_animals: flock.current_animals,
       purchase_date: flock.purchase_date ? flock.purchase_date.split('T')[0] : new Date().toISOString().split('T')[0],
-      purchase_price: flock.purchase_price || 0,
+      total_purchase_cost: flock.total_purchase_cost || 0,
       description: flock.description || '',
     });
     setDialogOpen(true);
@@ -130,7 +130,7 @@ export const FlockList: React.FC = () => {
       total_animals: 1,
       current_animals: 1,
       purchase_date: new Date().toISOString().split('T')[0],
-      purchase_price: 0,
+      total_purchase_cost: 0,
       description: '',
     });
     setEditingFlock(null);
@@ -237,7 +237,7 @@ export const FlockList: React.FC = () => {
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="bold">
-                        ₨{flock.purchase_price?.toLocaleString() || '0'}
+                        ₨{flock.total_purchase_cost?.toLocaleString() || '0'}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -377,8 +377,8 @@ export const FlockList: React.FC = () => {
                   fullWidth
                   label="Purchase Price (PKR)"
                   type="number"
-                  value={formData.purchase_price}
-                  onChange={(e) => setFormData({ ...formData, purchase_price: parseFloat(e.target.value) || 0 })}
+                  value={formData.total_purchase_cost}
+                  onChange={(e) => setFormData({ ...formData, total_purchase_cost: parseFloat(e.target.value) || 0 })}
                   margin="normal"
                   inputProps={{ min: 0, step: 0.01 }}
                 />

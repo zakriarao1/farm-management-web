@@ -92,7 +92,7 @@ export interface Flock {
   total_animals: number;
   current_animals: number;
   purchase_date?: string;
-  purchase_price?: number;
+  total_purchase_cost ?: number;
   description?: string;
   created_at: string;
   updated_at: string;

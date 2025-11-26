@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Card, CardContent, Typography, Button, 
-  Tabs, Tab, Paper, Chip, Alert, CircularProgress
+  Tabs, Tab, Paper, Chip, Alert, CircularProgress, Snackbar
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import {
@@ -12,8 +12,7 @@ import {
   TrendingUp as TrendIcon
 } from '@mui/icons-material';
 import { livestockApi, flockApi } from '../services/api';
-import { salesApi } from '../services/salesApi';
-
+import { salesApi, SaleRecord } from '../services/salesApi';
 import { SaleRecordDialog } from './SaleRecordDialog';
 import { SalesHistory } from './SalesHistory';
 
@@ -24,22 +23,25 @@ interface SalesStats {
   animalsSold: number;
   thisMonthRevenue: number;
   lastMonthRevenue: number;
+  revenueChange: number;
 }
 
 export const SalesDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [saleDialogOpen, setSaleDialogOpen] = useState(false);
-  const [sales, setSales] = useState<any[]>([]);
+  const [sales, setSales] = useState<SaleRecord[]>([]);
   const [stats, setStats] = useState<SalesStats>({
     totalRevenue: 0,
     totalSales: 0,
     averageSalePrice: 0,
     animalsSold: 0,
     thisMonthRevenue: 0,
-    lastMonthRevenue: 0
+    lastMonthRevenue: 0,
+    revenueChange: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     loadSalesData();
@@ -48,47 +50,84 @@ export const SalesDashboard: React.FC = () => {
   const loadSalesData = async () => {
     try {
       setLoading(true);
+      setError('');
+      
       const salesResponse = await salesApi.getAll();
-      setSales(salesResponse.data || []);
-      calculateStats(salesResponse.data || []);
-    } catch (err) {
-      setError('Failed to load sales data');
+      const salesData = salesResponse.data || [];
+      
+      setSales(salesData);
+      calculateStats(salesData);
+      
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to load sales data';
+      setError(errorMessage);
       console.error('Error loading sales:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = (salesData: any[]) => {
-    const totalRevenue = salesData.reduce((sum, sale) => sum + (Number(sale.total_amount) || 0), 0);
-    const animalSales = salesData.filter(sale => sale.sale_type === 'animal');
-    const thisMonth = new Date();
-    const thisMonthSales = salesData.filter(sale => {
-      const saleDate = new Date(sale.sale_date);
-      return saleDate.getMonth() === thisMonth.getMonth() && 
-             saleDate.getFullYear() === thisMonth.getFullYear();
-    });
-    const lastMonth = new Date();
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
-    const lastMonthSales = salesData.filter(sale => {
-      const saleDate = new Date(sale.sale_date);
-      return saleDate.getMonth() === lastMonth.getMonth() && 
-             saleDate.getFullYear() === lastMonth.getFullYear();
-    });
+  const calculateStats = (salesData: SaleRecord[]) => {
+    try {
+      const totalRevenue = salesData.reduce((sum, sale) => sum + (Number(sale.total_amount) || 0), 0);
+      const animalSales = salesData.filter(sale => sale.sale_type === 'animal');
+      
+      const now = new Date();
+      const thisMonth = now.getMonth();
+      const thisYear = now.getFullYear();
+      
+      const thisMonthSales = salesData.filter(sale => {
+        if (!sale.sale_date) return false;
+        const saleDate = new Date(sale.sale_date);
+        return saleDate.getMonth() === thisMonth && 
+               saleDate.getFullYear() === thisYear;
+      });
+      
+      const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+      const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+      
+      const lastMonthSales = salesData.filter(sale => {
+        if (!sale.sale_date) return false;
+        const saleDate = new Date(sale.sale_date);
+        return saleDate.getMonth() === lastMonth && 
+               saleDate.getFullYear() === lastMonthYear;
+      });
 
-    setStats({
-      totalRevenue,
-      totalSales: salesData.length,
-      averageSalePrice: animalSales.length > 0 ? totalRevenue / animalSales.length : 0,
-      animalsSold: animalSales.length,
-      thisMonthRevenue: thisMonthSales.reduce((sum, sale) => sum + (Number(sale.total_amount) || 0), 0),
-      lastMonthRevenue: lastMonthSales.reduce((sum, sale) => sum + (Number(sale.total_amount) || 0), 0)
-    });
+      const thisMonthRevenue = thisMonthSales.reduce((sum, sale) => sum + (Number(sale.total_amount) || 0), 0);
+      const lastMonthRevenue = lastMonthSales.reduce((sum, sale) => sum + (Number(sale.total_amount) || 0), 0);
+      
+      const revenueChange = lastMonthRevenue > 0 
+        ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 
+        : 0;
+
+      setStats({
+        totalRevenue,
+        totalSales: salesData.length,
+        averageSalePrice: animalSales.length > 0 ? totalRevenue / animalSales.length : 0,
+        animalsSold: animalSales.length,
+        thisMonthRevenue,
+        lastMonthRevenue,
+        revenueChange
+      });
+    } catch (err) {
+      console.error('Error calculating stats:', err);
+    }
   };
 
   const handleSaleRecorded = () => {
     setSaleDialogOpen(false);
+    setSuccessMessage('Sale recorded successfully!');
     loadSalesData();
+  };
+
+  const handleDeleteSale = async (saleId: number) => {
+    try {
+      await salesApi.delete(saleId);
+      setSuccessMessage('Sale deleted successfully!');
+      loadSalesData();
+    } catch (err: any) {
+      setError('Failed to delete sale: ' + (err.message || 'Unknown error'));
+    }
   };
 
   if (loading) {
@@ -130,7 +169,7 @@ export const SalesDashboard: React.FC = () => {
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card elevation={2}>
             <CardContent>
               <Box display="flex" alignItems="center" gap={2}>
                 <MoneyIcon color="primary" />
@@ -141,6 +180,9 @@ export const SalesDashboard: React.FC = () => {
                   <Typography variant="h5" fontWeight="bold">
                     ₨{stats.totalRevenue.toLocaleString()}
                   </Typography>
+                  <Typography variant="caption" color={stats.revenueChange >= 0 ? 'success.main' : 'error.main'}>
+                    {stats.revenueChange >= 0 ? '↑' : '↓'} {Math.abs(stats.revenueChange).toFixed(1)}% from last month
+                  </Typography>
                 </Box>
               </Box>
             </CardContent>
@@ -148,7 +190,7 @@ export const SalesDashboard: React.FC = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card elevation={2}>
             <CardContent>
               <Box display="flex" alignItems="center" gap={2}>
                 <AnimalsIcon color="secondary" />
@@ -166,7 +208,7 @@ export const SalesDashboard: React.FC = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card elevation={2}>
             <CardContent>
               <Box display="flex" alignItems="center" gap={2}>
                 <TrendIcon color="success" />
@@ -184,7 +226,7 @@ export const SalesDashboard: React.FC = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card elevation={2}>
             <CardContent>
               <Box display="flex" alignItems="center" gap={2}>
                 <FlockIcon color="info" />
@@ -203,8 +245,13 @@ export const SalesDashboard: React.FC = () => {
       </Grid>
 
       {/* Tabs */}
-      <Paper sx={{ mb: 3 }}>
-        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+      <Paper sx={{ mb: 3 }} elevation={1}>
+        <Tabs 
+          value={activeTab} 
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          indicatorColor="primary"
+          textColor="primary"
+        >
           <Tab label="Sales History" />
           <Tab label="Quick Sale" />
           <Tab label="Bulk Sales" />
@@ -212,7 +259,13 @@ export const SalesDashboard: React.FC = () => {
       </Paper>
 
       {/* Tab Content */}
-      {activeTab === 0 && <SalesHistory sales={sales} onRefresh={loadSalesData} />}
+      {activeTab === 0 && (
+        <SalesHistory 
+          sales={sales} 
+          onRefresh={loadSalesData}
+          onDeleteSale={handleDeleteSale}
+        />
+      )}
       {activeTab === 1 && (
         <Box textAlign="center" py={6}>
           <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -241,7 +294,10 @@ export const SalesDashboard: React.FC = () => {
           <Button
             variant="outlined"
             startIcon={<FlockIcon />}
-            onClick={() => setSaleDialogOpen(true)}
+            onClick={() => {
+              setSaleDialogOpen(true);
+              // You can pass a prop to SaleRecordDialog to start in bulk mode
+            }}
           >
             Start Bulk Sale
           </Button>
@@ -253,6 +309,14 @@ export const SalesDashboard: React.FC = () => {
         open={saleDialogOpen}
         onClose={() => setSaleDialogOpen(false)}
         onSaleRecorded={handleSaleRecorded}
+      />
+
+      {/* Success Message */}
+      <Snackbar
+        open={!!successMessage}
+        autoHideDuration={4000}
+        onClose={() => setSuccessMessage('')}
+        message={successMessage}
       />
     </Box>
   );

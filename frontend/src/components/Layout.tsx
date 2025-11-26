@@ -92,7 +92,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           src={farmLogo}
           alt="Rao Sons Farm Logo"
           sx={{
-            height: '64', // Adjust based on your logo
+            height: '64px', // Adjust based on your logo
             width: '100',
             maxWidth: 150, // Prevent logo from being too wide
             objectFit: 'contain',

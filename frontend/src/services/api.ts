@@ -202,54 +202,62 @@ export const expenseApi = {
       }));
   },
   
-  getRecent: (): Promise<ApiResponse<Expense[]>> => {
+  getRecent: (limit: number = 5): Promise<ApiResponse<Expense[]>> => {
     return apiRequest<Expense[]>('/expenses')
       .then(response => {
         const data = response.data ? response.data.map(transformExpense) : [];
-        const recent = data.slice(-5);
+        // Sort by date descending and take the most recent
+        const recent = data
+          .sort((a, b) => {
+            // Use expense_date first, then fall back to created_at, then use current date
+            const dateA = a.date || a.created_at || new Date().toISOString();
+            const dateB = b.date || b.created_at || new Date().toISOString();
+            return new Date(dateB).getTime() - new Date(dateA).getTime();
+          })
+          .slice(0, limit);
         return { ...response, data: recent };
       });
   },
   
   getByCropId: (cropId: string): Promise<ApiResponse<Expense[]>> => {
-  return apiRequest<any>(`/crops/${cropId}/expenses`)
-    .then(response => {
-      console.log('🎯 getByCropId raw response for crop', cropId, ':', response);
-      
-      // The data should be directly in response.data
-      let expensesData = response.data;
-      
-      // If it's not an array, check common structures
-      if (expensesData && !Array.isArray(expensesData)) {
-        console.log('⚠️ Data is not an array, checking structure:', expensesData);
-        // Try to extract array from common structures
-        if (Array.isArray(expensesData.expenses)) {
-          expensesData = expensesData.expenses;
-        } else if (Array.isArray(expensesData.records)) {
-          expensesData = expensesData.records;
-        } else if (expensesData.data && Array.isArray(expensesData.data)) {
-          expensesData = expensesData.data;
+    return apiRequest<any>(`/crops/${cropId}/expenses`)
+      .then(response => {
+        console.log('🎯 getByCropId raw response for crop', cropId, ':', response);
+        
+        // The data should be directly in response.data
+        let expensesData = response.data;
+        
+        // If it's not an array, check common structures
+        if (expensesData && !Array.isArray(expensesData)) {
+          console.log('⚠️ Data is not an array, checking structure:', expensesData);
+          // Try to extract array from common structures
+          if (Array.isArray(expensesData.expenses)) {
+            expensesData = expensesData.expenses;
+          } else if (Array.isArray(expensesData.records)) {
+            expensesData = expensesData.records;
+          } else if (expensesData.data && Array.isArray(expensesData.data)) {
+            expensesData = expensesData.data;
+          }
         }
-      }
-      
-      // Transform the data
-      const transformedData = Array.isArray(expensesData) 
-        ? expensesData.map(transformExpense).filter(Boolean)
-        : [];
-      
-      console.log(`🔄 Transformed ${transformedData.length} expenses for crop ${cropId}`);
-      
-      return {
-        ...response,
-        data: transformedData
-      };
-    })
-    .catch(error => {
-      console.error('❌ Error in getByCropId:', error);
-      // Return empty array on error
-      return { data: [], status: 500, message: error.message };
-    });
-},
+        
+        // Transform the data
+        const transformedData = Array.isArray(expensesData) 
+          ? expensesData.map(transformExpense).filter(Boolean)
+          : [];
+        
+        console.log(`🔄 Transformed ${transformedData.length} expenses for crop ${cropId}`);
+        
+        return {
+          ...response,
+          data: transformedData
+        };
+      })
+      .catch(error => {
+        console.error('❌ Error in getByCropId:', error);
+        // Return empty array on error
+        return { data: [], status: 500, message: error.message };
+      });
+  },
   
   getById: (id: string): Promise<ApiResponse<Expense>> => {
     return apiRequest<Expense>(`/expenses/${id}`)
@@ -275,7 +283,6 @@ export const expenseApi = {
     });
   },
 };
-
 // Add this transformation function
 const transformExpense = (data: any): Expense => {
   if (!data) return data;

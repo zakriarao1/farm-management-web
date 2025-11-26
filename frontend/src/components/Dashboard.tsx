@@ -89,6 +89,7 @@ export const Dashboard: React.FC = () => {
   const [crops, setCrops] = useState<Crop[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [recentExpenses, setRecentExpenses] = useState<Expense[]>([]);
+  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
@@ -100,19 +101,22 @@ export const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       
-      const [cropsResponse, analyticsResponse, expensesResponse] = await Promise.all([
+      const [cropsResponse, analyticsResponse, expensesResponse, allExpensesResponse] = await Promise.all([
         cropApi.getAll(),
         reportApi.getAnalytics(),
-        expenseApi.getRecent()
+        expenseApi.getRecent(),
+        expenseApi.getAll() // Get all expenses for total calculation
       ]);
       
       // Transform crop data to ensure proper types
       const transformedCrops = transformCropData(cropsResponse.data || []);
-      console.log('Transformed crops:', transformedCrops); // Debug log
+      console.log('Transformed crops:', transformedCrops);
+      console.log('All expenses:', allExpensesResponse.data);
       
       setCrops(transformedCrops);
       setAnalytics(analyticsResponse.data as AnalyticsData);
       setRecentExpenses(expensesResponse.data || []);
+      setAllExpenses(allExpensesResponse.data || []);
       
     } catch (err) {
       console.error('Dashboard: Failed to load data:', err);
@@ -122,9 +126,8 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  // Safe helper functions - FIXED to handle both camelCase and snake_case
+  // Safe helper functions
   const getAreaUnit = (crop: Crop): string => {
-    // Use both camelCase and snake_case properties
     const unit = crop.areaUnit || crop.area_unit;
     if (!unit) return 'units';
     if (typeof unit === 'string') {
@@ -142,7 +145,6 @@ export const Dashboard: React.FC = () => {
   };
 
   const getYieldUnit = (crop: Crop): string => {
-    // Use both camelCase and snake_case properties
     const unit = crop.yieldUnit || crop.yield_unit;
     if (!unit) return 'units';
     if (typeof unit === 'string') {
@@ -195,10 +197,51 @@ export const Dashboard: React.FC = () => {
     return colors[status] || 'default';
   };
 
-  // Calculate statistics
-  const totalProjectedRevenue = analytics?.summary?.projected_revenue || 0;
-  const totalExpenses = analytics?.summary?.total_expenses || 0;
-  const netProjection = totalProjectedRevenue - totalExpenses;
+  // FIXED: Calculate statistics from actual data
+  const calculateFinancials = () => {
+    // Calculate total expenses from all expenses data
+    const totalExpensesFromExpenses = allExpenses.reduce((sum, expense) => 
+      sum + (Number(expense.amount) || 0), 0
+    );
+
+    // Also sum expenses from crops (if available)
+    const totalExpensesFromCrops = crops.reduce((sum, crop) => 
+      sum + (Number(crop.totalExpenses) || 0), 0
+    );
+
+    // Use the larger of the two expense totals
+    const totalExpenses = Math.max(totalExpensesFromExpenses, totalExpensesFromExpenses);
+
+    // Calculate projected revenue from crops
+    const totalProjectedRevenue = crops.reduce((sum, crop) => {
+      const yieldValue = Number(crop.yield) || 0;
+      const marketPrice = Number(crop.marketPrice) || 0;
+      return sum + (yieldValue * marketPrice);
+    }, 0);
+
+    const netProjection = totalProjectedRevenue - totalExpenses;
+
+    console.log('Financial Calculations:', {
+      totalExpensesFromExpenses,
+      totalExpensesFromCrops,
+      totalExpenses,
+      totalProjectedRevenue,
+      netProjection
+    });
+
+    return {
+      totalExpenses,
+      totalProjectedRevenue,
+      netProjection
+    };
+  };
+
+  const { totalExpenses, totalProjectedRevenue, netProjection } = calculateFinancials();
+
+  // Calculate active crops
+  const activeCropsCount = crops.filter(crop => 
+    crop.status && ['PLANTED', 'GROWING', 'READY_FOR_HARVEST'].includes(crop.status)
+  ).length;
 
   // Calculate status distribution from crops data
   const statusDistribution = crops.reduce((acc: Record<string, number>, crop) => {
@@ -207,6 +250,17 @@ export const Dashboard: React.FC = () => {
     }
     return acc;
   }, {});
+
+  // Format currency for display
+  const formatCurrency = (amount: number): string => {
+    if (amount >= 1000000) {
+      return `Rs ${(amount / 1000000).toFixed(1)}M`;
+    } else if (amount >= 1000) {
+      return `Rs ${(amount / 1000).toFixed(1)}k`;
+    } else {
+      return `Rs ${amount.toFixed(0)}`;
+    }
+  };
 
   if (loading) {
     return (
@@ -264,13 +318,13 @@ export const Dashboard: React.FC = () => {
         mb: 4 
       }}>
         {/* Total Crops Card */}
-        <Card>
+        <Card elevation={2}>
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <CropIcon color="primary" />
               <Box>
                 <Typography variant="h4" fontWeight="bold">
-                  {analytics?.summary?.total_crops || crops.length}
+                  {crops.length}
                 </Typography>
                 <Typography color="text.secondary">Total Crops</Typography>
               </Box>
@@ -279,17 +333,13 @@ export const Dashboard: React.FC = () => {
         </Card>
 
         {/* Active Crops Card */}
-        <Card>
+        <Card elevation={2}>
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <TrendingIcon color="success" />
               <Box>
                 <Typography variant="h4" fontWeight="bold">
-                  {analytics?.summary?.active_crops || 
-                    crops.filter(crop => 
-                      crop.status && ['PLANTED', 'GROWING', 'READY_FOR_HARVEST'].includes(crop.status)
-                    ).length
-                  }
+                  {activeCropsCount}
                 </Typography>
                 <Typography color="text.secondary">Active Crops</Typography>
               </Box>
@@ -298,13 +348,13 @@ export const Dashboard: React.FC = () => {
         </Card>
 
         {/* Total Expenses Card */}
-        <Card>
+        <Card elevation={2}>
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <FinanceIcon color="warning" />
               <Box>
                 <Typography variant="h4" fontWeight="bold">
-                  Rs {(totalExpenses / 1000).toFixed(1)}k
+                  {formatCurrency(totalExpenses)}
                 </Typography>
                 <Typography color="text.secondary">Total Expenses</Typography>
               </Box>
@@ -313,19 +363,24 @@ export const Dashboard: React.FC = () => {
         </Card>
 
         {/* Projected Net Card */}
-        <Card>
+        <Card elevation={2}>
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <ChartIcon color="info" />
+              <ChartIcon color={netProjection >= 0 ? 'success' : 'error'} />
               <Box>
                 <Typography 
                   variant="h4" 
                   fontWeight="bold" 
                   color={netProjection >= 0 ? 'success.main' : 'error.main'}
                 >
-                  Rs {(netProjection / 1000).toFixed(1)}k
+                  {formatCurrency(netProjection)}
                 </Typography>
                 <Typography color="text.secondary">Projected Net</Typography>
+                {totalProjectedRevenue > 0 && (
+                  <Typography variant="caption" color="text.secondary">
+                    Revenue: {formatCurrency(totalProjectedRevenue)}
+                  </Typography>
+                )}
               </Box>
             </Box>
           </CardContent>
@@ -333,88 +388,56 @@ export const Dashboard: React.FC = () => {
       </Box>
 
       {/* Recent Expenses Card */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 3 }} elevation={1}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Recent Expenses
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Recent Expenses
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Total: {formatCurrency(totalExpenses)}
+            </Typography>
+          </Box>
           {recentExpenses.slice(0, 5).map((expense: Expense) => (
-            <Box key={expense.id} sx={{ display: 'flex', justifyContent: 'space-between', py: 1 }}>
-              <Typography variant="body2">
-                {expense.description}
-              </Typography>
-              <Typography variant="body2" color="error">
+            <Box key={expense.id} sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              py: 1.5,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              '&:last-child': { borderBottom: 'none' }
+            }}>
+              <Box>
+                <Typography variant="body2" fontWeight="medium">
+                  {expense.description}
+                </Typography>
+                {expense.date && (
+                  <Typography variant="caption" color="text.secondary">
+                    {formatDate(expense.date)}
+                  </Typography>
+                )}
+              </Box>
+              <Typography variant="body2" color="error.main" fontWeight="bold">
                 -Rs {Number(expense.amount).toLocaleString()}
               </Typography>
             </Box>
           ))}
           {recentExpenses.length === 0 && (
-            <Typography color="text.secondary" textAlign="center" py={2}>
-              No recent expenses
+            <Typography color="text.secondary" textAlign="center" py={3}>
+              No recent expenses recorded
             </Typography>
           )}
-          <Button onClick={() => navigate('/expenses')} sx={{ mt: 1 }}>
+          <Button 
+            onClick={() => navigate('/expenses')} 
+            sx={{ mt: 2 }}
+            variant="outlined"
+            fullWidth
+          >
             View All Expenses
           </Button>
         </CardContent>
       </Card>
-
-      {/* Crop Distribution */}
-      {analytics?.cropDistribution && analytics.cropDistribution.length > 0 && (
-        <Card sx={{ mb: 4 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Crop Distribution
-            </Typography>
-            <Box sx={{ 
-              display: 'grid', 
-              gridTemplateColumns: { 
-                xs: '1fr', 
-                sm: 'repeat(2, 1fr)', 
-                md: 'repeat(4, 1fr)' 
-              },
-              gap: 2 
-            }}>
-              {analytics.cropDistribution.map((crop) => (
-                <Paper sx={{ p: 2, textAlign: 'center' }} key={crop.type}>
-                  <Typography variant="h6" color="primary">
-                    {crop.count}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {crop.type}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {crop.total_area} acres
-                  </Typography>
-                </Paper>
-              ))}
-            </Box>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Operations Section */}
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h5" gutterBottom>
-          Farm Operations
-        </Typography>
-        <Box sx={{ 
-          display: 'grid', 
-          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, 
-          gap: 3 
-        }}>
-          <TaskDashboard />
-          <WeatherWidget />
-        </Box>
-      </Box>
-
-      {/* Inventory Section */}
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h5" gutterBottom>
-          Inventory Management
-        </Typography>
-        <InventoryManager />
-      </Box>
 
       {/* Main Content Area */}
       <Box sx={{ 
@@ -425,9 +448,9 @@ export const Dashboard: React.FC = () => {
         },
         gap: 3 
       }}>
-        {/* Recent Crops Section - FIXED */}
+        {/* Recent Crops Section */}
         <Box>
-          <Card sx={{ mb: 3 }}>
+          <Card sx={{ mb: 3 }} elevation={1}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Recent Crops ({crops.length})
@@ -449,12 +472,10 @@ export const Dashboard: React.FC = () => {
                     <Typography variant="subtitle1" fontWeight="medium">
                       {crop.name}
                     </Typography>
-                    {/* FIXED: Show proper units and values */}
                     <Typography variant="body2" color="text.secondary">
                       Area: {crop.area.toFixed(2)} {getAreaUnit(crop)}
                       {crop.yield > 0 && ` • Yield: ${crop.yield.toFixed(2)} ${getYieldUnit(crop)}`}
                     </Typography>
-                    {/* FIXED: Show planting date */}
                     {crop.plantingDate && crop.plantingDate !== 'Not set' && (
                       <Typography variant="caption" color="text.secondary">
                         Planted: {formatDate(crop.plantingDate)}
@@ -474,9 +495,19 @@ export const Dashboard: React.FC = () => {
                 </Box>
               ))}
               {crops.length === 0 && (
-                <Typography color="text.secondary" textAlign="center" py={4}>
-                  No crops yet. Add your first crop to get started!
-                </Typography>
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <CropIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                  <Typography color="text.secondary" gutterBottom>
+                    No crops yet
+                  </Typography>
+                  <Button 
+                    variant="contained" 
+                    onClick={() => navigate('/crops/new')}
+                    size="small"
+                  >
+                    Add Your First Crop
+                  </Button>
+                </Box>
               )}
             </CardContent>
           </Card>
@@ -485,7 +516,7 @@ export const Dashboard: React.FC = () => {
         {/* Sidebar Section */}
         <Box>
           {/* Quick Actions Card */}
-          <Card sx={{ mb: 3 }}>
+          <Card sx={{ mb: 3 }} elevation={1}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Quick Actions
@@ -508,7 +539,7 @@ export const Dashboard: React.FC = () => {
           </Card>
 
           {/* Status Distribution Card */}
-          <Card>
+          <Card elevation={1}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Crop Status
@@ -543,56 +574,20 @@ export const Dashboard: React.FC = () => {
         </Box>
       </Box>
 
-      {/* Additional Features Section */}
-      <Box sx={{ mt: 4 }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Farm Management Features
-            </Typography>
-            <Box sx={{ 
-              display: 'grid', 
-              gridTemplateColumns: { 
-                xs: '1fr', 
-                sm: 'repeat(2, 1fr)', 
-                md: 'repeat(3, 1fr)' 
-              },
-              gap: 2 
-            }}>
-              <Paper sx={{ p: 2, textAlign: 'center' }}>
-                <CropIcon color="primary" sx={{ fontSize: 40, mb: 1 }} />
-                <Typography variant="subtitle1" gutterBottom>
-                  Crop Tracking
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Monitor planting, growth, and harvest cycles
-                </Typography>
-              </Paper>
-              
-              <Paper sx={{ p: 2, textAlign: 'center' }}>
-                <FinanceIcon color="secondary" sx={{ fontSize: 40, mb: 1 }} />
-                <Typography variant="subtitle1" gutterBottom>
-                  Expense Management
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Track costs and optimize your budget
-                </Typography>
-              </Paper>
-              
-              <Paper sx={{ p: 2, textAlign: 'center' }}>
-                <ChartIcon color="success" sx={{ fontSize: 40, mb: 1 }} />
-                <Typography variant="subtitle1" gutterBottom>
-                  Analytics & Reports
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Make data-driven farming decisions
-                </Typography>
-              </Paper>
-            </Box>
-          </CardContent>
-        </Card>
+      {/* Operations Section */}
+      <Box sx={{ mt: 4, mb: 4 }}>
+        <Typography variant="h5" gutterBottom>
+          Farm Operations
+        </Typography>
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, 
+          gap: 3 
+        }}>
+          <TaskDashboard />
+          <WeatherWidget />
+        </Box>
       </Box>
     </Box>
   );
-  
 };
