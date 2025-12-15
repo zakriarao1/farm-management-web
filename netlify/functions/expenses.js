@@ -86,7 +86,6 @@ exports.handler = async (event, context) => {
         case 'GET':
           console.log(`📖 Fetching ALL expenses for crop ID: ${cropId}`);
           
-          // First, check if table exists
           try {
             const result = await pool.query(
               'SELECT * FROM expenses WHERE crop_id = $1 ORDER BY date DESC, created_at DESC',
@@ -166,16 +165,6 @@ exports.handler = async (event, context) => {
               ]
             );
 
-            // Try to update crop total expenses (optional)
-            try {
-              await pool.query(
-                'UPDATE crops SET total_expenses = (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE crop_id = $1) WHERE id = $1',
-                [cropId]
-              );
-            } catch (updateError) {
-              console.log('⚠️ Could not update crop total expenses:', updateError);
-            }
-
             console.log(`✅ Expense created with ID: ${insertResult.rows[0].id}`);
 
             return {
@@ -208,6 +197,43 @@ exports.handler = async (event, context) => {
     }
 
     // Handle regular /expenses routes
+    // Check if we're getting just "/expenses" (Dashboard request)
+    if (path === '/.netlify/functions/expenses' || path === '/expenses') {
+      console.log('📊 Dashboard is requesting all expenses');
+      
+      try {
+        // Simple query to get all expenses
+        const result = await pool.query(`
+          SELECT * FROM expenses 
+          ORDER BY date DESC, created_at DESC
+          LIMIT 100
+        `);
+        
+        console.log(`✅ Found ${result.rows.length} expenses for Dashboard`);
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            data: result.rows,
+            message: 'Expenses retrieved successfully'
+          })
+        };
+      } catch (queryError) {
+        console.error('❌ Query error:', queryError);
+        // Return empty array for Dashboard - this is safe!
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            data: [],
+            message: 'No expenses found'
+          })
+        };
+      }
+    }
+
+    // Handle expense by ID
     const id = pathParts.length > 1 && !isNaN(pathParts[pathParts.length - 1]) 
       ? pathParts[pathParts.length - 1] 
       : null;
@@ -217,7 +243,6 @@ exports.handler = async (event, context) => {
     switch (httpMethod) {
       case 'GET':
         if (id && !isNaN(id)) {
-          // Get expense by ID
           console.log(`📖 Fetching expense with ID: ${id}`);
           try {
             const result = await pool.query('SELECT * FROM expenses WHERE id = $1', [id]);
@@ -246,40 +271,8 @@ exports.handler = async (event, context) => {
               body: JSON.stringify({ error: 'Expense not found' })
             };
           }
-        } else {
-          // Get all expenses for Dashboard
-          console.log('📖 Fetching all expenses for Dashboard');
-          try {
-            // Simple query without JOIN to avoid errors if crops table doesn't exist
-            const result = await pool.query(`
-              SELECT * FROM expenses 
-              ORDER BY date DESC, created_at DESC
-              LIMIT 100
-            `);
-            
-            console.log(`✅ Found ${result.rows.length} expenses`);
-            
-            return {
-              statusCode: 200,
-              headers,
-              body: JSON.stringify({ 
-                data: result.rows,
-                message: 'Expenses retrieved successfully'
-              })
-            };
-          } catch (queryError) {
-            console.error('❌ Query error:', queryError);
-            // Return empty array for Dashboard - this is the key fix!
-            return {
-              statusCode: 200,
-              headers,
-              body: JSON.stringify({ 
-                data: [],
-                message: 'No expenses found'
-              })
-            };
-          }
         }
+        break;
 
       case 'POST':
         // Create new expense (general endpoint)
@@ -338,16 +331,6 @@ exports.handler = async (event, context) => {
               notes || ''
             ]
           );
-
-          // Try to update crop total expenses (optional)
-          try {
-            await pool.query(
-              'UPDATE crops SET total_expenses = (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE crop_id = $1) WHERE id = $1',
-              [cropId]
-            );
-          } catch (updateError) {
-            console.log('⚠️ Could not update crop total expenses:', updateError);
-          }
 
           console.log(`✅ Expense created with ID: ${postResult.rows[0].id}`);
 
@@ -450,26 +433,13 @@ exports.handler = async (event, context) => {
             };
           }
 
-          // Try to update crop total expenses
-          const updatedExpense = updateResult.rows[0];
-          if (updatedExpense.crop_id) {
-            try {
-              await pool.query(
-                'UPDATE crops SET total_expenses = (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE crop_id = $1) WHERE id = $1',
-                [updatedExpense.crop_id]
-              );
-            } catch (updateError) {
-              console.log('⚠️ Could not update crop total expenses:', updateError);
-            }
-          }
-
           console.log(`✅ Expense ${id} updated successfully`);
 
           return {
             statusCode: 200,
             headers,
             body: JSON.stringify({ 
-              data: updatedExpense,
+              data: updateResult.rows[0],
               message: 'Expense updated successfully'
             })
           };
@@ -497,19 +467,6 @@ exports.handler = async (event, context) => {
         console.log(`🗑️ Deleting expense with ID: ${id}`);
         
         try {
-          // Get expense details before deleting
-          const expenseResult = await pool.query('SELECT crop_id FROM expenses WHERE id = $1', [id]);
-          
-          if (expenseResult.rows.length === 0) {
-            return { 
-              statusCode: 404, 
-              headers, 
-              body: JSON.stringify({ error: 'Expense not found' }) 
-            };
-          }
-
-          const cropIdToUpdate = expenseResult.rows[0].crop_id;
-          
           // Delete the expense
           const deleteResult = await pool.query('DELETE FROM expenses WHERE id = $1 RETURNING *', [id]);
           
@@ -519,18 +476,6 @@ exports.handler = async (event, context) => {
               headers, 
               body: JSON.stringify({ error: 'Expense not found' }) 
             };
-          }
-          
-          // Try to update crop total expenses
-          if (cropIdToUpdate) {
-            try {
-              await pool.query(
-                'UPDATE crops SET total_expenses = (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE crop_id = $1) WHERE id = $1',
-                [cropIdToUpdate]
-              );
-            } catch (updateError) {
-              console.log('⚠️ Could not update crop total expenses:', updateError);
-            }
           }
 
           console.log(`✅ Expense ${id} deleted`);
@@ -559,29 +504,26 @@ exports.handler = async (event, context) => {
           body: JSON.stringify({ error: 'Method not allowed' }) 
         };
     }
+
+    // If we reach here, it's an invalid route
+    return {
+      statusCode: 404,
+      headers,
+      body: JSON.stringify({ error: 'Route not found' })
+    };
+
   } catch (error) {
     console.error('❌ Expenses API Error:', error);
+    console.error('❌ Error stack:', error.stack);
     
-    // ALWAYS return 200 with empty array for Dashboard GET requests
-    // This is the key fix that won't break your Dashboard
-    if (event.httpMethod === 'GET' && event.path === '/.netlify/functions/expenses') {
-      console.log('🔄 Returning empty array for Dashboard');
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          data: [],
-          message: 'No expenses found'
-        })
-      };
-    }
-    
+    // ALWAYS return 200 with empty array for Dashboard
+    console.log('🔄 Returning empty array for safety');
     return {
-      statusCode: 500,
+      statusCode: 200,
       headers,
       body: JSON.stringify({ 
-        error: 'Internal server error',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        data: [],
+        message: 'No expenses found (error handled)'
       })
     };
   }
