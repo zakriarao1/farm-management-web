@@ -24,6 +24,7 @@ import {
   TableRow,
   Paper,
   LinearProgress,
+  Snackbar,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -44,10 +45,7 @@ interface ExpenseManagerProps {
 const safeFormatCurrency = (amount: number | undefined | null): string => {
   if (amount === undefined || amount === null) return '₨0.00';
   try {
-    return new Intl.NumberFormat('en-PK', {
-      style: 'currency',
-      currency: 'PKR'
-    }).format(amount);
+    return `₨${amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
   } catch (error) {
     return '₨0.00';
   }
@@ -56,7 +54,11 @@ const safeFormatCurrency = (amount: number | undefined | null): string => {
 const safeFormatDate = (dateString: string | undefined | null): string => {
   if (!dateString) return 'N/A';
   try {
-    return new Date(dateString).toLocaleDateString();
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   } catch (error) {
     return 'Invalid Date';
   }
@@ -70,10 +72,13 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  
+  // FIXED: Use crop_id (snake_case) to match CreateExpenseRequest interface
   const [formData, setFormData] = useState<CreateExpenseRequest>({
-    cropId,
+    crop_id: cropId, // Changed from cropId to crop_id
     description: '',
     category: 'OTHER' as ExpenseCategory,
     amount: 0,
@@ -87,33 +92,34 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       setLoading(true);
       setError('');
       
-      // Get ALL expenses and filter by crop_id
-      const response = await fetch(`/.netlify/functions/expenses`);
-      const result = await response.json();
+      console.log(`📖 Loading expenses for crop ID: ${cropId}`);
       
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to load expenses');
+      // Use the expenseApi service instead of direct fetch
+      const response = await expenseApi.getAll();
+      console.log('📥 API Response:', response);
+      
+      if (!response.data) {
+        throw new Error('Failed to load expenses');
       }
       
       // Filter expenses for this specific crop
-      const expensesForCrop = (result.data || []).filter((expense: any) => {
-        return expense.crop_id === cropId;
+      const expensesForCrop = response.data.filter((expense: Expense) => {
+        // Use crop_id from the Expense interface
+        const matches = expense.crop_id === cropId;
+        console.log(`🔍 Checking expense:`, {
+          id: expense.id,
+          crop_id: expense.crop_id,
+          targetCropId: cropId,
+          matches
+        });
+        return matches;
       });
       
-      // Map the data properly
-      const mappedExpenses = expensesForCrop.map((expense: any) => ({
-        id: expense.id,
-        cropId: expense.crop_id,
-        description: expense.description || 'No description',
-        category: expense.category || 'OTHER',
-        amount: parseFloat(expense.amount) || 0,
-        date: expense.date,
-        notes: expense.notes || '',
-      }));
-      
-      setExpenses(mappedExpenses);
+      console.log(`✅ Found ${expensesForCrop.length} expenses for crop ${cropId}`);
+      setExpenses(expensesForCrop);
       
     } catch (err) {
+      console.error('❌ Error loading expenses:', err);
       setError('Failed to load expenses');
       setExpenses([]);
     } finally {
@@ -131,7 +137,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     if (expense) {
       setEditingExpense(expense);
       setFormData({
-        cropId,
+        crop_id: cropId, // Changed from cropId to crop_id
         description: expense.description || '',
         category: expense.category || 'OTHER',
         amount: expense.amount || 0,
@@ -141,7 +147,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     } else {
       setEditingExpense(null);
       setFormData({
-        cropId,
+        crop_id: cropId, // Changed from cropId to crop_id
         description: '',
         category: 'OTHER',
         amount: 0,
@@ -181,35 +187,31 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
     try {
       if (editingExpense) {
-        // Update existing expense
-        await expenseApi.update(editingExpense.id.toString(), {
+        // Update existing expense using expenseApi service
+        console.log('🔄 Updating expense...');
+        const updateData = {
           description: formData.description,
           category: formData.category,
           amount: formData.amount,
           date: formData.date,
           notes: formData.notes,
-        });
-      } else {
-        // Create new expense
-        const response = await fetch(`/.netlify/functions/expenses`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            cropId: cropId,
-            description: formData.description,
-            category: formData.category,
-            amount: formData.amount,
-            date: formData.date,
-            notes: formData.notes,
-          }),
-        });
+        };
         
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create expense');
-        }
+        console.log('📤 Update data:', updateData);
+        
+        const response = await expenseApi.update(editingExpense.id.toString(), updateData);
+        console.log('✅ Expense updated:', response);
+        
+        setSuccessMessage('Expense updated successfully!');
+      } else {
+        // Create new expense using expenseApi service
+        console.log('🔄 Creating new expense...');
+        console.log('📤 Create data:', formData); // Already has crop_id
+        
+        const response = await expenseApi.create(formData);
+        console.log('✅ Expense created:', response);
+        
+        setSuccessMessage('Expense added successfully!');
       }
       
       // Reload expenses
@@ -218,6 +220,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       onExpensesUpdated?.();
       
     } catch (err) {
+      console.error('❌ Error in handleSubmit:', err);
       setError(err instanceof Error ? err.message : 'Failed to save expense');
     }
   };
@@ -230,20 +233,17 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
     try {
       setError('');
+      console.log(`🗑️ Deleting expense ID: ${id}`);
       
-      const response = await fetch(`/.netlify/functions/expenses/${id}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete expense');
-      }
+      const response = await expenseApi.delete(id.toString());
+      console.log('✅ Expense deleted:', response);
       
       await loadExpenses();
       onExpensesUpdated?.();
+      setSuccessMessage('Expense deleted successfully!');
       
     } catch (err) {
+      console.error('❌ Error deleting expense:', err);
       setError('Failed to delete expense');
     }
   };
@@ -310,6 +310,14 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
           {error}
         </Alert>
       )}
+
+      {/* Success Message */}
+      <Snackbar
+        open={!!successMessage}
+        autoHideDuration={4000}
+        onClose={() => setSuccessMessage('')}
+        message={successMessage}
+      />
 
       {/* Summary Card */}
       <Card sx={{ mb: 3 }}>
@@ -450,6 +458,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                 required
                 fullWidth
                 autoComplete="off"
+                helperText="Describe the expense (e.g., 'Seeds purchase', 'Labor cost')"
               />
               
               <TextField
@@ -461,6 +470,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                 select
                 required
                 fullWidth
+                helperText="Select the expense category"
               >
                 <MenuItem value="SEEDS">Seeds</MenuItem>
                 <MenuItem value="FERTILIZERS">Fertilizers</MenuItem>
@@ -483,10 +493,15 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                 onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
                 inputProps={{ 
                   min: "0.01",
-                  step: "0.01"
+                  step: "0.01",
+                  placeholder: "0.00"
                 }}
                 required
                 fullWidth
+                helperText="Enter the expense amount in Pakistani Rupees"
+                InputProps={{
+                  startAdornment: <Typography sx={{ mr: 1 }}>₨</Typography>,
+                }}
               />
               
               <TextField
@@ -501,6 +516,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                 }}
                 required
                 fullWidth
+                helperText="Select the date when the expense occurred"
               />
               
               <TextField
@@ -513,6 +529,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
                 rows={3}
                 placeholder="Additional notes about this expense..."
                 fullWidth
+                helperText="Optional: Add any additional details about this expense"
               />
             </Box>
           </DialogContent>
@@ -521,7 +538,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
             <Button 
               type="submit" 
               variant="contained"
-              disabled={!formData.description || !formData.amount || formData.amount <= 0}
+              disabled={!formData.description?.trim() || !formData.amount || formData.amount <= 0}
             >
               {editingExpense ? 'Update Expense' : 'Add Expense'}
             </Button>

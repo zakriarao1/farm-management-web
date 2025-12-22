@@ -116,19 +116,19 @@ export type ExpenseCategory =
 
 export interface Expense {
   id: number;
-  crop_id: number;  // Use snake_case to match database
+  crop_id: number;  // snake_case
   description: string;
   category: ExpenseCategory;
   amount: number;
   date: string;
   notes?: string;
-  created_at?: string;
-  updated_at?: string;
+  created_at?: string;  // snake_case
+  updated_at?: string;  // snake_case
 }
 
 
 export interface CreateExpenseRequest {
-  cropId: number;
+  crop_id: number;  // Change from cropId to crop_id
   description: string;
   category: ExpenseCategory;
   amount: number;
@@ -142,6 +142,7 @@ export interface UpdateExpenseRequest {
   amount?: number;
   date?: string;
   notes?: string;
+  crop_id?: number; // Optional for updates
 }
 
 export interface StatusCounts {

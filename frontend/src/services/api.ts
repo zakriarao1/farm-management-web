@@ -17,6 +17,7 @@ import type {
   WeatherRecommendationsResponse,
   ProfitLossReport,
   ROIAnalysisResponse,
+  ExpenseCategory,
 } from '../types';
 
 
@@ -157,37 +158,17 @@ export const cropApi = {
     return apiRequest<Crop[]>(`/crops/status/${status}`);
   },
 
-  getExpenses: async (cropId: number): Promise<ApiResponse<Expense[]>> => {
-    return apiRequest<Expense[]>(`/crops/${cropId}/expenses`);
-  },
 
-  addExpense: async (expenseData: CreateExpenseRequest): Promise<ApiResponse<Expense>> => {
-    return apiRequest<Expense>(`/crops/${expenseData.cropId}/expenses`, {
-      method: 'POST',
-      body: JSON.stringify(expenseData),
-    });
-  },
-
-  updateExpense: async (id: number, expenseData: UpdateExpenseRequest): Promise<ApiResponse<Expense>> => {
-    return apiRequest<Expense>(`/expenses/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(expenseData),
-    });
-  },
-
-  deleteExpense: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return apiRequest<{ message: string }>(`/expenses/${id}`, {
-      method: 'DELETE',
-    });
-  },
 };
 
 // Expense API methods
 export const expenseApi = {
   create: (expense: CreateExpenseRequest): Promise<ApiResponse<Expense>> => {
+    // The API expects snake_case, but our CreateExpenseRequest uses snake_case
+    // So we can send it directly
     return apiRequest<Expense>('/expenses', {
       method: 'POST',
-      body: JSON.stringify(expense),
+      body: JSON.stringify(expense), // Already snake_case
     }).then(response => ({
       ...response,
       data: response.data ? transformExpense(response.data) : response.data
@@ -209,7 +190,6 @@ export const expenseApi = {
         // Sort by date descending and take the most recent
         const recent = data
           .sort((a, b) => {
-            // Use expense_date first, then fall back to created_at, then use current date
             const dateA = a.date || a.created_at || new Date().toISOString();
             const dateB = b.date || b.created_at || new Date().toISOString();
             return new Date(dateB).getTime() - new Date(dateA).getTime();
@@ -224,13 +204,10 @@ export const expenseApi = {
       .then(response => {
         console.log('🎯 getByCropId raw response for crop', cropId, ':', response);
         
-        // The data should be directly in response.data
         let expensesData = response.data;
         
-        // If it's not an array, check common structures
         if (expensesData && !Array.isArray(expensesData)) {
           console.log('⚠️ Data is not an array, checking structure:', expensesData);
-          // Try to extract array from common structures
           if (Array.isArray(expensesData.expenses)) {
             expensesData = expensesData.expenses;
           } else if (Array.isArray(expensesData.records)) {
@@ -240,7 +217,6 @@ export const expenseApi = {
           }
         }
         
-        // Transform the data
         const transformedData = Array.isArray(expensesData) 
           ? expensesData.map(transformExpense).filter(Boolean)
           : [];
@@ -254,7 +230,6 @@ export const expenseApi = {
       })
       .catch(error => {
         console.error('❌ Error in getByCropId:', error);
-        // Return empty array on error
         return { data: [], status: 500, message: error.message };
       });
   },
@@ -267,10 +242,10 @@ export const expenseApi = {
       }));
   },
   
-  update: (id: string, expense: Partial<Expense>): Promise<ApiResponse<Expense>> => {
+  update: (id: string, expense: UpdateExpenseRequest): Promise<ApiResponse<Expense>> => {
     return apiRequest<Expense>(`/expenses/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(expense),
+      body: JSON.stringify(expense), // Already snake_case
     }).then(response => ({
       ...response,
       data: response.data ? transformExpense(response.data) : response.data
@@ -285,25 +260,39 @@ export const expenseApi = {
 };
 // Add this transformation function
 const transformExpense = (data: any): Expense => {
-  if (!data) return data;
+  if (!data) {
+    console.error('❌ transformExpense: No data provided');
+    // Return empty expense object with SNAKE_CASE fields (matching your interface)
+    return {
+      id: 0,
+      crop_id: 0, // snake_case (NOT camelCase)
+      description: '',
+      category: 'OTHER',
+      amount: 0,
+      date: new Date().toISOString().split('T')[0],
+      notes: '',
+      created_at: '', // snake_case
+      updated_at: ''  // snake_case
+    };
+  }
   
   console.log('🔄 Transforming expense data:', data);
   
-  // Handle the actual database structure - use snake_case properties
-  const transformed = {
-    id: data.id,
-    cropId: data.crop_id, // Map from database field
-    description: data.description,
-    category: data.category,
-    amount: data.amount,
-    date: data.date,
-    notes: data.notes,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+  // Database already returns snake_case, so no transformation needed
+  const transformed: Expense = {
+    id: Number(data.id) || 0,
+    crop_id: Number(data.crop_id) || 0, // Direct mapping (already snake_case)
+    description: data.description || '',
+    category: (data.category || 'OTHER') as ExpenseCategory,
+    amount: Number(data.amount) || 0,
+    date: data.date || new Date().toISOString().split('T')[0],
+    notes: data.notes || '',
+    created_at: data.created_at || '', // Direct mapping
+    updated_at: data.updated_at || ''  // Direct mapping
   };
   
   console.log('✅ Transformed expense:', transformed);
-  return transformed as Expense;
+  return transformed;
 };
 // Task API methods
 export const taskApi = {
