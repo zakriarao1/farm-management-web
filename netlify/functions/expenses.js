@@ -41,7 +41,6 @@ const ensureExpensesTableExists = async () => {
     }
   } catch (error) {
     console.error('❌ Error ensuring expenses table exists:', error);
-    // Don't throw error, just log it
   }
 };
 
@@ -58,7 +57,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // Ensure table exists (silently)
+    // Ensure table exists
     await ensureExpensesTableExists();
 
     const { httpMethod, path, body, queryStringParameters } = event;
@@ -66,8 +65,9 @@ exports.handler = async (event, context) => {
     
     console.log(`💰 Expenses API: ${httpMethod} ${path}`);
     console.log(`📁 Path parts:`, pathParts);
+    console.log(`📦 Request body:`, body);
 
-    // Handle /crops/:id/expenses route FIRST
+    // Handle /crops/:id/expenses route
     if (path.includes('/crops/') && path.includes('/expenses')) {
       const cropIndex = pathParts.indexOf('crops');
       const cropId = pathParts[cropIndex + 1];
@@ -104,7 +104,6 @@ exports.handler = async (event, context) => {
             };
           } catch (queryError) {
             console.error('❌ Query error:', queryError);
-            // Return empty array if table doesn't exist yet
             return {
               statusCode: 200,
               headers,
@@ -196,53 +195,18 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Handle regular /expenses routes
-    // Check if we're getting just "/expenses" (Dashboard request)
-    if (path === '/.netlify/functions/expenses' || path === '/expenses') {
-      console.log('📊 Dashboard is requesting all expenses');
-      
-      try {
-        // Simple query to get all expenses
-        const result = await pool.query(`
-          SELECT * FROM expenses 
-          ORDER BY date DESC, created_at DESC
-          LIMIT 100
-        `);
-        
-        console.log(`✅ Found ${result.rows.length} expenses for Dashboard`);
-        
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ 
-            data: result.rows,
-            message: 'Expenses retrieved successfully'
-          })
-        };
-      } catch (queryError) {
-        console.error('❌ Query error:', queryError);
-        // Return empty array for Dashboard - this is safe!
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ 
-            data: [],
-            message: 'No expenses found'
-          })
-        };
-      }
-    }
-
-    // Handle expense by ID
+    // Handle expense by ID (e.g., /expenses/123)
     const id = pathParts.length > 1 && !isNaN(pathParts[pathParts.length - 1]) 
       ? pathParts[pathParts.length - 1] 
       : null;
 
     console.log(`🔍 Processing expense ID: ${id}`);
 
+    // Main switch for /expenses routes
     switch (httpMethod) {
       case 'GET':
         if (id && !isNaN(id)) {
+          // GET /expenses/:id
           console.log(`📖 Fetching expense with ID: ${id}`);
           try {
             const result = await pool.query('SELECT * FROM expenses WHERE id = $1', [id]);
@@ -271,16 +235,49 @@ exports.handler = async (event, context) => {
               body: JSON.stringify({ error: 'Expense not found' })
             };
           }
+        } else {
+          // GET /expenses (all expenses)
+          console.log('📊 Fetching all expenses');
+          
+          try {
+            const result = await pool.query(`
+              SELECT * FROM expenses 
+              ORDER BY date DESC, created_at DESC
+              LIMIT 100
+            `);
+            
+            console.log(`✅ Found ${result.rows.length} expenses`);
+            
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({ 
+                data: result.rows,
+                message: 'Expenses retrieved successfully'
+              })
+            };
+          } catch (queryError) {
+            console.error('❌ Query error:', queryError);
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({ 
+                data: [],
+                message: 'No expenses found'
+              })
+            };
+          }
         }
-        break;
 
       case 'POST':
-        // Create new expense (general endpoint)
-        console.log('🆕 Creating new expense');
+        // POST /expenses (create new expense)
+        console.log('🆕 Creating new expense via POST /expenses');
         let postData;
         try {
           postData = JSON.parse(body || '{}');
+          console.log('📝 Parsed request data:', postData);
         } catch (parseError) {
+          console.error('❌ JSON parse error:', parseError);
           return {
             statusCode: 400,
             headers,
@@ -292,11 +289,18 @@ exports.handler = async (event, context) => {
         const cropId = postData.crop_id || postData.cropId;
         const { description, category, amount, date, notes } = postData;
         
-        console.log('📦 Create expense data:', postData);
-        console.log('🌱 Parsed cropId:', cropId);
+        console.log('🔍 Processed fields:', {
+          cropId,
+          description,
+          category,
+          amount,
+          date,
+          notes
+        });
         
         // Validate required fields
         if (!cropId || !description || !category || !amount) {
+          console.error('❌ Missing required fields:', { cropId, description, category, amount });
           return {
             statusCode: 400,
             headers,
@@ -310,6 +314,7 @@ exports.handler = async (event, context) => {
         // Validate amount is positive
         const parsedAmount = parseFloat(amount);
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
+          console.error('❌ Invalid amount:', amount);
           return {
             statusCode: 400,
             headers,
@@ -318,6 +323,7 @@ exports.handler = async (event, context) => {
         }
 
         try {
+          console.log('💾 Inserting into database...');
           const postResult = await pool.query(
             `INSERT INTO expenses (crop_id, description, category, amount, date, notes) 
              VALUES ($1, $2, $3, $4, $5, $6) 
@@ -333,6 +339,7 @@ exports.handler = async (event, context) => {
           );
 
           console.log(`✅ Expense created with ID: ${postResult.rows[0].id}`);
+          console.log('📄 Created expense:', postResult.rows[0]);
 
           return {
             statusCode: 201,
@@ -344,12 +351,18 @@ exports.handler = async (event, context) => {
           };
         } catch (dbError) {
           console.error('❌ Database error:', dbError);
+          console.error('❌ Error details:', {
+            message: dbError.message,
+            code: dbError.code,
+            detail: dbError.detail
+          });
           return {
             statusCode: 500,
             headers,
             body: JSON.stringify({ 
               error: 'Failed to create expense',
-              details: dbError.message
+              details: dbError.message,
+              code: dbError.code
             })
           };
         }
@@ -367,6 +380,7 @@ exports.handler = async (event, context) => {
         let updateData;
         try {
           updateData = JSON.parse(body || '{}');
+          console.log('📝 Update data:', updateData);
         } catch (parseError) {
           return {
             statusCode: 400,
@@ -422,6 +436,9 @@ exports.handler = async (event, context) => {
             WHERE id = $${paramCount} 
             RETURNING *
           `;
+          
+          console.log(`🔧 Update query: ${updateQuery}`);
+          console.log(`📊 Update values:`, updateValues);
           
           const updateResult = await pool.query(updateQuery, updateValues);
           
@@ -505,25 +522,17 @@ exports.handler = async (event, context) => {
         };
     }
 
-    // If we reach here, it's an invalid route
-    return {
-      statusCode: 404,
-      headers,
-      body: JSON.stringify({ error: 'Route not found' })
-    };
-
   } catch (error) {
     console.error('❌ Expenses API Error:', error);
     console.error('❌ Error stack:', error.stack);
     
-    // ALWAYS return 200 with empty array for Dashboard
-    console.log('🔄 Returning empty array for safety');
+    // Return proper error response
     return {
-      statusCode: 200,
+      statusCode: 500,
       headers,
       body: JSON.stringify({ 
-        data: [],
-        message: 'No expenses found (error handled)'
+        error: 'Internal server error',
+        details: error.message
       })
     };
   }
