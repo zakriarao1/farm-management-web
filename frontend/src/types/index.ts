@@ -128,7 +128,7 @@ export interface Expense {
 
 
 export interface CreateExpenseRequest {
-  crop_id: number;  // Change from cropId to crop_id
+  crop_id: number;  // snake_case
   description: string;
   category: ExpenseCategory;
   amount: number;
@@ -365,26 +365,9 @@ export const TaskTypeOptions = {
   INSPECTION: 'INSPECTION',
   OTHER: 'OTHER'
 } as const;
-export interface Expense {
-  id: number;
-  cropId: number;
-  description: string;
-  category: ExpenseCategory;
-  amount: number;
-  date: string;
-  notes?: string;
-  quantity?: number;
-  unit?: string;
-  unitPrice?: number;
-  createdAt: string;
-  updatedAt: string;
-}
 
-export interface Expense extends CreateExpenseRequest {
-  id: number;
-  createdAt: string;
-  updatedAt: string;
-}
+
+
 
 export const TaskStatusOptions = {
   PENDING: 'PENDING',
