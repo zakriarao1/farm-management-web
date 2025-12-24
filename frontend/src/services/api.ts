@@ -177,13 +177,13 @@ export const expenseApi = {
     }));
   },
   
-  getAll: (): Promise<ApiResponse<Expense[]>> => {
-    return apiRequest<Expense[]>('/expenses')
-      .then(response => ({
-        ...response,
-        data: response.data ? response.data.map(transformExpense) : response.data
-      }));
-  },
+ getAll: (): Promise<ApiResponse<Expense[]>> => {
+  return apiRequest<any[]>('/expenses')  // Use any[] to bypass TypeScript
+    .then(response => ({
+      ...response,
+      data: response.data ? response.data.map(transformExpense) : response.data
+    }));
+},
   
   getRecent: (limit: number = 5): Promise<ApiResponse<Expense[]>> => {
     return apiRequest<Expense[]>('/expenses')
@@ -202,28 +202,45 @@ export const expenseApi = {
   },
   
   getByCropId: (cropId: string): Promise<ApiResponse<Expense[]>> => {
+    console.log(`📤 Getting expenses for crop ${cropId}`);
+    
     return apiRequest<any>(`/crops/${cropId}/expenses`)
       .then(response => {
-        console.log('🎯 getByCropId raw response for crop', cropId, ':', response);
+        console.log(`📥 getByCropId response for crop ${cropId}:`, response);
         
+        // Your backend returns expenses directly in response.data as an array
+        // No need to check for nested structures
         let expensesData = response.data;
         
+        // Debug: Check what we're getting
+        console.log('🔍 Response.data type:', typeof expensesData);
+        console.log('🔍 Is array?', Array.isArray(expensesData));
+        
+        // If data is not an array, try to extract it
         if (expensesData && !Array.isArray(expensesData)) {
-          console.log('⚠️ Data is not an array, checking structure:', expensesData);
-          if (Array.isArray(expensesData.expenses)) {
-            expensesData = expensesData.expenses;
-          } else if (Array.isArray(expensesData.records)) {
-            expensesData = expensesData.records;
-          } else if (expensesData.data && Array.isArray(expensesData.data)) {
+          console.log('⚠️ Data is not an array:', expensesData);
+          // Try to extract array from common patterns
+          if (Array.isArray(expensesData.data)) {
             expensesData = expensesData.data;
+          } else if (Array.isArray(expensesData.expenses)) {
+            expensesData = expensesData.expenses;
+          } else {
+            // If still not an array, make it an empty array
+            expensesData = [];
           }
         }
         
-        const transformedData = Array.isArray(expensesData) 
-          ? expensesData.map(transformExpense).filter(Boolean)
-          : [];
+        // Always ensure we have an array
+        const dataArray = Array.isArray(expensesData) ? expensesData : [];
         
-        console.log(`🔄 Transformed ${transformedData.length} expenses for crop ${cropId}`);
+        console.log(`🔍 Final data array length: ${dataArray.length}`);
+        if (dataArray.length > 0) {
+          console.log('🔍 First item in array:', dataArray[0]);
+        }
+        
+        const transformedData = dataArray.map(transformExpense).filter(exp => exp.id !== 0);
+        
+        console.log(`✅ Transformed ${transformedData.length} expenses for crop ${cropId}`);
         
         return {
           ...response,
@@ -232,7 +249,12 @@ export const expenseApi = {
       })
       .catch(error => {
         console.error('❌ Error in getByCropId:', error);
-        return { data: [], status: 500, message: error.message };
+        return { 
+          data: [], 
+          status: 500, 
+          message: error.message,
+          success: false 
+        };
       });
   },
   
