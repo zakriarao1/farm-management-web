@@ -49,18 +49,16 @@ interface ExpenseFormData {
   quantity?: number;
   unit?: string;
   unitPrice?: number;
+  notes?: string; // Added notes field
 }
 
-// Safe formatting functions
+// Safe formatting functions - Updated to PKR
 const safeFormatCurrency = (amount: number | undefined | null): string => {
-  if (amount === undefined || amount === null) return '$0.00';
+  if (amount === undefined || amount === null) return '₨0.00';
   try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    return `₨${amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
   } catch (error) {
-    return '$0.00';
+    return '₨0.00';
   }
 };
 
@@ -79,13 +77,14 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState<ExpenseFormData>({
-    date: new Date().toISOString().split('T')[0]!,
+    date: new Date().toISOString().split('T')[0],
     category: EXPENSE_CATEGORIES.OTHER,
     description: '',
     amount: 0,
     quantity: 1,
     unit: '',
     unitPrice: 0,
+    notes: '', // Added notes field
   });
 
   // Load expenses with useCallback to prevent infinite re-renders
@@ -124,30 +123,29 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
     }
 
     try {
-      // Prepare expense data for API - convert cropId to number
+      // Prepare expense data for API - only include fields that exist in CreateExpenseRequest
       const expenseData: CreateExpenseRequest = {
-        cropId: cropId ? parseInt(cropId) : 0, // Convert string to number, use 0 for general expenses
+        crop_id: cropId ? parseInt(cropId) : 0, // Use crop_id (snake_case)
         date: formData.date,
         category: formData.category as ExpenseCategory,
         description: formData.description,
-        amount: formData.amount,
-        // Include optional fields only if they have values
-        ...(formData.quantity && formData.quantity > 0 && { quantity: formData.quantity }),
-        ...(formData.unit && { unit: formData.unit }),
-        ...(formData.unitPrice && formData.unitPrice > 0 && { unitPrice: formData.unitPrice }),
+        amount: parseFloat(formData.amount.toString()),
+        notes: formData.notes || '', // Add notes if available
       };
 
+      console.log('📤 Submitting expense data:', expenseData);
       await expenseApi.create(expenseData);
       
       // Reset form after successful submission
       setFormData({
-        date: new Date().toISOString().split('T')[0]!,
+        date: new Date().toISOString().split('T')[0],
         category: EXPENSE_CATEGORIES.OTHER,
         description: '',
         amount: 0,
         quantity: 1,
         unit: '',
         unitPrice: 0,
+        notes: '',
       });
       
       // Reload expenses to show the new entry
@@ -251,10 +249,15 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                   label="Quantity"
                   type="number"
                   value={formData.quantity}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    quantity: parseFloat(e.target.value) || 0 
-                  }))}
+                  onChange={(e) => {
+                    const quantity = parseFloat(e.target.value) || 0;
+                    const unitPrice = formData.unitPrice || 0;
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      quantity,
+                      amount: quantity * unitPrice
+                    }));
+                  }}
                   sx={{ flex: '1 1 150px' }}
                   inputProps={{ min: 0, step: 0.01 }}
                 />
@@ -266,22 +269,23 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                   placeholder="kg, liter, hour, etc."
                 />
                 <TextField
-                  label="Unit Price ($)"
+                  label="Unit Price (₨)"
                   type="number"
                   value={formData.unitPrice}
                   onChange={(e) => {
                     const unitPrice = parseFloat(e.target.value) || 0;
+                    const quantity = formData.quantity || 1;
                     setFormData(prev => ({ 
                       ...prev, 
                       unitPrice,
-                      amount: unitPrice * (prev.quantity || 1)
+                      amount: unitPrice * quantity
                     }));
                   }}
                   sx={{ flex: '1 1 150px' }}
                   inputProps={{ min: 0, step: 0.01 }}
                 />
                 <TextField
-                  label="Total Amount ($)"
+                  label="Total Amount (₨)"
                   type="number"
                   value={formData.amount}
                   onChange={(e) => setFormData(prev => ({ 
@@ -293,6 +297,16 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                   inputProps={{ min: 0, step: 0.01 }}
                 />
               </Box>
+
+              <TextField
+                label="Notes"
+                value={formData.notes}
+                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                multiline
+                rows={2}
+                fullWidth
+                placeholder="Additional notes about this expense (optional)"
+              />
 
               <Button 
                 type="submit" 
@@ -356,8 +370,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                   <TableCell>Date</TableCell>
                   <TableCell>Category</TableCell>
                   <TableCell>Description</TableCell>
-                  <TableCell>Quantity</TableCell>
-                  <TableCell>Unit Price</TableCell>
+                  <TableCell>Notes</TableCell>
                   <TableCell align="right">Amount</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
@@ -367,34 +380,29 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                   <TableRow key={expense.id} hover>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
-                        {safeFormatDate(expense?.date)}
+                        {safeFormatDate(expense.date)}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={(expense?.category || 'OTHER').toLowerCase()}
-                        color={getCategoryColor(expense?.category || 'OTHER')}
+                        label={(expense.category || 'OTHER').toLowerCase()}
+                        color={getCategoryColor(expense.category || 'OTHER')}
                         size="small"
                       />
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {expense?.description || 'No description'}
+                        {expense.description || 'No description'}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">
-                        {expense?.quantity ? `${expense.quantity} ${expense.unit || ''}`.trim() : 'N/A'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {expense?.unitPrice ? safeFormatCurrency(expense.unitPrice) : 'N/A'}
+                      <Typography variant="body2" color="text.secondary">
+                        {expense.notes || '-'}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="bold" color="error">
-                        {safeFormatCurrency(expense?.amount)}
+                        {safeFormatCurrency(expense.amount)}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -411,7 +419,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                 ))}
                 {expenses.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                       <Typography color="text.secondary">
                         No expenses recorded yet. Add your first expense above.
                       </Typography>
