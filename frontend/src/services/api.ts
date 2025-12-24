@@ -262,34 +262,45 @@ export const expenseApi = {
 };
 // Add this transformation function
 const transformExpense = (data: any): Expense => {
+  console.log('🔄 transformExpense RAW data:', data);
+  
   if (!data) {
     console.error('❌ transformExpense: No data provided');
-    return {
-      id: 0,
-      crop_id: 0,
-      description: '',
-      category: 'OTHER' as ExpenseCategory,
-      amount: 0,
-      date: new Date().toISOString().split('T')[0],
-      notes: '',
-      created_at: '',
-      updated_at: ''
-    };
+    return createEmptyExpense();
   }
   
-  // Direct mapping - no transformation needed
-  return {
+  // Debug: Show all keys from database
+  console.log('🔍 Database keys:', Object.keys(data));
+  
+  // Create the transformed expense - MATCH EXACTLY what database returns
+  const transformed: Expense = {
     id: Number(data.id) || 0,
     crop_id: Number(data.crop_id) || 0,
     description: data.description || '',
     category: (data.category || 'OTHER') as ExpenseCategory,
     amount: Number(data.amount) || 0,
-    date: data.date || new Date().toISOString().split('T')[0],
+    date: data.date || '',
     notes: data.notes || '',
     created_at: data.created_at || '',
     updated_at: data.updated_at || ''
   };
+  
+  console.log('✅ Transformed expense:', transformed);
+  return transformed;
 };
+
+// Helper function for empty expense
+const createEmptyExpense = (): Expense => ({
+  id: 0,
+  crop_id: 0,
+  description: '',
+  category: 'OTHER' as ExpenseCategory,
+  amount: 0,
+  date: new Date().toISOString().split('T')[0],
+  notes: '',
+  created_at: '',
+  updated_at: ''
+});
 // Task API methods
 export const taskApi = {
   create: (taskData: CreateTaskRequest): Promise<ApiResponse<Task>> => 

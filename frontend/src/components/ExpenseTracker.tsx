@@ -18,21 +18,22 @@ import {
   TableRow,
   IconButton,
   Chip,
+  LinearProgress,
 } from '@mui/material';
 import { Delete as DeleteIcon } from '@mui/icons-material';
 import { expenseApi } from '../services/api';
 import type { Expense, ExpenseCategory, CreateExpenseRequest } from '../types';
 
-// Expense category options for the dropdown
+// Expense category options for the dropdown - MATCH YOUR BACKEND CATEGORIES
 const EXPENSE_CATEGORIES = {
   SEEDS: 'SEEDS',
-  FERTILIZER: 'FERTILIZER',
+  FERTILIZERS: 'FERTILIZERS',
   PESTICIDES: 'PESTICIDES',
   LABOR: 'LABOR',
-  IRRIGATION: 'IRRIGATION',
-  EQUIPMENT: 'EQUIPMENT',
   FUEL: 'FUEL',
-  MAINTENANCE: 'MAINTENANCE',
+  EQUIPMENT: 'EQUIPMENT',
+  WATER: 'WATER',
+  IRRIGATION: 'IRRIGATION',
   TRANSPORTATION: 'TRANSPORTATION',
   OTHER: 'OTHER',
 } as const;
@@ -46,13 +47,10 @@ interface ExpenseFormData {
   category: string;
   description: string;
   amount: number;
-  quantity?: number;
-  unit?: string;
-  unitPrice?: number;
-  notes?: string; // Added notes field
+  notes: string;
 }
 
-// Safe formatting functions - Updated to PKR
+// Safe formatting functions - PKR currency
 const safeFormatCurrency = (amount: number | undefined | null): string => {
   if (amount === undefined || amount === null) return '₨0.00';
   try {
@@ -65,7 +63,11 @@ const safeFormatCurrency = (amount: number | undefined | null): string => {
 const safeFormatDate = (dateString: string | undefined | null): string => {
   if (!dateString) return 'N/A';
   try {
-    return new Date(dateString).toLocaleDateString();
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   } catch (error) {
     return 'Invalid Date';
   }
@@ -74,30 +76,45 @@ const safeFormatDate = (dateString: string | undefined | null): string => {
 export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const [formData, setFormData] = useState<ExpenseFormData>({
     date: new Date().toISOString().split('T')[0],
     category: EXPENSE_CATEGORIES.OTHER,
     description: '',
     amount: 0,
-    quantity: 1,
-    unit: '',
-    unitPrice: 0,
-    notes: '', // Added notes field
+    notes: '',
   });
 
-  // Load expenses with useCallback to prevent infinite re-renders
+  // Load expenses with detailed logging
   const loadExpenses = useCallback(async () => {
     try {
       setLoading(true);
+      setError('');
+      console.log(`📖 Loading expenses for crop ID: ${cropId || 'all'}`);
+      
       const response = cropId 
         ? await expenseApi.getByCropId(cropId)
         : await expenseApi.getAll();
-      setExpenses(response.data || []);
-    } catch (err) {
-      console.error('Failed to load expenses:', err);
-      setError('Failed to load expenses');
+      
+      console.log('📥 API Response:', response);
+      
+      if (response.data) {
+        console.log(`✅ Loaded ${response.data.length} expenses`);
+        if (response.data.length > 0) {
+          console.log('📊 First expense:', response.data[0]);
+        }
+        setExpenses(response.data);
+      } else {
+        console.log('ℹ️ No expenses data in response');
+        setExpenses([]);
+      }
+    } catch (err: any) {
+      console.error('❌ Failed to load expenses:', err);
+      setError('Failed to load expenses. Please try again.');
+      setExpenses([]);
     } finally {
       setLoading(false);
     }
@@ -109,95 +126,147 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
     
     // Validate required fields
-    if (!formData.description || formData.amount <= 0) {
-      setError('Description and valid amount are required');
+    if (!formData.description.trim()) {
+      setError('Description is required');
       return;
     }
-
-    // Validate cropId for crop-specific expenses
-    if (cropId && isNaN(parseInt(cropId))) {
-      setError('Invalid crop ID');
+    if (!formData.amount || formData.amount <= 0) {
+      setError('Amount must be greater than 0');
+      return;
+    }
+    if (!formData.date) {
+      setError('Date is required');
       return;
     }
 
     try {
-      // Prepare expense data for API - only include fields that exist in CreateExpenseRequest
+      setSubmitting(true);
+      
+      // Prepare expense data for API
       const expenseData: CreateExpenseRequest = {
-        crop_id: cropId ? parseInt(cropId) : 0, // Use crop_id (snake_case)
+        crop_id: cropId ? parseInt(cropId) : 0,
         date: formData.date,
         category: formData.category as ExpenseCategory,
-        description: formData.description,
+        description: formData.description.trim(),
         amount: parseFloat(formData.amount.toString()),
-        notes: formData.notes || '', // Add notes if available
+        notes: formData.notes.trim(),
       };
 
-      console.log('📤 Submitting expense data:', expenseData);
-      await expenseApi.create(expenseData);
+      console.log('📤 Submitting expense:', expenseData);
+      const response = await expenseApi.create(expenseData);
+      console.log('✅ Expense created:', response);
       
-      // Reset form after successful submission
-      setFormData({
-        date: new Date().toISOString().split('T')[0],
-        category: EXPENSE_CATEGORIES.OTHER,
-        description: '',
-        amount: 0,
-        quantity: 1,
-        unit: '',
-        unitPrice: 0,
-        notes: '',
-      });
-      
-      // Reload expenses to show the new entry
-      await loadExpenses();
-      setError('');
-    } catch (err) {
-      console.error('Failed to create expense:', err);
-      setError('Failed to create expense. Please try again.');
+      if (response.data) {
+        // Reset form after successful submission
+        setFormData({
+          date: new Date().toISOString().split('T')[0],
+          category: EXPENSE_CATEGORIES.OTHER,
+          description: '',
+          amount: 0,
+          notes: '',
+        });
+        
+        setSuccess('Expense added successfully!');
+        
+        // Reload expenses to show the new entry
+        await loadExpenses();
+        
+        // Auto-hide success message
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError('Failed to add expense. Please try again.');
+      }
+    } catch (err: any) {
+      console.error('❌ Failed to create expense:', err);
+      setError(err.message || 'Failed to create expense. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (expenseId: number) => {
-    if (window.confirm('Are you sure you want to delete this expense?')) {
-      try {
-        await expenseApi.delete(expenseId.toString());
-        await loadExpenses();
-        setError('');
-      } catch (err) {
-        console.error('Failed to delete expense:', err);
-        setError('Failed to delete expense');
-      }
+    if (!window.confirm('Are you sure you want to delete this expense?')) {
+      return;
+    }
+
+    try {
+      setError('');
+      console.log(`🗑️ Deleting expense ID: ${expenseId}`);
+      
+      await expenseApi.delete(expenseId.toString());
+      console.log('✅ Expense deleted');
+      
+      // Reload expenses
+      await loadExpenses();
+      setSuccess('Expense deleted successfully!');
+      
+      // Auto-hide success message
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      console.error('❌ Failed to delete expense:', err);
+      setError('Failed to delete expense');
     }
   };
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success' | 'default'> = {
       [EXPENSE_CATEGORIES.SEEDS]: 'primary',
-      [EXPENSE_CATEGORIES.FERTILIZER]: 'success',
+      [EXPENSE_CATEGORIES.FERTILIZERS]: 'success',
       [EXPENSE_CATEGORIES.PESTICIDES]: 'warning',
       [EXPENSE_CATEGORIES.LABOR]: 'error',
+      [EXPENSE_CATEGORIES.FUEL]: 'secondary',
+      [EXPENSE_CATEGORIES.EQUIPMENT]: 'info',
+      [EXPENSE_CATEGORIES.WATER]: 'info',
       [EXPENSE_CATEGORIES.IRRIGATION]: 'info',
-      [EXPENSE_CATEGORIES.EQUIPMENT]: 'secondary',
-      [EXPENSE_CATEGORIES.FUEL]: 'error',
-      [EXPENSE_CATEGORIES.MAINTENANCE]: 'warning',
-      [EXPENSE_CATEGORIES.TRANSPORTATION]: 'info',
+      [EXPENSE_CATEGORIES.TRANSPORTATION]: 'secondary',
       [EXPENSE_CATEGORIES.OTHER]: 'default',
     };
     return colors[category] || 'default';
   };
 
   // Calculate total expenses
-  const totalExpenses = expenses.reduce((sum, expense) => sum + (expense?.amount || 0), 0);
+  const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+
+  // Loading state
+  if (loading && expenses.length === 0) {
+    return (
+      <Box>
+        <LinearProgress />
+        <Typography variant="body2" textAlign="center" sx={{ mt: 2 }}>
+          Loading expenses...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
       <Typography variant="h5" gutterBottom>
-        Expense Tracker {cropId && `- Crop Expenses`}
+        Expense Tracker {cropId && `- Crop ID: ${cropId}`}
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+        <Alert 
+          severity="error" 
+          sx={{ mb: 2 }} 
+          onClose={() => setError('')}
+          action={
+            <Button color="inherit" size="small" onClick={loadExpenses}>
+              Retry
+            </Button>
+          }
+        >
           {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
+          {success}
         </Alert>
       )}
 
@@ -211,81 +280,46 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <TextField
-                  label="Date"
+                  label="Date *"
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
                   required
                   sx={{ flex: '1 1 200px' }}
                   InputLabelProps={{ shrink: true }}
+                  disabled={submitting}
                 />
                 <TextField
-                  label="Category"
+                  label="Category *"
                   value={formData.category}
                   onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                   select
                   required
                   sx={{ flex: '1 1 200px' }}
+                  disabled={submitting}
                 >
-                  {Object.values(EXPENSE_CATEGORIES).map(category => (
-                    <MenuItem key={category} value={category}>
-                      {category.charAt(0) + category.slice(1).toLowerCase()}
+                  {Object.entries(EXPENSE_CATEGORIES).map(([key, value]) => (
+                    <MenuItem key={key} value={value}>
+                      {key.charAt(0) + key.slice(1).toLowerCase()}
                     </MenuItem>
                   ))}
                 </TextField>
               </Box>
 
               <TextField
-                label="Description"
+                label="Description *"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 required
                 fullWidth
                 placeholder="Describe the expense (e.g., Seeds purchase, Labor costs, etc.)"
+                disabled={submitting}
+                helperText="Required"
               />
 
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <TextField
-                  label="Quantity"
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => {
-                    const quantity = parseFloat(e.target.value) || 0;
-                    const unitPrice = formData.unitPrice || 0;
-                    setFormData(prev => ({ 
-                      ...prev, 
-                      quantity,
-                      amount: quantity * unitPrice
-                    }));
-                  }}
-                  sx={{ flex: '1 1 150px' }}
-                  inputProps={{ min: 0, step: 0.01 }}
-                />
-                <TextField
-                  label="Unit"
-                  value={formData.unit}
-                  onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                  sx={{ flex: '1 1 150px' }}
-                  placeholder="kg, liter, hour, etc."
-                />
-                <TextField
-                  label="Unit Price (₨)"
-                  type="number"
-                  value={formData.unitPrice}
-                  onChange={(e) => {
-                    const unitPrice = parseFloat(e.target.value) || 0;
-                    const quantity = formData.quantity || 1;
-                    setFormData(prev => ({ 
-                      ...prev, 
-                      unitPrice,
-                      amount: unitPrice * quantity
-                    }));
-                  }}
-                  sx={{ flex: '1 1 150px' }}
-                  inputProps={{ min: 0, step: 0.01 }}
-                />
-                <TextField
-                  label="Total Amount (₨)"
+                  label="Amount (PKR) *"
                   type="number"
                   value={formData.amount}
                   onChange={(e) => setFormData(prev => ({ 
@@ -293,8 +327,17 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                     amount: parseFloat(e.target.value) || 0 
                   }))}
                   required
-                  sx={{ flex: '1 1 150px' }}
-                  inputProps={{ min: 0, step: 0.01 }}
+                  sx={{ flex: '1 1 200px' }}
+                  inputProps={{ 
+                    min: "0.01",
+                    step: "0.01",
+                    placeholder: "0.00"
+                  }}
+                  disabled={submitting}
+                  helperText="Required"
+                  InputProps={{
+                    startAdornment: <Typography sx={{ mr: 1 }}>₨</Typography>,
+                  }}
                 />
               </Box>
 
@@ -306,16 +349,18 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
                 rows={2}
                 fullWidth
                 placeholder="Additional notes about this expense (optional)"
+                disabled={submitting}
+                helperText="Optional"
               />
 
               <Button 
                 type="submit" 
                 variant="contained" 
-                disabled={loading}
+                disabled={submitting || !formData.description.trim() || !formData.amount || formData.amount <= 0}
                 sx={{ alignSelf: 'flex-start', mt: 2 }}
                 size="large"
               >
-                {loading ? 'Adding Expense...' : 'Add Expense'}
+                {submitting ? 'Adding Expense...' : 'Add Expense'}
               </Button>
             </Box>
           </form>
@@ -359,76 +404,76 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
               variant="outlined"
               size="small"
             >
-              Refresh
+              {loading ? 'Loading...' : 'Refresh'}
             </Button>
           </Box>
           
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Category</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell>Notes</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {expenses.map((expense) => (
-                  <TableRow key={expense.id} hover>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="medium">
-                        {safeFormatDate(expense.date)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={(expense.category || 'OTHER').toLowerCase()}
-                        color={getCategoryColor(expense.category || 'OTHER')}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {expense.description || 'No description'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {expense.notes || '-'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" fontWeight="bold" color="error">
-                        {safeFormatCurrency(expense.amount)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <IconButton 
-                        size="small" 
-                        color="error" 
-                        onClick={() => handleDelete(expense.id)}
-                        aria-label="Delete expense"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {expenses.length === 0 && (
+          {expenses.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography color="text.secondary">
+                No expenses recorded yet. Add your first expense above.
+              </Typography>
+            </Box>
+          ) : (
+            <TableContainer>
+              <Table>
+                <TableHead>
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">
-                        No expenses recorded yet. Add your first expense above.
-                      </Typography>
-                    </TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Category</TableCell>
+                    <TableCell>Description</TableCell>
+                    <TableCell>Amount</TableCell>
+                    <TableCell>Notes</TableCell>
+                    <TableCell>Actions</TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {expenses.map((expense) => (
+                    <TableRow key={expense.id} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="medium">
+                          {safeFormatDate(expense.date)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={expense.category || 'OTHER'}
+                          color={getCategoryColor(expense.category || 'OTHER')}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {expense.description || 'No description'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="bold" color="error">
+                          {safeFormatCurrency(expense.amount)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {expense.notes || '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <IconButton 
+                          size="small" 
+                          color="error" 
+                          onClick={() => handleDelete(expense.id)}
+                          aria-label="Delete expense"
+                          disabled={submitting}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </CardContent>
       </Card>
     </Box>
