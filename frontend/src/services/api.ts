@@ -128,7 +128,9 @@ export const cropApi = {
       body: JSON.stringify(cropData),
     });
   },
-  
+  getExpenses: async (cropId: number): Promise<ApiResponse<Expense[]>> => {
+    return expenseApi.getByCropId(cropId.toString());
+  },
   getAll: async (): Promise<ApiResponse<Crop[]>> => {
     return apiRequest<Crop[]>('/crops');
   },
@@ -262,37 +264,31 @@ export const expenseApi = {
 const transformExpense = (data: any): Expense => {
   if (!data) {
     console.error('❌ transformExpense: No data provided');
-    // Return empty expense object with SNAKE_CASE fields (matching your interface)
     return {
       id: 0,
-      crop_id: 0, // snake_case (NOT camelCase)
+      crop_id: 0,
       description: '',
-      category: 'OTHER',
+      category: 'OTHER' as ExpenseCategory,
       amount: 0,
       date: new Date().toISOString().split('T')[0],
       notes: '',
-      created_at: '', // snake_case
-      updated_at: ''  // snake_case
+      created_at: '',
+      updated_at: ''
     };
   }
   
-  console.log('🔄 Transforming expense data:', data);
-  
-  // Database already returns snake_case, so no transformation needed
-  const transformed: Expense = {
+  // Direct mapping - no transformation needed
+  return {
     id: Number(data.id) || 0,
-    crop_id: Number(data.crop_id) || 0, // Direct mapping (already snake_case)
+    crop_id: Number(data.crop_id) || 0,
     description: data.description || '',
     category: (data.category || 'OTHER') as ExpenseCategory,
     amount: Number(data.amount) || 0,
     date: data.date || new Date().toISOString().split('T')[0],
     notes: data.notes || '',
-    created_at: data.created_at || '', // Direct mapping
-    updated_at: data.updated_at || ''  // Direct mapping
+    created_at: data.created_at || '',
+    updated_at: data.updated_at || ''
   };
-  
-  console.log('✅ Transformed expense:', transformed);
-  return transformed;
 };
 // Task API methods
 export const taskApi = {
