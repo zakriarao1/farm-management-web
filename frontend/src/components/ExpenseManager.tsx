@@ -33,7 +33,7 @@ import {
   AttachMoney as MoneyIcon,
 } from '@mui/icons-material';
 import { expenseApi } from '../services/api';
-import type { Expense, CreateExpenseRequest, ExpenseCategory } from '../types';
+import type { Expense, CreateExpenseRequest, ExpenseCategory, UpdateExpenseRequest } from '../types';
 
 interface ExpenseManagerProps {
   cropId: number;
@@ -82,7 +82,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     description: '',
     category: 'OTHER' as ExpenseCategory,
     amount: 0,
-    date: new Date().toISOString().split('T')[0]!,
+    date: new Date().toISOString().split('T')[0],
     notes: '',
   });
 
@@ -94,29 +94,16 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       
       console.log(`📖 Loading expenses for crop ID: ${cropId}`);
       
-      // Use the expenseApi service instead of direct fetch
-      const response = await expenseApi.getAll();
+      // Use the expenseApi.getByCropId instead of getAll() and filtering
+      const response = await expenseApi.getByCropId(cropId.toString());
       console.log('📥 API Response:', response);
       
       if (!response.data) {
         throw new Error('Failed to load expenses');
       }
       
-      // Filter expenses for this specific crop
-      const expensesForCrop = response.data.filter((expense: Expense) => {
-        // Use crop_id from the Expense interface
-        const matches = expense.crop_id === cropId;
-        console.log(`🔍 Checking expense:`, {
-          id: expense.id,
-          crop_id: expense.crop_id,
-          targetCropId: cropId,
-          matches
-        });
-        return matches;
-      });
-      
-      console.log(`✅ Found ${expensesForCrop.length} expenses for crop ${cropId}`);
-      setExpenses(expensesForCrop);
+      console.log(`✅ Found ${response.data.length} expenses for crop ${cropId}`);
+      setExpenses(response.data);
       
     } catch (err) {
       console.error('❌ Error loading expenses:', err);
@@ -127,7 +114,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     }
   }, [cropId]);
 
-  // Load expenses on component mount
+  // Load expenses on component mount and when cropId changes
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);
@@ -137,21 +124,21 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     if (expense) {
       setEditingExpense(expense);
       setFormData({
-        crop_id: cropId, // Changed from cropId to crop_id
+        crop_id: cropId,
         description: expense.description || '',
         category: expense.category || 'OTHER',
         amount: expense.amount || 0,
-        date: expense.date ? expense.date.split('T')[0] : new Date().toISOString().split('T')[0]!,
+        date: expense.date ? expense.date.split('T')[0] : new Date().toISOString().split('T')[0],
         notes: expense.notes || '',
       });
     } else {
       setEditingExpense(null);
       setFormData({
-        crop_id: cropId, // Changed from cropId to crop_id
+        crop_id: cropId,
         description: '',
         category: 'OTHER',
         amount: 0,
-        date: new Date().toISOString().split('T')[0]!,
+        date: new Date().toISOString().split('T')[0],
         notes: '',
       });
     }
@@ -189,12 +176,14 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       if (editingExpense) {
         // Update existing expense using expenseApi service
         console.log('🔄 Updating expense...');
-        const updateData = {
+        const updateData: UpdateExpenseRequest = {
           description: formData.description,
           category: formData.category,
           amount: formData.amount,
           date: formData.date,
           notes: formData.notes,
+          // Include crop_id for updates if needed
+          crop_id: cropId,
         };
         
         console.log('📤 Update data:', updateData);
@@ -219,7 +208,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       handleCloseDialog();
       onExpensesUpdated?.();
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Error in handleSubmit:', err);
       setError(err instanceof Error ? err.message : 'Failed to save expense');
     }
@@ -242,7 +231,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       onExpensesUpdated?.();
       setSuccessMessage('Expense deleted successfully!');
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Error deleting expense:', err);
       setError('Failed to delete expense');
     }
@@ -359,28 +348,28 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
               {expenses.map((expense) => (
                 <TableRow key={expense.id} hover>
                   <TableCell>
-                    {safeFormatDate(expense?.date)}
+                    {safeFormatDate(expense.date)}
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight="medium">
-                      {expense?.description || 'No description'}
+                      {expense.description || 'No description'}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={expense?.category || 'OTHER'}
-                      color={getCategoryColor(expense?.category || 'OTHER') as any}
+                      label={expense.category || 'OTHER'}
+                      color={getCategoryColor(expense.category || 'OTHER') as any}
                       size="small"
                     />
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" fontWeight="bold">
-                      {safeFormatCurrency(expense?.amount)}
+                      {safeFormatCurrency(expense.amount)}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="text.secondary">
-                      {expense?.notes || '-'}
+                      {expense.notes || '-'}
                     </Typography>
                   </TableCell>
                   <TableCell align="center">
