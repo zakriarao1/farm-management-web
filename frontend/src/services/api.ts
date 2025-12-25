@@ -204,13 +204,16 @@ export const expenseApi = {
   
   getByCropId: (cropId: string | number): Promise<ApiResponse<Expense[]>> => {
   const cropIdStr = String(cropId);
-   const fullUrl = `${API_BASE_URL}/crops/${cropIdStr}/expenses`;
-  console.log(`🔍 Calling URL: ${fullUrl}`);
-  console.log(`🔍 API_BASE_URL: ${API_BASE_URL}`);
   
+  // DEBUG: Show what URL we're building
+  console.log(`🔍 Building URL for crop ${cropIdStr}`);
+  console.log(`🔍 Should call: /crops/${cropIdStr}/expenses`);
+  
+  // Make sure we're calling the expenses endpoint, not crops endpoint
   return apiRequest<any>(`/crops/${cropIdStr}/expenses`)
     .then(response => {
-      console.log('🔍 Response came from expenses endpoint');
+      console.log(`🔍 Called URL: /crops/${cropIdStr}/expenses`);
+      console.log(`🔍 Response from expenses endpoint:`, response);
       
       // Your backend returns expenses directly in response.data as an array
       const expensesData = response.data;
