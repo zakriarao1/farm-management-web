@@ -201,63 +201,46 @@ export const expenseApi = {
       });
   },
   
-  getByCropId: (cropId: string): Promise<ApiResponse<Expense[]>> => {
-    console.log(`📤 Getting expenses for crop ${cropId}`);
-    
-    return apiRequest<any>(`/crops/${cropId}/expenses`)
-      .then(response => {
-        console.log(`📥 getByCropId response for crop ${cropId}:`, response);
-        
-        // Your backend returns expenses directly in response.data as an array
-        // No need to check for nested structures
-        let expensesData = response.data;
-        
-        // Debug: Check what we're getting
-        console.log('🔍 Response.data type:', typeof expensesData);
-        console.log('🔍 Is array?', Array.isArray(expensesData));
-        
-        // If data is not an array, try to extract it
-        if (expensesData && !Array.isArray(expensesData)) {
-          console.log('⚠️ Data is not an array:', expensesData);
-          // Try to extract array from common patterns
-          if (Array.isArray(expensesData.data)) {
-            expensesData = expensesData.data;
-          } else if (Array.isArray(expensesData.expenses)) {
-            expensesData = expensesData.expenses;
-          } else {
-            // If still not an array, make it an empty array
-            expensesData = [];
-          }
-        }
-        
-        // Always ensure we have an array
-        const dataArray = Array.isArray(expensesData) ? expensesData : [];
-        
-        console.log(`🔍 Final data array length: ${dataArray.length}`);
-        if (dataArray.length > 0) {
-          console.log('🔍 First item in array:', dataArray[0]);
-        }
-        
-        const transformedData = dataArray.map(transformExpense).filter(exp => exp.id !== 0);
-        
-        console.log(`✅ Transformed ${transformedData.length} expenses for crop ${cropId}`);
-        
+  getByCropId: (cropId: string | number): Promise<ApiResponse<Expense[]>> => {
+  const cropIdStr = String(cropId);
+  console.log(`📤 Getting expenses for crop ${cropIdStr} (original type: ${typeof cropId})`);
+  
+  return apiRequest<any>(`/crops/${cropIdStr}/expenses`)
+    .then(response => {
+      console.log('🎯 getByCropId raw response:', response);
+      
+      // Your backend returns expenses directly in response.data as an array
+      const expensesData = response.data;
+      
+      console.log('🔍 Response.data:', expensesData);
+      console.log('🔍 Is array?', Array.isArray(expensesData));
+      
+      if (!expensesData || !Array.isArray(expensesData)) {
+        console.log('⚠️ No array data found, returning empty array');
         return {
           ...response,
-          data: transformedData
+          data: []
         };
-      })
-      .catch(error => {
-        console.error('❌ Error in getByCropId:', error);
-        return { 
-          data: [], 
-          status: 500, 
-          message: error.message,
-          success: false 
-        };
-      });
-  },
-  
+      }
+      
+      const transformedData = expensesData.map(transformExpense);
+      console.log(`🔄 Transformed ${transformedData.length} expenses`);
+      
+      return {
+        ...response,
+        data: transformedData
+      };
+    })
+    .catch(error => {
+      console.error('❌ Error in getByCropId:', error);
+      return { 
+        data: [], 
+        status: 500, 
+        message: error.message,
+        success: false 
+      };
+    });
+},
   getById: (id: string): Promise<ApiResponse<Expense>> => {
     return apiRequest<Expense>(`/expenses/${id}`)
       .then(response => ({
