@@ -33,7 +33,13 @@ import {
   AttachMoney as MoneyIcon,
 } from '@mui/icons-material';
 import { expenseApi } from '../services/api';
-import type { Expense, CreateExpenseRequest, ExpenseCategory, UpdateExpenseRequest } from '../types';
+import type { 
+  Expense, 
+  CreateExpenseRequest, 
+  ExpenseCategory, 
+  UpdateExpenseRequest,
+  ApiResponse 
+} from '../types';
 
 interface ExpenseManagerProps {
   cropId: number;
@@ -76,9 +82,9 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   const [openDialog, setOpenDialog] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   
-  // FIXED: Use crop_id (snake_case) to match CreateExpenseRequest interface
+  // Use crop_id (snake_case) to match CreateExpenseRequest interface
   const [formData, setFormData] = useState<CreateExpenseRequest>({
-    crop_id: cropId, // Changed from cropId to crop_id
+    crop_id: cropId,
     description: '',
     category: 'OTHER' as ExpenseCategory,
     amount: 0,
@@ -86,29 +92,59 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     notes: '',
   });
 
-  // Load expenses function
+  // Debug when expenses state changes
+  useEffect(() => {
+    console.log('🔄 Expenses state updated:', expenses);
+    console.log('🔄 Number of expenses in state:', expenses.length);
+    if (expenses.length > 0) {
+      console.log('🔄 First expense in state:', expenses[0]);
+    }
+  }, [expenses]);
+
+  // Load expenses function - Fixed with correct ApiResponse type
   const loadExpenses = useCallback(async () => {
-  try {
-    setLoading(true);
-    setError('');
-    
-    console.log(`🚀 DEBUG: Starting loadExpenses for crop ${cropId}`);
-    console.log(`🔍 Will call: expenseApi.getByCropId(${cropId})`);
-    
-    // IMPORTANT: Make sure you're calling expenseApi, not cropApi!
-    const response = await expenseApi.getByCropId(cropId);
-    console.log('✅ expenseApi.getByCropId called successfully');
-    
-    // ... rest of your code
-    
-  } catch (err: any) {
-    console.error('❌ Error:', err);
-    setError('Failed to load expenses');
-    setExpenses([]);
-  } finally {
-    setLoading(false);
-  }
-}, [cropId]);
+    try {
+      setLoading(true);
+      setError('');
+      
+      console.log(`🚀 Starting loadExpenses for crop ${cropId}`);
+      
+      // The API returns ApiResponse<Expense[]>
+      const response: ApiResponse<Expense[]> = await expenseApi.getByCropId(cropId);
+      console.log('✅ API Response received');
+      
+      // Debug the response structure
+      console.log('📊 Response structure:', {
+        hasData: !!response.data,
+        dataIsArray: Array.isArray(response.data),
+        dataLength: Array.isArray(response.data) ? response.data.length : 'N/A',
+        message: response.message,
+        success: response.success
+      });
+      
+      if (response.data && Array.isArray(response.data)) {
+        console.log(`✅ Found ${response.data.length} expenses`);
+        setExpenses(response.data);
+      } else {
+        console.warn('⚠️ No valid expense data found in response');
+        console.warn('⚠️ Response:', response);
+        setExpenses([]);
+        
+        // Show error if API indicated failure
+        if (response.success === false) {
+          setError(response.message || 'Failed to load expenses');
+        }
+      }
+      
+    } catch (err: any) {
+      console.error('❌ Error loading expenses:', err);
+      setError('Failed to load expenses: ' + (err.message || 'Unknown error'));
+      setExpenses([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [cropId]);
+
   // Load expenses on component mount and when cropId changes
   useEffect(() => {
     loadExpenses();
@@ -169,7 +205,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
     try {
       if (editingExpense) {
-        // Update existing expense using expenseApi service
+        // Update existing expense
         console.log('🔄 Updating expense...');
         const updateData: UpdateExpenseRequest = {
           description: formData.description,
@@ -177,21 +213,16 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
           amount: formData.amount,
           date: formData.date,
           notes: formData.notes,
-          // Include crop_id for updates if needed
           crop_id: cropId,
         };
-        
-        console.log('📤 Update data:', updateData);
         
         const response = await expenseApi.update(editingExpense.id.toString(), updateData);
         console.log('✅ Expense updated:', response);
         
         setSuccessMessage('Expense updated successfully!');
       } else {
-        // Create new expense using expenseApi service
+        // Create new expense
         console.log('🔄 Creating new expense...');
-        console.log('📤 Create data:', formData); // Already has crop_id
-        
         const response = await expenseApi.create(formData);
         console.log('✅ Expense created:', response);
         
@@ -219,8 +250,8 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
       setError('');
       console.log(`🗑️ Deleting expense ID: ${id}`);
       
-      const response = await expenseApi.delete(id.toString());
-      console.log('✅ Expense deleted:', response);
+      await expenseApi.delete(id.toString());
+      console.log('✅ Expense deleted');
       
       await loadExpenses();
       onExpensesUpdated?.();
@@ -233,7 +264,12 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
   };
 
   // Calculate total expenses
-  const totalExpenses = expenses.reduce((sum, expense) => sum + (expense?.amount || 0), 0);
+  const totalExpenses = expenses.reduce((sum, expense) => {
+    console.log('➕ Adding expense:', expense?.description, 'amount:', expense?.amount);
+    return sum + (expense?.amount || 0);
+  }, 0);
+
+  console.log('🧮 Total expenses calculated:', totalExpenses);
 
   // Category color mapping
   const getCategoryColor = (category: ExpenseCategory): string => {
@@ -341,7 +377,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
             </TableHead>
             <TableBody>
               {expenses.map((expense) => (
-                <TableRow key={expense.id} hover>
+                <TableRow key={`expense-${expense.id}`} hover>
                   <TableCell>
                     {safeFormatDate(expense.date)}
                   </TableCell>
@@ -397,7 +433,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
               No Expenses Found
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {error ? 'Error loading expenses' : 'No expenses recorded yet for this crop.'}
+              {error ? `Error: ${error}` : 'No expenses recorded yet for this crop.'}
             </Typography>
             <Button
               variant="contained"
