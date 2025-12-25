@@ -92,49 +92,70 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
     setLoading(true);
     setError('');
     
-    console.log(`📖 Loading expenses for crop ID: ${cropId} (type: ${typeof cropId})`);
+    console.log(`🚀 DEBUG START ======================================`);
+    console.log(`📖 Loading expenses for crop ID: ${cropId}, Name: ${cropName}`);
     
-    // IMPORTANT: Remove .toString() - pass the number directly
-    const response = await expenseApi.getByCropId(cropId);
-    console.log('📥 FULL API Response:', response);
+    // Test 1: Direct API call without transformation
+    console.log('🔍 Making direct API call...');
+    const directUrl = `/.netlify/functions/expenses/crops/${cropId}/expenses`;
+    console.log(`🔍 URL: ${directUrl}`);
     
-    // Debug: Check the response structure
-    console.log('🔍 Response keys:', Object.keys(response));
-    console.log('🔍 Response.data exists?', !!response.data);
-    console.log('🔍 Response.data type:', typeof response.data);
-    console.log('🔍 Response.data is array?', Array.isArray(response.data));
+    const directResponse = await fetch(directUrl);
+    const directData = await directResponse.json();
     
-    if (response.data && Array.isArray(response.data)) {
-      console.log(`✅ Found ${response.data.length} expenses for crop ${cropId}`);
-      
-      if (response.data.length > 0) {
-        console.log('📊 First expense:', {
-          id: response.data[0].id,
-          crop_id: response.data[0].crop_id,
-          description: response.data[0].description,
-          amount: response.data[0].amount,
-          date: response.data[0].date
-        });
+    console.log('🔍 Direct API Status:', directResponse.status);
+    console.log('🔍 Direct API Response:', directData);
+    
+    // Check what we got
+    if (directData.data && Array.isArray(directData.data)) {
+      console.log(`🔍 Direct: Got ${directData.data.length} items`);
+      if (directData.data.length > 0) {
+        const firstItem = directData.data[0];
+        console.log('🔍 First item type:', typeof firstItem);
+        console.log('🔍 First item keys:', Object.keys(firstItem));
+        console.log('🔍 First item values:', firstItem);
+        
+        // Determine if it's expense or crop data
+        const isExpense = 'crop_id' in firstItem && 'description' in firstItem;
+        const isCrop = 'name' in firstItem || 'plantingDate' in firstItem;
+        
+        console.log(`🔍 Is expense data? ${isExpense}`);
+        console.log(`🔍 Is crop data? ${isCrop}`);
+        
+        if (isCrop) {
+          console.error('❌❌❌ CONFIRMED: Backend is returning CROP data, not EXPENSE data!');
+          console.error('❌ This means either:');
+          console.error('❌ 1. Wrong backend function is being called');
+          console.error('❌ 2. Wrong SQL query in backend');
+          console.error('❌ 3. Route conflict in Netlify functions');
+        }
       }
-      
+    }
+    
+    // Test 2: Use expenseApi
+    console.log('🔍 Now using expenseApi.getByCropId...');
+    const response = await expenseApi.getByCropId(cropId);
+    console.log('🔍 expenseApi response:', response);
+    
+    console.log(`🚀 DEBUG END ========================================`);
+    
+    // Continue with your existing code...
+    if (response.data && Array.isArray(response.data)) {
+      console.log(`✅ Found ${response.data.length} expenses`);
       setExpenses(response.data);
     } else {
-      console.log('⚠️ No expenses data or data is not an array');
-      console.log('⚠️ Response.data:', response.data);
+      console.log('⚠️ No valid expense data');
       setExpenses([]);
     }
     
   } catch (err: any) {
-    console.error('❌ Error loading expenses:', err);
-    console.error('❌ Error details:', err.message);
-    console.error('❌ Error stack:', err.stack);
-    
-    setError('Failed to load expenses. Please check console for details.');
+    console.error('❌ Error:', err);
+    setError('Failed to load expenses');
     setExpenses([]);
   } finally {
     setLoading(false);
   }
-}, [cropId]);
+}, [cropId, cropName]);
 
   // Load expenses on component mount and when cropId changes
   useEffect(() => {

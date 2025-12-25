@@ -274,7 +274,11 @@ const transformExpense = (data: any): Expense => {
     console.error('❌ transformExpense: No data provided');
     return createEmptyExpense();
   }
-  
+  if ('name' in data && 'plantingDate' in data) {
+    console.error('❌ transformExpense received CROP data, not EXPENSE data!');
+    console.error('❌ Data looks like:', data);
+    return createEmptyExpense();
+  }
   // Debug: Show all keys from database
   console.log('🔍 Database keys:', Object.keys(data));
   
