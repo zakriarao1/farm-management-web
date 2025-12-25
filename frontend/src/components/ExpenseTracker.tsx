@@ -93,45 +93,27 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ cropId }) => {
     try {
       setLoading(true);
       setError('');
+      console.log(`📖 Loading expenses for crop ID: ${cropId || 'all'}`);
       
-      console.log(`📖 Loading expenses for crop ID: ${cropId} (type: ${typeof cropId})`);
+      const response = cropId 
+        ? await expenseApi.getByCropId(cropId)
+        : await expenseApi.getAll();
       
-      // IMPORTANT: Remove .toString() - pass the number directly
-      const response = await expenseApi.getByCropId(cropId);
-      console.log('📥 FULL API Response:', response);
+      console.log('📥 API Response:', response);
       
-      // Debug: Check the response structure
-      console.log('🔍 Response keys:', Object.keys(response));
-      console.log('🔍 Response.data exists?', !!response.data);
-      console.log('🔍 Response.data type:', typeof response.data);
-      console.log('🔍 Response.data is array?', Array.isArray(response.data));
-      
-      if (response.data && Array.isArray(response.data)) {
-        console.log(`✅ Found ${response.data.length} expenses for crop ${cropId}`);
-        
+      if (response.data) {
+        console.log(`✅ Loaded ${response.data.length} expenses`);
         if (response.data.length > 0) {
-          console.log('📊 First expense:', {
-            id: response.data[0].id,
-            crop_id: response.data[0].crop_id,
-            description: response.data[0].description,
-            amount: response.data[0].amount,
-            date: response.data[0].date
-          });
+          console.log('📊 First expense:', response.data[0]);
         }
-        
         setExpenses(response.data);
       } else {
-        console.log('⚠️ No expenses data or data is not an array');
-        console.log('⚠️ Response.data:', response.data);
+        console.log('ℹ️ No expenses data in response');
         setExpenses([]);
       }
-      
     } catch (err: any) {
-      console.error('❌ Error loading expenses:', err);
-      console.error('❌ Error details:', err.message);
-      console.error('❌ Error stack:', err.stack);
-      
-      setError('Failed to load expenses. Please check console for details.');
+      console.error('❌ Failed to load expenses:', err);
+      setError('Failed to load expenses. Please try again.');
       setExpenses([]);
     } finally {
       setLoading(false);
