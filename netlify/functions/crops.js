@@ -75,20 +75,20 @@ const ensureCropsTable = async () => {
     throw error;
   }
 };
-const path = require('path');
+
+exports.handler = async (event, context) => {
+  console.log('🚀 Crops function started:', event.httpMethod, event.path);
+  const path = require('path');
 const filename = path.basename(__filename);
 
 console.log(`🚀 ${filename} called for: ${event.path}`);
-console.log(`🔍 ${filename} - Request method: ${event.httpMethod}`);
+console.log(`🔍 ${filename} - Method: ${event.httpMethod}`);
 
-// Add a special marker for /crops/:id/expenses routes
+// If crops.js receives /crops/:id/expenses, log a warning
 if (event.path.includes('/crops/') && event.path.includes('/expenses')) {
-  console.log(`🎯 ${filename} - DETECTED /crops/:id/expenses route!`);
-  console.log(`🎯 ${filename} - I will handle this request`);
+  console.error(`❌ ${filename} - WARNING: crops.js received /crops/:id/expenses route!`);
+  console.error(`❌ ${filename} - This should be handled by expenses.js!`);
 }
-exports.handler = async (event, context) => {
-  console.log('🚀 Crops function started:', event.httpMethod, event.path);
-  
   // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',

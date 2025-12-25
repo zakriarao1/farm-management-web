@@ -1,5 +1,6 @@
 // netlify/functions/expenses.js
 const { Pool } = require('pg');
+const path = require('path');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -20,7 +21,6 @@ const ensureExpensesTableExists = async () => {
     if (!tableCheck.rows[0].exists) {
       console.log('💰 Creating expenses table...');
       
-      // Create table without foreign key first (safer)
       await pool.query(`
         CREATE TABLE expenses (
           id SERIAL PRIMARY KEY,
@@ -43,18 +43,12 @@ const ensureExpensesTableExists = async () => {
     console.error('❌ Error ensuring expenses table exists:', error);
   }
 };
-const path = require('path');
-const filename = path.basename(__filename);
 
-console.log(`🚀 ${filename} called for: ${event.path}`);
-console.log(`🔍 ${filename} - Request method: ${event.httpMethod}`);
-
-// Add a special marker for /crops/:id/expenses routes
-if (event.path.includes('/crops/') && event.path.includes('/expenses')) {
-  console.log(`🎯 ${filename} - DETECTED /crops/:id/expenses route!`);
-  console.log(`🎯 ${filename} - I will handle this request`);
-}
 exports.handler = async (event, context) => {
+  const filename = path.basename(__filename);
+  console.log(`🚀 ${filename} called for: ${event.path}`);
+  console.log(`🔍 ${filename} - Method: ${event.httpMethod}`);
+  
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
@@ -73,16 +67,18 @@ exports.handler = async (event, context) => {
     const { httpMethod, path, body, queryStringParameters } = event;
     const pathParts = path.split('/').filter(part => part);
     
-    console.log(`💰 Expenses API: ${httpMethod} ${path}`);
-    console.log(`📁 Path parts:`, pathParts);
-    console.log(`📦 Request body:`, body);
+    console.log(`💰 ${filename} - Processing: ${httpMethod} ${path}`);
+    console.log(`📁 ${filename} - Path parts:`, pathParts);
 
-    // Handle /crops/:id/expenses route
+    // 🎯 CRITICAL: Handle /crops/:id/expenses route
     if (path.includes('/crops/') && path.includes('/expenses')) {
+      console.log(`🎯 ${filename} - DETECTED /crops/:id/expenses route!`);
+      console.log(`🎯 ${filename} - expenses.js WILL handle this request`);
+      
       const cropIndex = pathParts.indexOf('crops');
       const cropId = pathParts[cropIndex + 1];
       
-      console.log(`🌱 Handling crop expenses for crop ID: ${cropId}`);
+      console.log(`🌱 ${filename} - Handling expenses for crop ID: ${cropId}`);
 
       if (!cropId || isNaN(cropId)) {
         return {
@@ -94,7 +90,7 @@ exports.handler = async (event, context) => {
 
       switch (httpMethod) {
         case 'GET':
-          console.log(`📖 Fetching ALL expenses for crop ID: ${cropId}`);
+          console.log(`📖 ${filename} - Fetching expenses for crop ID: ${cropId}`);
           
           try {
             const result = await pool.query(
@@ -102,18 +98,27 @@ exports.handler = async (event, context) => {
               [cropId]
             );
             
-            console.log(`✅ Query returned ${result.rows.length} expenses for crop ${cropId}`);
+            console.log(`✅ ${filename} - Found ${result.rows.length} EXPENSES for crop ${cropId}`);
+            
+            if (result.rows.length > 0) {
+              console.log(`📊 ${filename} - First expense:`, {
+                id: result.rows[0].id,
+                crop_id: result.rows[0].crop_id,
+                description: result.rows[0].description,
+                amount: result.rows[0].amount
+              });
+            }
             
             return {
               statusCode: 200,
               headers,
               body: JSON.stringify({ 
                 data: result.rows,
-                message: 'Expenses retrieved successfully'
+                message: 'Expenses retrieved successfully'  // ✅ EXPENSES, not CROPS
               })
             };
           } catch (queryError) {
-            console.error('❌ Query error:', queryError);
+            console.error(`❌ ${filename} - Query error:`, queryError);
             return {
               statusCode: 200,
               headers,
@@ -125,8 +130,7 @@ exports.handler = async (event, context) => {
           }
           
         case 'POST':
-          // Create expense for specific crop
-          console.log(`🆕 Creating expense for crop ID: ${cropId}`);
+          console.log(`🆕 ${filename} - Creating expense for crop ID: ${cropId}`);
           let requestBody;
           try {
             requestBody = JSON.parse(body || '{}');
@@ -149,7 +153,6 @@ exports.handler = async (event, context) => {
             };
           }
 
-          // Validate amount is positive
           const parsedAmount = parseFloat(amount);
           if (isNaN(parsedAmount) || parsedAmount <= 0) {
             return {
@@ -174,7 +177,7 @@ exports.handler = async (event, context) => {
               ]
             );
 
-            console.log(`✅ Expense created with ID: ${insertResult.rows[0].id}`);
+            console.log(`✅ ${filename} - Expense created with ID: ${insertResult.rows[0].id}`);
 
             return {
               statusCode: 201,
@@ -185,7 +188,7 @@ exports.handler = async (event, context) => {
               })
             };
           } catch (dbError) {
-            console.error('❌ Database error:', dbError);
+            console.error(`❌ ${filename} - Database error:`, dbError);
             return {
               statusCode: 500,
               headers,
@@ -205,19 +208,19 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Handle expense by ID (e.g., /expenses/123)
+    // Handle /expenses routes
     const id = pathParts.length > 1 && !isNaN(pathParts[pathParts.length - 1]) 
       ? pathParts[pathParts.length - 1] 
       : null;
 
-    console.log(`🔍 Processing expense ID: ${id}`);
+    console.log(`🔍 ${filename} - Processing expense ID: ${id}`);
 
     // Main switch for /expenses routes
     switch (httpMethod) {
       case 'GET':
         if (id && !isNaN(id)) {
           // GET /expenses/:id
-          console.log(`📖 Fetching expense with ID: ${id}`);
+          console.log(`📖 ${filename} - Fetching expense with ID: ${id}`);
           try {
             const result = await pool.query('SELECT * FROM expenses WHERE id = $1', [id]);
             
@@ -238,7 +241,7 @@ exports.handler = async (event, context) => {
               })
             };
           } catch (queryError) {
-            console.error('❌ Query error:', queryError);
+            console.error(`❌ ${filename} - Query error:`, queryError);
             return {
               statusCode: 404,
               headers,
@@ -246,17 +249,23 @@ exports.handler = async (event, context) => {
             };
           }
         } else {
-          // GET /expenses (all expenses)
-          console.log('📊 Fetching all expenses');
+          // GET /expenses (all expenses) OR /expenses?crop_id=XXX
+          console.log(`📊 ${filename} - Fetching expenses`);
           
           try {
-            const result = await pool.query(`
-              SELECT * FROM expenses 
-              ORDER BY date DESC, created_at DESC
-              LIMIT 100
-            `);
+            let query = 'SELECT * FROM expenses ORDER BY date DESC, created_at DESC LIMIT 100';
+            let params = [];
             
-            console.log(`✅ Found ${result.rows.length} expenses`);
+            // Check for crop_id query parameter
+            if (queryStringParameters?.crop_id) {
+              const cropId = queryStringParameters.crop_id;
+              console.log(`🔍 ${filename} - Filtering by crop_id: ${cropId}`);
+              query = 'SELECT * FROM expenses WHERE crop_id = $1 ORDER BY date DESC, created_at DESC';
+              params = [cropId];
+            }
+            
+            const result = await pool.query(query, params);
+            console.log(`✅ ${filename} - Found ${result.rows.length} expenses`);
             
             return {
               statusCode: 200,
@@ -267,7 +276,7 @@ exports.handler = async (event, context) => {
               })
             };
           } catch (queryError) {
-            console.error('❌ Query error:', queryError);
+            console.error(`❌ ${filename} - Query error:`, queryError);
             return {
               statusCode: 200,
               headers,
@@ -281,13 +290,13 @@ exports.handler = async (event, context) => {
 
       case 'POST':
         // POST /expenses (create new expense)
-        console.log('🆕 Creating new expense via POST /expenses');
+        console.log(`🆕 ${filename} - Creating new expense`);
         let postData;
         try {
           postData = JSON.parse(body || '{}');
-          console.log('📝 Parsed request data:', postData);
+          console.log(`📝 ${filename} - Parsed request data:`, postData);
         } catch (parseError) {
-          console.error('❌ JSON parse error:', parseError);
+          console.error(`❌ ${filename} - JSON parse error:`, parseError);
           return {
             statusCode: 400,
             headers,
@@ -295,11 +304,10 @@ exports.handler = async (event, context) => {
           };
         }
         
-        // Handle both camelCase and snake_case
         const cropId = postData.crop_id || postData.cropId;
         const { description, category, amount, date, notes } = postData;
         
-        console.log('🔍 Processed fields:', {
+        console.log(`🔍 ${filename} - Processed fields:`, {
           cropId,
           description,
           category,
@@ -308,9 +316,8 @@ exports.handler = async (event, context) => {
           notes
         });
         
-        // Validate required fields
         if (!cropId || !description || !category || !amount) {
-          console.error('❌ Missing required fields:', { cropId, description, category, amount });
+          console.error(`❌ ${filename} - Missing required fields:`, { cropId, description, category, amount });
           return {
             statusCode: 400,
             headers,
@@ -321,10 +328,9 @@ exports.handler = async (event, context) => {
           };
         }
 
-        // Validate amount is positive
         const parsedAmount = parseFloat(amount);
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
-          console.error('❌ Invalid amount:', amount);
+          console.error(`❌ ${filename} - Invalid amount:`, amount);
           return {
             statusCode: 400,
             headers,
@@ -333,7 +339,7 @@ exports.handler = async (event, context) => {
         }
 
         try {
-          console.log('💾 Inserting into database...');
+          console.log(`💾 ${filename} - Inserting into database...`);
           const postResult = await pool.query(
             `INSERT INTO expenses (crop_id, description, category, amount, date, notes) 
              VALUES ($1, $2, $3, $4, $5, $6) 
@@ -348,8 +354,8 @@ exports.handler = async (event, context) => {
             ]
           );
 
-          console.log(`✅ Expense created with ID: ${postResult.rows[0].id}`);
-          console.log('📄 Created expense:', postResult.rows[0]);
+          console.log(`✅ ${filename} - Expense created with ID: ${postResult.rows[0].id}`);
+          console.log(`📄 ${filename} - Created expense:`, postResult.rows[0]);
 
           return {
             statusCode: 201,
@@ -360,19 +366,13 @@ exports.handler = async (event, context) => {
             })
           };
         } catch (dbError) {
-          console.error('❌ Database error:', dbError);
-          console.error('❌ Error details:', {
-            message: dbError.message,
-            code: dbError.code,
-            detail: dbError.detail
-          });
+          console.error(`❌ ${filename} - Database error:`, dbError);
           return {
             statusCode: 500,
             headers,
             body: JSON.stringify({ 
               error: 'Failed to create expense',
-              details: dbError.message,
-              code: dbError.code
+              details: dbError.message
             })
           };
         }
@@ -386,11 +386,11 @@ exports.handler = async (event, context) => {
           };
         }
 
-        console.log(`✏️ Updating expense with ID: ${id}`);
+        console.log(`✏️ ${filename} - Updating expense with ID: ${id}`);
         let updateData;
         try {
           updateData = JSON.parse(body || '{}');
-          console.log('📝 Update data:', updateData);
+          console.log(`📝 ${filename} - Update data:`, updateData);
         } catch (parseError) {
           return {
             statusCode: 400,
@@ -417,7 +417,6 @@ exports.handler = async (event, context) => {
             if (updateData[key] !== undefined && fieldMap[key]) {
               updateFields.push(`${fieldMap[key]} = $${paramCount}`);
               
-              // Handle different data types
               if (key === 'amount') {
                 updateValues.push(parseFloat(updateData[key]));
               } else if (key === 'description') {
@@ -447,8 +446,8 @@ exports.handler = async (event, context) => {
             RETURNING *
           `;
           
-          console.log(`🔧 Update query: ${updateQuery}`);
-          console.log(`📊 Update values:`, updateValues);
+          console.log(`🔧 ${filename} - Update query: ${updateQuery}`);
+          console.log(`📊 ${filename} - Update values:`, updateValues);
           
           const updateResult = await pool.query(updateQuery, updateValues);
           
@@ -460,7 +459,7 @@ exports.handler = async (event, context) => {
             };
           }
 
-          console.log(`✅ Expense ${id} updated successfully`);
+          console.log(`✅ ${filename} - Expense ${id} updated successfully`);
 
           return {
             statusCode: 200,
@@ -471,7 +470,7 @@ exports.handler = async (event, context) => {
             })
           };
         } catch (dbError) {
-          console.error('❌ Database error:', dbError);
+          console.error(`❌ ${filename} - Database error:`, dbError);
           return {
             statusCode: 500,
             headers,
@@ -491,10 +490,9 @@ exports.handler = async (event, context) => {
           };
         }
 
-        console.log(`🗑️ Deleting expense with ID: ${id}`);
+        console.log(`🗑️ ${filename} - Deleting expense with ID: ${id}`);
         
         try {
-          // Delete the expense
           const deleteResult = await pool.query('DELETE FROM expenses WHERE id = $1 RETURNING *', [id]);
           
           if (deleteResult.rowCount === 0) {
@@ -505,7 +503,7 @@ exports.handler = async (event, context) => {
             };
           }
 
-          console.log(`✅ Expense ${id} deleted`);
+          console.log(`✅ ${filename} - Expense ${id} deleted`);
 
           return {
             statusCode: 200,
@@ -516,7 +514,7 @@ exports.handler = async (event, context) => {
             })
           };
         } catch (dbError) {
-          console.error('❌ Database error during delete:', dbError);
+          console.error(`❌ ${filename} - Database error during delete:`, dbError);
           return {
             statusCode: 500,
             headers,
@@ -533,10 +531,9 @@ exports.handler = async (event, context) => {
     }
 
   } catch (error) {
-    console.error('❌ Expenses API Error:', error);
-    console.error('❌ Error stack:', error.stack);
+    console.error(`❌ ${path.basename(__filename)} - Expenses API Error:`, error);
+    console.error(`❌ ${path.basename(__filename)} - Error stack:`, error.stack);
     
-    // Return proper error response
     return {
       statusCode: 500,
       headers,
