@@ -88,53 +88,31 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({
 
   // Load expenses function
   const loadExpenses = useCallback(async () => {
-  try {
-    setLoading(true);
-    setError('');
-    
-    console.log(`📖 Loading expenses for crop ID: ${cropId} (type: ${typeof cropId})`);
-    
-    // IMPORTANT: Remove .toString() - pass the number directly
-    const response = await expenseApi.getByCropId(cropId);
-    console.log('📥 FULL API Response:', response);
-    
-    // Debug: Check the response structure
-    console.log('🔍 Response keys:', Object.keys(response));
-    console.log('🔍 Response.data exists?', !!response.data);
-    console.log('🔍 Response.data type:', typeof response.data);
-    console.log('🔍 Response.data is array?', Array.isArray(response.data));
-    
-    if (response.data && Array.isArray(response.data)) {
-      console.log(`✅ Found ${response.data.length} expenses for crop ${cropId}`);
+    try {
+      setLoading(true);
+      setError('');
       
-      if (response.data.length > 0) {
-        console.log('📊 First expense:', {
-          id: response.data[0].id,
-          crop_id: response.data[0].crop_id,
-          description: response.data[0].description,
-          amount: response.data[0].amount,
-          date: response.data[0].date
-        });
+      console.log(`📖 Loading expenses for crop ID: ${cropId}`);
+      
+      // Use the expenseApi.getByCropId instead of getAll() and filtering
+      const response = await expenseApi.getByCropId(cropId.toString());
+      console.log('📥 API Response:', response);
+      
+      if (!response.data) {
+        throw new Error('Failed to load expenses');
       }
       
+      console.log(`✅ Found ${response.data.length} expenses for crop ${cropId}`);
       setExpenses(response.data);
-    } else {
-      console.log('⚠️ No expenses data or data is not an array');
-      console.log('⚠️ Response.data:', response.data);
+      
+    } catch (err) {
+      console.error('❌ Error loading expenses:', err);
+      setError('Failed to load expenses');
       setExpenses([]);
+    } finally {
+      setLoading(false);
     }
-    
-  } catch (err: any) {
-    console.error('❌ Error loading expenses:', err);
-    console.error('❌ Error details:', err.message);
-    console.error('❌ Error stack:', err.stack);
-    
-    setError('Failed to load expenses. Please check console for details.');
-    setExpenses([]);
-  } finally {
-    setLoading(false);
-  }
-}, [cropId]);
+  }, [cropId]);
 
   // Load expenses on component mount and when cropId changes
   useEffect(() => {
