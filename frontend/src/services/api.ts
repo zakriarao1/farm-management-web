@@ -128,7 +128,10 @@ export const cropApi = {
       body: JSON.stringify(cropData),
     });
   },
-  
+    getExpenses: async (cropId: number): Promise<ApiResponse<Expense[]>> => {
+    return apiRequest<Expense[]>(`/crops/${cropId}/expenses`);
+  },
+
   getAll: async (): Promise<ApiResponse<Crop[]>> => {
     return apiRequest<Crop[]>('/crops');
   },
