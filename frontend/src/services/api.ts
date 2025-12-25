@@ -205,38 +205,12 @@ export const expenseApi = {
   getByCropId: (cropId: string | number): Promise<ApiResponse<Expense[]>> => {
   const cropIdStr = String(cropId);
   
-  // DEBUG: Show what URL we're building
-  console.log(`🔍 Building URL for crop ${cropIdStr}`);
-  console.log(`🔍 Should call: /crops/${cropIdStr}/expenses`);
-  
-  // Make sure we're calling the expenses endpoint, not crops endpoint
-  return apiRequest<any>(`/crops/${cropIdStr}/expenses`)
-    .then(response => {
-      console.log(`🔍 Called URL: /crops/${cropIdStr}/expenses`);
-      console.log(`🔍 Response from expenses endpoint:`, response);
-      
-      // Your backend returns expenses directly in response.data as an array
-      const expensesData = response.data;
-      
-      console.log('🔍 Response.data:', expensesData);
-      console.log('🔍 Is array?', Array.isArray(expensesData));
-      
-      if (!expensesData || !Array.isArray(expensesData)) {
-        console.log('⚠️ No array data found, returning empty array');
-        return {
-          ...response,
-          data: []
-        };
-      }
-      
-      const transformedData = expensesData.map(transformExpense);
-      console.log(`🔄 Transformed ${transformedData.length} expenses`);
-      
-      return {
-        ...response,
-        data: transformedData
-      };
-    })
+  // Use query parameter instead of path
+  return apiRequest<Expense[]>(`/expenses?crop_id=${cropIdStr}`)
+    .then(response => ({
+      ...response,
+      data: response.data ? response.data.map(transformExpense) : response.data
+    }))
     .catch(error => {
       console.error('❌ Error in getByCropId:', error);
       return { 
