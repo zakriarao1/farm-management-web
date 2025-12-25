@@ -43,7 +43,17 @@ const ensureExpensesTableExists = async () => {
     console.error('❌ Error ensuring expenses table exists:', error);
   }
 };
+const path = require('path');
+const filename = path.basename(__filename);
 
+console.log(`🚀 ${filename} called for: ${event.path}`);
+console.log(`🔍 ${filename} - Request method: ${event.httpMethod}`);
+
+// Add a special marker for /crops/:id/expenses routes
+if (event.path.includes('/crops/') && event.path.includes('/expenses')) {
+  console.log(`🎯 ${filename} - DETECTED /crops/:id/expenses route!`);
+  console.log(`🎯 ${filename} - I will handle this request`);
+}
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
