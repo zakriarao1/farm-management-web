@@ -48,7 +48,9 @@ exports.handler = async (event, context) => {
   const filename = path.basename(__filename);
   console.log(`🚀 ${filename} called for: ${event.path}`);
   console.log(`🔍 ${filename} - Method: ${event.httpMethod}`);
-  
+  console.log(`🎯 expenses.js - Path: ${event.path}`);
+console.log(`🎯 expenses.js - Full URL: ${event.rawUrl || 'N/A'}`);
+console.log(`🎯 expenses.js - Query params:`, event.queryStringParameters);
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
