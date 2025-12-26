@@ -286,27 +286,12 @@ export const LivestockList: React.FC<LivestockListProps> = ({ refreshTrigger = 0
                       <ViewIcon />
                     </IconButton>
                     <IconButton
-  size="small"
-  color="secondary"
-  onClick={(e) => {
-    console.log('📝 Edit button clicked!');
-    console.log('🔍 Animal ID:', animal.id);
-    console.log('🔍 Animal:', animal);
-    console.log('🔍 Path:', `/livestock/animals/${animal.id}/edit`);
-    e.preventDefault();
-    e.stopPropagation();
-    navigate(`/livestock/animals/${animal.id}/edit`);
-  }}
-  title="Edit Animal"
-  sx={{ 
-    '&:hover': { 
-      backgroundColor: 'secondary.light',
-      '& .MuiSvgIcon-root': { color: 'white' }
-    }
-  }}
->
-  <EditIcon fontSize="small" />
-</IconButton>
+                      size="small"
+                      color="secondary"
+                      onClick={() => navigate(`/livestock/animals/${animal.id}/edit`)}
+                    >
+                      <EditIcon />
+                    </IconButton>
                     <IconButton
                       size="small"
                       color="error"
