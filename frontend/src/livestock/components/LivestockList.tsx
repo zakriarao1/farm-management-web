@@ -23,6 +23,8 @@ import {
   DialogTitle,
   Alert,
   CircularProgress,
+  Tooltip,
+  Link,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -31,6 +33,8 @@ import {
   Add as AddIcon,
   Search as SearchIcon,
   Pets as AnimalIcon,
+  Warning as WarningIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { livestockApi } from '../services/api';
@@ -50,6 +54,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({ refreshTrigger = 0
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [duplicateTags, setDuplicateTags] = useState<Map<string, number[]>>(new Map());
 
   const ANIMAL_TYPES = ['CHICKENS', 'GOATS', 'SHEEP', 'COWS', 'BUFFALOES', 'OTHER'];
   const STATUS_OPTIONS = ['HEALTHY', 'SICK', 'PREGNANT', 'SOLD', 'DECEASED'];
@@ -62,13 +67,55 @@ export const LivestockList: React.FC<LivestockListProps> = ({ refreshTrigger = 0
     try {
       setLoading(true);
       const response = await livestockApi.getAll();
-      setLivestock(response.data || []);
+      const animals = response.data || [];
+      setLivestock(animals);
+      
+      // Check for duplicate tags within flocks
+      checkForDuplicateTags(animals);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load livestock');
       console.error('Error loading livestock:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const checkForDuplicateTags = (animals: Livestock[]) => {
+    const tagMap = new Map<string, number[]>();
+    
+    animals.forEach(animal => {
+      if (animal.tag_number && animal.flock_id) {
+        const key = `${animal.flock_id}-${animal.tag_number}`;
+        if (!tagMap.has(key)) {
+          tagMap.set(key, []);
+        }
+        tagMap.get(key)?.push(animal.id);
+      }
+    });
+    
+    // Filter to only keep duplicates
+    const duplicates = new Map<string, number[]>();
+    tagMap.forEach((ids, key) => {
+      if (ids.length > 1) {
+        duplicates.set(key, ids);
+      }
+    });
+    
+    setDuplicateTags(duplicates);
+  };
+
+  const hasDuplicateTag = (animal: Livestock): boolean => {
+    if (!animal.tag_number || !animal.flock_id) return false;
+    const key = `${animal.flock_id}-${animal.tag_number}`;
+    const ids = duplicateTags.get(key);
+    return ids ? ids.length > 1 : false;
+  };
+
+  const getDuplicateCount = (animal: Livestock): number => {
+    if (!animal.tag_number || !animal.flock_id) return 0;
+    const key = `${animal.flock_id}-${animal.tag_number}`;
+    const ids = duplicateTags.get(key);
+    return ids ? ids.length : 0;
   };
 
   const handleDeleteClick = (animal: Livestock) => {
@@ -120,7 +167,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({ refreshTrigger = 0
 
   const filteredLivestock = livestock.filter(animal => {
     const matchesSearch = 
-      animal.tag_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      animal.tag_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       animal.breed?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       animal.location?.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -158,6 +205,53 @@ export const LivestockList: React.FC<LivestockListProps> = ({ refreshTrigger = 0
         </Button>
       </Box>
 
+      {/* Duplicate Tag Warning */}
+      {duplicateTags.size > 0 && (
+        <Alert 
+          severity="warning" 
+          sx={{ mb: 3 }}
+          icon={<WarningIcon />}
+        >
+          <Box display="flex" alignItems="center" gap={1}>
+            <Typography fontWeight="bold">⚠️ Duplicate Tag Numbers Found:</Typography>
+            <Typography variant="body2">
+              {duplicateTags.size} tag number(s) are duplicated within flocks. 
+              Each tag number must be unique within its flock.
+              <Link 
+                sx={{ ml: 1, cursor: 'pointer' }} 
+                onClick={() => {
+                  // Scroll to duplicate section or show modal
+                  const duplicates = Array.from(duplicateTags.entries());
+                  alert(`Duplicate tags:\n${duplicates.map(([key, ids]) => 
+                    `Tag: ${key.split('-')[1]}, Flock: ${key.split('-')[0]}, Animals: ${ids.join(', ')}`
+                  ).join('\n')}`);
+                }}
+              >
+                View details
+              </Link>
+            </Typography>
+          </Box>
+        </Alert>
+      )}
+
+      {/* Tag Uniqueness Info */}
+      <Alert 
+        severity="info" 
+        sx={{ mb: 3 }}
+        icon={<InfoIcon />}
+      >
+        <Typography variant="body2">
+          <strong>Important:</strong> Each animal must have a unique tag number within its flock. 
+          Duplicate tags in the same flock will be rejected. 
+          <Link 
+            sx={{ ml: 1, cursor: 'pointer' }} 
+            onClick={() => navigate('/livestock/animals/new')}
+          >
+            Add new animal
+          </Link>
+        </Typography>
+      </Alert>
+
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
           {error}
@@ -178,6 +272,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({ refreshTrigger = 0
                 startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />,
               }}
               sx={{ minWidth: 200 }}
+              placeholder="Search by tag, breed, or location"
             />
             <TextField
               select
@@ -216,9 +311,17 @@ export const LivestockList: React.FC<LivestockListProps> = ({ refreshTrigger = 0
       </Card>
 
       {/* Results Count */}
-      <Typography variant="body2" color="text.secondary" mb={2}>
-        Showing {filteredLivestock.length} of {livestock.length} animals
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography variant="body2" color="text.secondary">
+          Showing {filteredLivestock.length} of {livestock.length} animals
+        </Typography>
+        {duplicateTags.size > 0 && (
+          <Typography variant="body2" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <WarningIcon fontSize="small" />
+            {duplicateTags.size} duplicate tag(s) detected
+          </Typography>
+        )}
+      </Box>
 
       {/* Livestock Table */}
       <TableContainer component={Paper}>
@@ -238,71 +341,118 @@ export const LivestockList: React.FC<LivestockListProps> = ({ refreshTrigger = 0
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredLivestock.map((animal) => (
-              <TableRow key={animal.id} hover>
-                <TableCell>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <AnimalIcon fontSize="small" color="action" />
-                    <Typography fontWeight="bold">{animal.tag_number}</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell>
-                  <Chip 
-                    label={animal.animal_type}
-                    size="small" 
-                    color={getTypeColor(animal.animal_type)}
-                    variant="outlined"
-                  />
-                </TableCell>
-                <TableCell>{animal.breed || 'N/A'}</TableCell>
-                <TableCell>
-                  <Chip 
-                    label={animal.gender} 
-                    size="small" 
-                    color="default"
-                    variant="outlined"
-                  />
-                </TableCell>
-                <TableCell>{animal.current_weight || 'N/A'}</TableCell>
-                <TableCell>
-                  <Chip 
-                    label={animal.status} 
-                    size="small" 
-                    color={getStatusColor(animal.status)}
-                  />
-                </TableCell>
-                <TableCell>{animal.location || 'N/A'}</TableCell>
-                <TableCell>{animal.flock_name || 'No Flock'}</TableCell>
-                <TableCell>
-                  {animal.purchase_date ? new Date(animal.purchase_date).toLocaleDateString() : 'N/A'}
-                </TableCell>
-                <TableCell>
-                  <Box display="flex" gap={1}>
-                    <IconButton
-                      size="small"
-                      color="primary"
-                      onClick={() => navigate(`/livestock/animals/${animal.id}`)}
-                    >
-                      <ViewIcon />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color="secondary"
-                      onClick={() => navigate(`/livestock/animals/${animal.id}/edit`)}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDeleteClick(animal)}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Box>
-                </TableCell>
-              </TableRow>
-            ))}
+            {filteredLivestock.map((animal) => {
+              const isDuplicate = hasDuplicateTag(animal);
+              const duplicateCount = getDuplicateCount(animal);
+              
+              return (
+                <TableRow 
+                  key={animal.id} 
+                  hover
+                  sx={{ 
+                    bgcolor: isDuplicate ? 'warning.light' : 'inherit',
+                    '&:hover': { 
+                      bgcolor: isDuplicate ? 'warning.100' : 'action.hover' 
+                    }
+                  }}
+                >
+                  <TableCell>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <AnimalIcon fontSize="small" color="action" />
+                      <Box>
+                        <Typography fontWeight="bold">
+                          {animal.tag_number || 'No Tag'}
+                        </Typography>
+                        {isDuplicate && (
+                          <Typography variant="caption" color="error" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <WarningIcon fontSize="inherit" />
+                            Duplicate ({duplicateCount} animals)
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={animal.animal_type}
+                      size="small" 
+                      color={getTypeColor(animal.animal_type)}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>{animal.breed || 'N/A'}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={animal.gender} 
+                      size="small" 
+                      color="default"
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>{animal.current_weight || 'N/A'}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={animal.status} 
+                      size="small" 
+                      color={getStatusColor(animal.status)}
+                    />
+                  </TableCell>
+                  <TableCell>{animal.location || 'N/A'}</TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography>{animal.flock_name || 'No Flock'}</Typography>
+                      {animal.flock_id && (
+                        <Typography variant="caption" color="text.secondary">
+                          ID: {animal.flock_id}
+                        </Typography>
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    {animal.purchase_date ? new Date(animal.purchase_date).toLocaleDateString() : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    <Box display="flex" gap={1}>
+                      <Tooltip title="View Details">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => navigate(`/livestock/animals/${animal.id}`)}
+                        >
+                          <ViewIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={isDuplicate ? "Edit (Has duplicate tag)" : "Edit Animal"}>
+                        <span>
+                          <IconButton
+                            size="small"
+                            color={isDuplicate ? "warning" : "secondary"}
+                            onClick={() => navigate(`/livestock/animals/${animal.id}/edit`)}
+                            sx={{ 
+                              '&:hover': { 
+                                bgcolor: isDuplicate ? 'warning.light' : 'secondary.light',
+                                color: isDuplicate ? 'warning.contrastText' : 'secondary.contrastText'
+                              }
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Delete Animal">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteClick(animal)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         {filteredLivestock.length === 0 && (
@@ -310,9 +460,29 @@ export const LivestockList: React.FC<LivestockListProps> = ({ refreshTrigger = 0
             <Typography color="text.secondary">
               No animals found matching your criteria
             </Typography>
+            <Button 
+              variant="outlined" 
+              startIcon={<AddIcon />} 
+              sx={{ mt: 2 }}
+              onClick={() => navigate('/livestock/animals/new')}
+            >
+              Add Your First Animal
+            </Button>
           </Box>
         )}
       </TableContainer>
+
+      {/* Footer Stats */}
+      <Box display="flex" justifyContent="space-between" mt={2}>
+        <Typography variant="body2" color="text.secondary">
+          Total animals: {livestock.length} • 
+          With flock: {livestock.filter(a => a.flock_id).length} • 
+          Without flock: {livestock.filter(a => !a.flock_id).length}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Last updated: {new Date().toLocaleTimeString()}
+        </Typography>
+      </Box>
 
       {/* Delete Confirmation Dialog */}
       <Dialog
@@ -323,13 +493,17 @@ export const LivestockList: React.FC<LivestockListProps> = ({ refreshTrigger = 0
         <DialogContent>
           <DialogContentText>
             Are you sure you want to delete animal with tag number "{animalToDelete?.tag_number}"? 
-            This action cannot be undone.
+            {animalToDelete?.flock_name && (
+              <><br/><br/>Flock: <strong>{animalToDelete.flock_name}</strong></>
+            )}
+            <br/><br/>
+            <strong>This action cannot be undone.</strong>
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel}>Cancel</Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-            Delete
+            Delete Animal
           </Button>
         </DialogActions>
       </Dialog>

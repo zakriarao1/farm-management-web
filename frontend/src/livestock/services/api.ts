@@ -33,6 +33,8 @@ interface ApiResponse<T> {
   data: T;
   message?: string;
   success?: boolean;
+  error?: string;
+  duplicateId?: number;
 }
 
 // Standalone API request function for livestock only
@@ -57,33 +59,49 @@ export const livestockApiRequest = async <T>(url: string, options: RequestInit =
       throw new Error('Authentication required');
     }
 
+    const responseData = await response.json() as ApiResponse<T>;
+    
     if (!response.ok) {
-      let errorData: { error?: string; message?: string };
-      try {
-        errorData = await response.json() as { error?: string; message?: string };
-      } catch {
-        errorData = { 
-          error: `HTTP ${response.status}: ${response.statusText}`,
-          message: `Route not found: ${fullUrl}`
-        };
+      // ✅ Handle duplicate tag errors specifically
+      if (response.status === 400 && responseData.error?.includes('already exists')) {
+        throw new Error(responseData.error || 'Duplicate tag number found in this flock');
       }
       
-      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      // ✅ Handle database unique constraint violations
+      if (response.status === 400 && (
+          responseData.error?.includes('unique constraint') ||
+          responseData.error?.includes('23505') ||
+          responseData.error?.includes('Duplicate tag')
+      )) {
+        throw new Error(responseData.error || 'This tag number already exists in the selected flock. Please use a unique tag number.');
+      }
+      
+      // Generic error handling
+      throw new Error(responseData.error || responseData.message || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const responseData = await response.json();
-    return responseData as ApiResponse<T>;
+    return responseData;
 
   } catch (error) {
     console.error('Livestock API Request failed:', error);
+    
+    // ✅ Re-throw error with proper message
     if (error instanceof Error) {
+      // Enhance duplicate error messages
+      if (error.message.includes('already exists') || 
+          error.message.includes('Duplicate') || 
+          error.message.includes('unique constraint') ||
+          error.message.includes('23505')) {
+        throw new Error(`Tag number conflict: ${error.message}`);
+      }
       throw error;
     }
+    
     throw new Error('Unknown livestock API error occurred');
   }
 };
 
-// Transformation function for livestock data (handles both old and new field names during transition)
+// Transformation function for livestock data
 const transformLivestockData = (data: any): Livestock => {
   return {
     id: data.id,
@@ -93,8 +111,8 @@ const transformLivestockData = (data: any): Livestock => {
     gender: data.gender || 'UNKNOWN',
     date_of_birth: data.date_of_birth || data.dateOfBirth,
     purchase_date: data.purchase_date || data.purchaseDate,
-    purchase_price: data.purchase_price || data.purchasePrice || 0,
-    current_weight: data.current_weight || data.weight || 0,
+    purchase_price: safeNumber(data.purchase_price || data.purchasePrice),
+    current_weight: safeNumber(data.current_weight || data.weight),
     status: data.status || 'HEALTHY',
     location: data.location || '',
     notes: data.notes || '',
@@ -133,6 +151,36 @@ export const safeNumber = (value: any): number => {
   if (value === null || value === undefined || value === '') return 0;
   const num = Number(value);
   return isNaN(num) ? 0 : num;
+};
+
+// ✅ Helper function to handle duplicate tag validation
+const handleDuplicateTagError = (error: any, tagNumber: string, flockId?: number): never => {
+  if (error instanceof Error) {
+    const errorMessage = error.message;
+    
+    // Check for various duplicate error patterns
+    if (errorMessage.includes('already exists') || 
+        errorMessage.includes('Duplicate') || 
+        errorMessage.includes('unique constraint') ||
+        errorMessage.includes('23505')) {
+      
+      let message = `Tag number "${tagNumber}" is already used `;
+      if (flockId) {
+        message += `in flock ${flockId}`;
+      } else {
+        message += `(no flock specified)`;
+      }
+      
+      // Add helpful suggestion
+      message += `. Please use a different tag number or edit the existing animal.`;
+      
+      throw new Error(message);
+    }
+    
+    throw error;
+  }
+  
+  throw new Error(`Failed to save animal. Please check the tag number "${tagNumber}" is unique.`);
 };
 
 // Financial Summary API
@@ -178,33 +226,107 @@ export const livestockApi = {
   },
 
   create: async (livestockData: CreateLivestockRequest): Promise<ApiResponse<Livestock>> => {
-    // No transformation needed - data is already in correct format
-    const response = await livestockApiRequest<any>('/livestock', {
-      method: 'POST',
-      body: JSON.stringify(livestockData),
-    });
-    return {
-      ...response,
-      data: transformLivestockData(response.data)
-    };
+    try {
+      const response = await livestockApiRequest<any>('/livestock', {
+        method: 'POST',
+        body: JSON.stringify(livestockData),
+      });
+      return {
+        ...response,
+        data: transformLivestockData(response.data)
+      };
+    } catch (error) {
+      // ✅ Handle duplicate tag errors with better messages
+      handleDuplicateTagError(error, livestockData.tag_number, livestockData.flock_id);
+      throw error; // This won't be reached, but keeps TypeScript happy
+    }
   },
 
   update: async (id: number, livestockData: UpdateLivestockRequest): Promise<ApiResponse<Livestock>> => {
-    // No transformation needed - data is already in correct format
-    const response = await livestockApiRequest<any>(`/livestock/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(livestockData),
-    });
-    return {
-      ...response,
-      data: transformLivestockData(response.data)
-    };
+    try {
+      const response = await livestockApiRequest<any>(`/livestock/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(livestockData),
+      });
+      return {
+        ...response,
+        data: transformLivestockData(response.data)
+      };
+    } catch (error) {
+      // ✅ Handle duplicate tag errors during update
+      handleDuplicateTagError(error, livestockData.tag_number || '', livestockData.flock_id);
+      throw error;
+    }
   },
 
   delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
     return livestockApiRequest<{ message: string }>(`/livestock/${id}`, {
       method: 'DELETE',
     });
+  },
+
+  // Check tag uniqueness
+  checkTagUniqueness: async (tagNumber: string, flockId?: number, excludeId?: number): Promise<ApiResponse<{ isUnique: boolean; duplicateId?: number }>> => {
+    try {
+      const params = new URLSearchParams();
+      params.append('tag_number', tagNumber);
+      if (flockId) params.append('flock_id', flockId.toString());
+      if (excludeId) params.append('exclude_id', excludeId.toString());
+      
+      return await livestockApiRequest<{ isUnique: boolean; duplicateId?: number }>(`/livestock/check-tag?${params}`);
+    } catch (error) {
+      // If check endpoint doesn't exist, fall back to manual check
+      const allResponse = await livestockApi.getAll();
+      const duplicates = allResponse.data.filter(animal => 
+        animal.tag_number === tagNumber && 
+        animal.flock_id === flockId &&
+        (!excludeId || animal.id !== excludeId)
+      );
+      
+      return {
+        data: { 
+          isUnique: duplicates.length === 0,
+          duplicateId: duplicates.length > 0 ? duplicates[0].id : undefined 
+        }
+      };
+    }
+  },
+
+  // Get animals with duplicate tags
+  getDuplicates: async (): Promise<ApiResponse<Array<{ flock_id: number; flock_name: string; tag_number: string; animal_ids: number[]; count: number }>>> => {
+    try {
+      return await livestockApiRequest('/livestock/duplicates');
+    } catch (error) {
+      // Fallback: calculate duplicates from all animals
+      const allResponse = await livestockApi.getAll();
+      const tagMap = new Map<string, { flock_id: number; flock_name: string; animal_ids: number[] }>();
+      
+      allResponse.data.forEach(animal => {
+        if (animal.tag_number && animal.flock_id) {
+          const key = `${animal.flock_id}-${animal.tag_number}`;
+          if (!tagMap.has(key)) {
+            tagMap.set(key, { 
+              flock_id: animal.flock_id, 
+              flock_name: animal.flock_name || 'Unknown', 
+              animal_ids: [] 
+            });
+          }
+          tagMap.get(key)!.animal_ids.push(animal.id);
+        }
+      });
+      
+      const duplicates = Array.from(tagMap.entries())
+        .filter(([_, data]) => data.animal_ids.length > 1)
+        .map(([key, data]) => ({
+          flock_id: data.flock_id,
+          flock_name: data.flock_name,
+          tag_number: key.split('-')[1],
+          animal_ids: data.animal_ids,
+          count: data.animal_ids.length
+        }));
+      
+      return { data: duplicates };
+    }
   },
 
   // Sale recording (individual animal sale)

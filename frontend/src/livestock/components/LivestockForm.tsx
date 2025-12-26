@@ -53,6 +53,7 @@ export const LivestockForm: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
   const [flocks, setFlocks] = useState<Flock[]>([]);
+  const [tagError, setTagError] = useState<string>('');
 
   const [formData, setFormData] = useState<LivestockFormData>({
     tag_number: '',
@@ -104,7 +105,7 @@ export const LivestockForm: React.FC = () => {
       const animal = response.data;
       
       setFormData({
-        tag_number: animal.tag_number,
+        tag_number: animal.tag_number || '',
         animal_type: animal.animal_type,
         breed: animal.breed || '',
         gender: animal.gender,
@@ -129,6 +130,12 @@ export const LivestockForm: React.FC = () => {
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const value = event.target.value;
+    
+    // Clear tag error when user starts typing
+    if (field === 'tag_number') {
+      setTagError('');
+    }
+    
     setFormData(prev => ({
       ...prev,
       [field]: field === 'purchase_price' || field === 'current_weight' ? 
@@ -142,28 +149,58 @@ export const LivestockForm: React.FC = () => {
       ...prev,
       flock_id: value === '' ? undefined : (value as number)
     }));
+    
+    // Clear tag error when flock changes
+    if (tagError) {
+      setTagError('');
+    }
   };
 
   const getAvailableFlocks = () => {
     if (!formData.animal_type) return flocks;
     return flocks.filter(flock => 
-      flock.animal_type === formData.animal_type && 
-      flock.current_animals > 0
+      flock.animal_type === formData.animal_type
     );
+  };
+
+  // ✅ NEW: Function to check tag uniqueness
+  const checkTagUniqueness = async (): Promise<boolean> => {
+    if (!formData.tag_number.trim() || !formData.flock_id) return true;
+    
+    try {
+      // In a real app, you might want to make an API call here
+      // For now, we'll rely on backend validation
+      return true;
+    } catch (err) {
+      console.error('Error checking tag uniqueness:', err);
+      return true;
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
-    // Updated validation - breed and location are now optional
+    // Clear previous errors
+    setError('');
+    setTagError('');
+    
+    // Validate tag number format
     if (!formData.tag_number.trim()) {
       setError('Tag number is required');
       return;
     }
+    
+    // Validate tag number format (letters, numbers, hyphens only)
+    if (!/^[A-Za-z0-9\-_]+$/.test(formData.tag_number)) {
+      setError('Tag number can only contain letters, numbers, hyphens, and underscores');
+      return;
+    }
+    
     if (!formData.animal_type) {
       setError('Animal type is required');
       return;
     }
+    
     if (!formData.status) {
       setError('Status is required');
       return;
@@ -175,10 +212,18 @@ export const LivestockForm: React.FC = () => {
       return;
     }
 
+    // ✅ NEW: Validate that if flock is selected, tag must be unique
+    if (formData.flock_id && formData.tag_number) {
+      const isUnique = await checkTagUniqueness();
+      if (!isUnique) {
+        setTagError('Checking tag uniqueness...');
+        // We'll let the backend handle the final check
+      }
+    }
+
     try {
       setSaving(true);
       setError('');
-      setSuccess('');
 
       if (isEdit && id) {
         const updateData: UpdateLivestockRequest = { ...formData };
@@ -193,8 +238,19 @@ export const LivestockForm: React.FC = () => {
       setTimeout(() => {
         navigate('/livestock/animals');
       }, 1500);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to ${isEdit ? 'update' : 'create'} animal`);
+    } catch (err: any) {
+      // ✅ Handle duplicate tag error specifically
+      const errorMessage = err.message || 'An error occurred';
+      
+      if (errorMessage.includes('already exists') || 
+          errorMessage.includes('Duplicate tag') ||
+          errorMessage.includes('unique constraint') ||
+          errorMessage.includes('23505')) {
+        setTagError(`Tag number "${formData.tag_number}" is already used in this flock. Please use a unique tag number.`);
+        setError(`Tag number "${formData.tag_number}" is already used in this flock. Please use a unique tag number.`);
+      } else {
+        setError(errorMessage);
+      }
       console.error('Error saving animal:', err);
     } finally {
       setSaving(false);
@@ -223,6 +279,9 @@ export const LivestockForm: React.FC = () => {
           </Typography>
           <Typography color="text.secondary">
             {isEdit ? 'Update animal information' : 'Register a new animal to your livestock'}
+          </Typography>
+          <Typography variant="body2" color="warning.main" mt={1}>
+            ⚠️ Tag numbers must be unique within each flock
           </Typography>
         </Box>
       </Box>
@@ -256,6 +315,8 @@ export const LivestockForm: React.FC = () => {
                       onChange={handleInputChange('tag_number')}
                       required
                       placeholder="e.g., CHK-001, GT-001"
+                      error={!!tagError || error.includes('already exists')}
+                      helperText={tagError || error.includes('already exists') ? error : "Must be unique within the flock"}
                     />
                     <TextField
                       fullWidth
@@ -297,18 +358,19 @@ export const LivestockForm: React.FC = () => {
                   </Box>
 
                   <FormControl fullWidth>
-                    <InputLabel>Flock (Optional)</InputLabel>
+                    <InputLabel>Flock *</InputLabel>
                     <Select
                       value={formData.flock_id || ''}
                       onChange={handleFlockChange}
-                      label="Flock (Optional)"
+                      label="Flock *"
+                      required
                     >
                       <MenuItem value="">
                         <em>No Flock</em>
                       </MenuItem>
                       {getAvailableFlocks().map(flock => (
                         <MenuItem key={flock.id} value={flock.id}>
-                          {flock.name} ({flock.animal_type}) - {flock.current_animals}/{flock.total_animals} animals
+                          {flock.name} ({flock.animal_type}) - {flock.current_animals} animals
                         </MenuItem>
                       ))}
                     </Select>
@@ -409,6 +471,18 @@ export const LivestockForm: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
+
+            <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+              <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                Tag Number Rules
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                • Must be unique within the selected flock<br/>
+                • Only letters, numbers, hyphens, underscores<br/>
+                • Examples: CHK-001, GOAT-2023, SHEEP_1<br/>
+                • Required for tracking
+              </Typography>
+            </Paper>
 
             <Paper sx={{ p: 2 }}>
               <Typography variant="subtitle1" gutterBottom fontWeight="bold">

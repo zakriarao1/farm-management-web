@@ -61,7 +61,8 @@ exports.handler = async (event, context) => {
         console.log('🔍 Extracted values:', {
           tag_number,
           animal_type,
-          status
+          status,
+          flock_id
         });
 
         // Validate required fields
@@ -87,7 +88,27 @@ exports.handler = async (event, context) => {
           };
         }
 
-        // Insert using your actual column names: tag_number and animal_type
+        // ✅ NEW: Check for duplicate tag number in the same flock
+        if (tag_number && flock_id) {
+          const duplicateCheck = await pool.query(
+            'SELECT id, tag_number FROM livestock WHERE tag_number = $1 AND flock_id = $2',
+            [tag_number, flock_id]
+          );
+          
+          if (duplicateCheck.rows.length > 0) {
+            console.log('❌ Duplicate found:', duplicateCheck.rows[0]);
+            return {
+              statusCode: 400,
+              headers,
+              body: JSON.stringify({
+                error: `Tag number "${tag_number}" already exists in this flock (Animal ID: ${duplicateCheck.rows[0].id})`,
+                duplicateId: duplicateCheck.rows[0].id
+              })
+            };
+          }
+        }
+
+        // Insert the animal
         const insertResult = await pool.query(
           `INSERT INTO livestock (
             tag_number, animal_type, breed, gender, date_of_birth, purchase_date,
@@ -95,8 +116,8 @@ exports.handler = async (event, context) => {
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
            RETURNING *`,
           [
-            tag_number || null,  // This can be NULL now
-            animal_type,         // This is required
+            tag_number || null,
+            animal_type,
             breed || '', 
             gender || 'UNKNOWN', 
             date_of_birth || null, 
@@ -127,6 +148,27 @@ exports.handler = async (event, context) => {
         }
 
         const updateData = JSON.parse(event.body);
+        
+        // ✅ NEW: Check for duplicate tag number when updating (excluding current animal)
+        if (updateData.tag_number && updateData.flock_id) {
+          const duplicateCheck = await pool.query(
+            'SELECT id, tag_number FROM livestock WHERE tag_number = $1 AND flock_id = $2 AND id != $3',
+            [updateData.tag_number, updateData.flock_id, id]
+          );
+          
+          if (duplicateCheck.rows.length > 0) {
+            console.log('❌ Duplicate found during update:', duplicateCheck.rows[0]);
+            return {
+              statusCode: 400,
+              headers,
+              body: JSON.stringify({
+                error: `Tag number "${updateData.tag_number}" already exists in this flock (Animal ID: ${duplicateCheck.rows[0].id})`,
+                duplicateId: duplicateCheck.rows[0].id
+              })
+            };
+          }
+        }
+
         const updateFields = [];
         const updateValues = [];
         let paramCount = 1;
@@ -202,11 +244,26 @@ exports.handler = async (event, context) => {
     }
   } catch (error) {
     console.error('❌ Livestock API Error:', error);
+    
+    // ✅ Handle duplicate key violation from PostgreSQL
+    if (error.code === '23505' && error.constraint === 'unique_tag_per_flock') {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Duplicate tag number in this flock. This tag number already exists.',
+          details: error.detail
+        })
+      };
+    }
+    
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
-        error: 'Internal server error: ' + error.message
+        error: 'Internal server error: ' + error.message,
+        code: error.code,
+        constraint: error.constraint
       })
     };
   }
