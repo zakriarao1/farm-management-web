@@ -5,6 +5,30 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// Helper function to clean date values
+const cleanDateValue = (dateValue) => {
+  if (!dateValue || dateValue === '' || dateValue === 'null' || dateValue === 'undefined') {
+    return null;
+  }
+  
+  // If it's already a valid date string, return it
+  if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
+    return dateValue;
+  }
+  
+  // Try to parse other date formats
+  try {
+    const date = new Date(dateValue);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  } catch (e) {
+    console.warn('⚠️ Could not parse date:', dateValue, e.message);
+  }
+  
+  return null;
+};
+
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -62,7 +86,9 @@ exports.handler = async (event, context) => {
           tag_number,
           animal_type,
           status,
-          flock_id
+          flock_id,
+          date_of_birth,
+          purchase_date
         });
 
         // Validate required fields
@@ -88,6 +114,15 @@ exports.handler = async (event, context) => {
           };
         }
 
+        // ✅ Clean date values
+        const cleanedDateOfBirth = cleanDateValue(date_of_birth);
+        const cleanedPurchaseDate = purchase_date ? cleanDateValue(purchase_date) : new Date().toISOString().split('T')[0];
+
+        console.log('🗓️ Cleaned dates:', {
+          date_of_birth: cleanedDateOfBirth,
+          purchase_date: cleanedPurchaseDate
+        });
+
         // ✅ NEW: Check for duplicate tag number in the same flock
         if (tag_number && flock_id) {
           const duplicateCheck = await pool.query(
@@ -108,7 +143,7 @@ exports.handler = async (event, context) => {
           }
         }
 
-        // Insert the animal
+        // Insert the animal with cleaned dates
         const insertResult = await pool.query(
           `INSERT INTO livestock (
             tag_number, animal_type, breed, gender, date_of_birth, purchase_date,
@@ -120,8 +155,8 @@ exports.handler = async (event, context) => {
             animal_type,
             breed || '', 
             gender || 'UNKNOWN', 
-            date_of_birth || null, 
-            purchase_date || new Date().toISOString().split('T')[0],
+            cleanedDateOfBirth,  // ✅ Use cleaned date
+            cleanedPurchaseDate,  // ✅ Use cleaned date
             purchase_price || 0, 
             current_weight || 0, 
             status, 
@@ -148,6 +183,21 @@ exports.handler = async (event, context) => {
         }
 
         const updateData = JSON.parse(event.body);
+        
+        console.log('✏️ UPDATE Request data:', JSON.stringify(updateData, null, 2));
+        
+        // ✅ Clean date values for update
+        if ('date_of_birth' in updateData) {
+          updateData.date_of_birth = cleanDateValue(updateData.date_of_birth);
+        }
+        if ('purchase_date' in updateData) {
+          updateData.purchase_date = cleanDateValue(updateData.purchase_date);
+        }
+
+        console.log('🗓️ Cleaned update dates:', {
+          date_of_birth: updateData.date_of_birth,
+          purchase_date: updateData.purchase_date
+        });
         
         // ✅ NEW: Check for duplicate tag number when updating (excluding current animal)
         if (updateData.tag_number && updateData.flock_id) {
@@ -192,8 +242,10 @@ exports.handler = async (event, context) => {
           if (updateData[key] !== undefined && fieldMap[key]) {
             updateFields.push(`${fieldMap[key]} = $${paramCount}`);
             
-            // Handle NULL values for tag_number
-            if (key === 'tag_number' && (updateData[key] === '' || updateData[key] === null)) {
+            // Handle NULL values for various fields
+            if ((key === 'tag_number' && (updateData[key] === '' || updateData[key] === null)) ||
+                (key === 'date_of_birth' && updateData[key] === null) ||
+                (key === 'purchase_date' && updateData[key] === null)) {
               updateValues.push(null);
             } else {
               updateValues.push(updateData[key]);
@@ -210,16 +262,24 @@ exports.handler = async (event, context) => {
         updateValues.push(id);
         const updateQuery = `UPDATE livestock SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${paramCount} RETURNING *`;
         
+        console.log('📝 Update query:', updateQuery);
+        console.log('🔢 Update values:', updateValues);
+        
         const updateResult = await pool.query(updateQuery, updateValues);
         
         if (updateResult.rows.length === 0) {
           return { statusCode: 404, headers, body: JSON.stringify({ error: 'Livestock not found' }) };
         }
 
+        console.log('✅ Animal updated successfully:', updateResult.rows[0].id);
+
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ data: updateResult.rows[0] })
+          body: JSON.stringify({ 
+            data: updateResult.rows[0],
+            message: 'Animal updated successfully'
+          })
         };
 
       case 'DELETE':
@@ -236,7 +296,10 @@ exports.handler = async (event, context) => {
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ message: 'Livestock deleted successfully' })
+          body: JSON.stringify({ 
+            message: 'Livestock deleted successfully',
+            deletedId: id
+          })
         };
 
       default:
@@ -245,25 +308,76 @@ exports.handler = async (event, context) => {
   } catch (error) {
     console.error('❌ Livestock API Error:', error);
     
-    // ✅ Handle duplicate key violation from PostgreSQL
-    if (error.code === '23505' && error.constraint === 'unique_tag_per_flock') {
+    // ✅ Handle date format errors
+    if (error.message && error.message.includes('invalid input syntax for type date')) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({ 
-          error: 'Duplicate tag number in this flock. This tag number already exists.',
+          error: 'Invalid date format. Please use YYYY-MM-DD format or leave the date empty.',
+          details: error.message
+        })
+      };
+    }
+    
+    // ✅ Handle duplicate key violation from PostgreSQL
+    if (error.code === '23505') {
+      let errorMessage = 'Duplicate entry detected. ';
+      
+      if (error.constraint === 'unique_tag_per_flock') {
+        errorMessage = 'This tag number already exists in the selected flock. Please use a unique tag number.';
+      } else if (error.detail) {
+        errorMessage += error.detail;
+      }
+      
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          error: errorMessage,
+          code: error.code,
+          constraint: error.constraint,
           details: error.detail
         })
       };
     }
     
+    // ✅ Handle foreign key constraint violations
+    if (error.code === '23503') {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Invalid reference. The specified flock does not exist.',
+          code: error.code,
+          details: error.message
+        })
+      };
+    }
+    
+    // ✅ Handle not null constraint violations
+    if (error.code === '23502') {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Required field is missing. Please fill all required fields.',
+          code: error.code,
+          details: error.message
+        })
+      };
+    }
+    
+    // ✅ Generic error handling
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
-        error: 'Internal server error: ' + error.message,
+        error: 'Internal server error',
+        message: error.message,
         code: error.code,
-        constraint: error.constraint
+        constraint: error.constraint,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       })
     };
   }
