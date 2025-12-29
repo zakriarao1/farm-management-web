@@ -26,12 +26,14 @@ import {
 import { AnalyticsReport } from './AnalyticsReport';
 import { FinancialReport } from './FinancialReport';
 import { CropPerformanceReport } from './CropPerformanceReport';
-import { EmailReportDialog } from './EmailReportDialog';
-import { DateRangeFilter } from './DateRangeFilter';
-import { ComparativeAnalysis } from './ComparativeAnalysis';
-import { useRealTimeData } from '../hooks/useRealTimeData';
-import { exportToPDF, exportToCSV, exportToExcel } from '../utils/exportUtils';
+// Remove these imports or create the components
+// import { EmailReportDialog } from './EmailReportDialog';
+// import { DateRangeFilter } from './DateRangeFilter';
+// import { ComparativeAnalysis } from './ComparativeAnalysis';
+// import { useRealTimeData } from '../hooks/useRealTimeData';
+// import { exportToPDF, exportToCSV, exportToExcel } from '../utils/exportUtils';
 
+// Temporary interfaces for missing components
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
@@ -52,6 +54,23 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other })
   );
 };
 
+// Define a simpler analytics data structure
+interface AnalyticsSummary {
+  total_crops?: number;
+  active_crops?: number;
+  total_expenses?: number;
+  projected_revenue?: number;
+  [key: string]: any;
+}
+
+interface AnalyticsData {
+  summary?: AnalyticsSummary;
+  cropDistribution?: any[];
+  statusDistribution?: any[];
+  monthlyExpenses?: any[];
+  topCropsByExpenses?: any[];
+}
+
 export const ReportsDashboard: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
@@ -61,18 +80,74 @@ export const ReportsDashboard: React.FC = () => {
     end: null,
   });
   
-  const { data: analyticsData, loading, error, refreshData } = useRealTimeData(60000); // Update every minute
+  // Temporarily use static data instead of useRealTimeData hook
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load data on component mount
+  React.useEffect(() => {
+    loadAnalyticsData();
+  }, []);
+
+  const loadAnalyticsData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // TODO: Replace with actual API call
+      // const response = await analyticsApi.getSummary();
+      // setAnalyticsData(response.data);
+      
+      // Mock data for now
+      const mockData: AnalyticsData = {
+        summary: {
+          total_crops: 12,
+          active_crops: 8,
+          total_expenses: 125000,
+          projected_revenue: 287000,
+        },
+        cropDistribution: [
+          { type: 'Wheat', count: 4, total_area: 20 },
+          { type: 'Rice', count: 3, total_area: 15 },
+          { type: 'Cotton', count: 2, total_area: 10 },
+          { type: 'Sugarcane', count: 2, total_area: 8 },
+          { type: 'Other', count: 1, total_area: 5 }
+        ],
+        statusDistribution: [
+          { status: 'PLANTED', count: 3 },
+          { status: 'GROWING', count: 5 },
+          { status: 'READY_FOR_HARVEST', count: 2 },
+          { status: 'HARVESTED', count: 2 }
+        ],
+        monthlyExpenses: [
+          { month: 'Jan', total_expenses: 15000, expense_count: 8 },
+          { month: 'Feb', total_expenses: 18000, expense_count: 10 },
+          { month: 'Mar', total_expenses: 22000, expense_count: 12 },
+          { month: 'Apr', total_expenses: 25000, expense_count: 15 },
+          { month: 'May', total_expenses: 28000, expense_count: 18 },
+          { month: 'Jun', total_expenses: 27000, expense_count: 16 }
+        ],
+        topCropsByExpenses: [
+          { name: 'Wheat', type: 'Grain', total_expenses: 45000, expense_count: 25 },
+          { name: 'Rice', type: 'Grain', total_expenses: 38000, expense_count: 22 },
+          { name: 'Cotton', type: 'Cash Crop', total_expenses: 22000, expense_count: 15 },
+          { name: 'Sugarcane', type: 'Cash Crop', total_expenses: 20000, expense_count: 12 }
+        ]
+      };
+      
+      setAnalyticsData(mockData);
+      
+    } catch (err) {
+      console.error('Failed to load analytics data:', err);
+      setError('Failed to load analytics data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
-  };
-
-  const handleExportReport = async () => {
-    try {
-      await exportToPDF('reports-content', `farm-report-${new Date().toISOString().split('T')[0]}.pdf`);
-    } catch (err) {
-      console.error('Export failed:', err);
-    }
   };
 
   const handleExportClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -85,38 +160,133 @@ export const ReportsDashboard: React.FC = () => {
 
   const handleExportPDF = async () => {
     handleExportClose();
-    await handleExportReport();
+    try {
+      // TODO: Implement PDF export
+      console.log('Exporting to PDF...');
+      alert('PDF export functionality will be implemented soon.');
+    } catch (err) {
+      console.error('PDF export failed:', err);
+    }
   };
 
   const handleExportCSV = () => {
     handleExportClose();
-    if (analyticsData) {
-      exportToCSV(analyticsData, `farm-report-${new Date().toISOString().split('T')[0]}.csv`);
+    try {
+      // TODO: Implement CSV export
+      console.log('Exporting to CSV...');
+      alert('CSV export functionality will be implemented soon.');
+    } catch (err) {
+      console.error('CSV export failed:', err);
     }
   };
 
   const handleExportExcel = () => {
     handleExportClose();
-    if (analyticsData) {
-      exportToExcel(analyticsData, `farm-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+    try {
+      // TODO: Implement Excel export
+      console.log('Exporting to Excel...');
+      alert('Excel export functionality will be implemented soon.');
+    } catch (err) {
+      console.error('Excel export failed:', err);
     }
   };
 
   const handleDateRangeChange = (start: Date | null, end: Date | null) => {
     setDateRange({ start, end });
-    // Here you would typically refetch data with the new date range
     console.log('Date range changed:', { start, end });
+    // TODO: Implement date range filtering
   };
 
-  // Mock comparative data - replace with actual data from your API
+  // Simple DateRangeFilter component
+  const DateRangeFilter: React.FC<{ onDateRangeChange: (start: Date | null, end: Date | null) => void }> = ({ onDateRangeChange }) => {
+    return (
+      <Box display="flex" gap={2} alignItems="center">
+        <Typography variant="body2">Date Range:</Typography>
+        <input 
+          type="date" 
+          onChange={(e) => onDateRangeChange(e.target.value ? new Date(e.target.value) : null, dateRange.end)}
+          style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+        />
+        <Typography variant="body2">to</Typography>
+        <input 
+          type="date" 
+          onChange={(e) => onDateRangeChange(dateRange.start, e.target.value ? new Date(e.target.value) : null)}
+          style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+        />
+      </Box>
+    );
+  };
+
+  // Simple ComparativeAnalysis component
+  const ComparativeAnalysis: React.FC<{
+    title: string;
+    data: Array<{ metric: string; current: number; previous: number; unit: string; isCurrency?: boolean }>;
+    currentPeriod: string;
+    previousPeriod: string;
+  }> = ({ title, data, currentPeriod, previousPeriod }) => {
+    return (
+      <Card>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            {title}
+          </Typography>
+          {data.map((item, index) => {
+            const change = item.current - item.previous;
+            const changePercent = item.previous > 0 ? ((change / item.previous) * 100).toFixed(1) : '0.0';
+            const isPositive = change >= 0;
+            
+            return (
+              <Box key={index} display="flex" justifyContent="space-between" alignItems="center" py={1}>
+                <Typography variant="body2" sx={{ flex: 2 }}>
+                  {item.metric}
+                </Typography>
+                <Typography variant="body2" sx={{ flex: 1, textAlign: 'right' }}>
+                  {item.isCurrency ? 'Rs ' : ''}{item.current.toLocaleString()} {item.unit}
+                </Typography>
+                <Typography variant="body2" sx={{ flex: 1, textAlign: 'right' }}>
+                  {item.isCurrency ? 'Rs ' : ''}{item.previous.toLocaleString()} {item.unit}
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    flex: 1, 
+                    textAlign: 'right',
+                    color: isPositive ? 'success.main' : 'error.main'
+                  }}
+                >
+                  {isPositive ? '+' : ''}{changePercent}%
+                </Typography>
+              </Box>
+            );
+          })}
+          <Box display="flex" justifyContent="space-between" mt={2} pt={2} borderTop={1} borderColor="divider">
+            <Typography variant="caption" color="text.secondary" sx={{ flex: 2 }}>
+              Metric
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'right' }}>
+              {currentPeriod}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'right' }}>
+              {previousPeriod}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'right' }}>
+              Change
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Mock comparative data
   const comparativeData = [
-    { metric: 'Total Crops', current: 45, previous: 38, unit: '' },
-    { metric: 'Active Crops', current: 32, previous: 28, unit: '' },
-    { metric: 'Total Expenses', current: 12500, previous: 9800, unit: 'Rs', isCurrency: true },
-    { metric: 'Projected Revenue', current: 28700, previous: 23400, unit: 'Rs', isCurrency: true },
+    { metric: 'Total Crops', current: 12, previous: 10, unit: '' },
+    { metric: 'Active Crops', current: 8, previous: 7, unit: '' },
+    { metric: 'Total Expenses', current: 125000, previous: 98000, unit: '', isCurrency: true },
+    { metric: 'Projected Revenue', current: 287000, previous: 234000, unit: '', isCurrency: true },
     { metric: 'Average Yield', current: 4500, previous: 4200, unit: 'kg' },
-    { metric: 'Expense per Crop', current: 278, previous: 258, unit: 'Rs', isCurrency: true },
-    { metric: 'Revenue per Acre', current: 2733, previous: 2550, unit: 'Rs', isCurrency: true },
+    { metric: 'Expense per Crop', current: 10416, previous: 9800, unit: '', isCurrency: true },
+    { metric: 'Revenue per Acre', current: 14350, previous: 13000, unit: '', isCurrency: true },
   ];
 
   if (loading && !analyticsData) {
@@ -140,7 +310,7 @@ export const ReportsDashboard: React.FC = () => {
           {/* Refresh Button */}
           <Button
             variant="outlined"
-            onClick={refreshData}
+            onClick={loadAnalyticsData}
             disabled={loading}
             startIcon={loading ? <CircularProgress size={20} /> : <RefreshIcon />}
           >
@@ -266,8 +436,8 @@ export const ReportsDashboard: React.FC = () => {
           <ComparativeAnalysis
             title="Performance Comparison"
             data={comparativeData}
-            currentPeriod="Current Month"
-            previousPeriod="Previous Month"
+            currentPeriod="Current Period"
+            previousPeriod="Previous Period"
           />
         </Box>
       )}
@@ -295,13 +465,57 @@ export const ReportsDashboard: React.FC = () => {
         </TabPanel>
       </Card>
 
-      {/* Email Report Dialog */}
-      <EmailReportDialog
-        open={emailDialogOpen}
-        onClose={() => setEmailDialogOpen(false)}
-        reportData={analyticsData}
-        reportType="analytics"
-      />
+      {/* Simple Email Report Dialog */}
+      {emailDialogOpen && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1300,
+          }}
+          onClick={() => setEmailDialogOpen(false)}
+        >
+          <Card
+            sx={{ 
+              width: '400px', 
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Email Report
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                This feature will be implemented soon. Report will be sent to your registered email.
+              </Typography>
+              <Box display="flex" justifyContent="flex-end" gap={2}>
+                <Button onClick={() => setEmailDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="contained" 
+                  onClick={() => {
+                    alert('Email report functionality will be implemented soon.');
+                    setEmailDialogOpen(false);
+                  }}
+                >
+                  Send Report
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
+      )}
     </Box>
   );
 };
