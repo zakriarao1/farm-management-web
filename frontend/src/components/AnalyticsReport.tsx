@@ -4,10 +4,15 @@ import React from 'react';
 import { Box, Typography, Card, CardContent } from '@mui/material';
 import { PieChart } from './ReportCharts/PieChart';
 import { BarChart } from './ReportCharts/BarChart';
-import type { AnalyticsData } from '../services/reportApi';
+import type { 
+  AnalyticsData, 
+  CropDistribution, 
+  StatusDistribution, 
+  MonthlyExpense 
+} from '../types'; // Use your types
 
 interface AnalyticsReportProps {
-  data: AnalyticsData | null;
+  data: AnalyticsData; // Remove | null since cropDistribution is required
   crops?: Array<{
     id: string;
     name: string;
@@ -17,20 +22,12 @@ interface AnalyticsReportProps {
 }
 
 export const AnalyticsReport: React.FC<AnalyticsReportProps> = ({ data, crops = [] }) => {
-  if (!data) {
-    return (
-      <Typography color="text.secondary" textAlign="center" py={4}>
-        No analytics data available
-      </Typography>
-    );
-  }
-
-  // Prepare chart data
-  const cropDistributionChart = data.cropDistribution ? {
-    labels: data.cropDistribution.map(item => item.type),
+  // Prepare chart data - cropDistribution is guaranteed to exist
+  const cropDistributionChart = data.cropDistribution.length > 0 ? {
+    labels: data.cropDistribution.map((item: CropDistribution) => item.type),
     datasets: [
       {
-        data: data.cropDistribution.map(item => item.count),
+        data: data.cropDistribution.map((item: CropDistribution) => item.count),
         backgroundColor: [
           '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
           '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
@@ -44,12 +41,14 @@ export const AnalyticsReport: React.FC<AnalyticsReportProps> = ({ data, crops = 
     ],
   } : null;
 
-  const statusDistributionChart = data.statusDistribution ? {
-    labels: data.statusDistribution.map(item => item.status.replace(/_/g, ' ')),
+  const statusDistributionChart = data.statusDistribution && data.statusDistribution.length > 0 ? {
+    labels: data.statusDistribution.map((item: StatusDistribution) => 
+      item.status?.replace(/_/g, ' ') || 'Unknown'
+    ),
     datasets: [
       {
         label: 'Number of Crops',
-        data: data.statusDistribution.map(item => item.count),
+        data: data.statusDistribution.map((item: StatusDistribution) => item.count),
         backgroundColor: 'rgba(54, 162, 235, 0.6)',
         borderColor: 'rgba(54, 162, 235, 1)',
         borderWidth: 1,
@@ -57,17 +56,21 @@ export const AnalyticsReport: React.FC<AnalyticsReportProps> = ({ data, crops = 
     ],
   } : null;
 
-  const monthlyExpensesChart = data.monthlyExpenses ? {
-    labels: data.monthlyExpenses.map(item => 
-      new Date(item.month + '-01').toLocaleDateString('en-US', { 
-        month: 'short', 
-        year: 'numeric' 
-      })
-    ),
+  const monthlyExpensesChart = data.monthlyExpenses && data.monthlyExpenses.length > 0 ? {
+    labels: data.monthlyExpenses.map((item: MonthlyExpense) => {
+      try {
+        return new Date(item.month + '-01').toLocaleDateString('en-US', { 
+          month: 'short', 
+          year: 'numeric' 
+        });
+      } catch {
+        return item.month;
+      }
+    }),
     datasets: [
       {
         label: 'Monthly Expenses',
-        data: data.monthlyExpenses.map(item => item.total_expenses),
+        data: data.monthlyExpenses.map((item: MonthlyExpense) => item.total_expenses || 0),
         backgroundColor: 'rgba(255, 99, 132, 0.6)',
         borderColor: 'rgba(255, 99, 132, 1)',
         borderWidth: 1,
@@ -91,102 +94,112 @@ export const AnalyticsReport: React.FC<AnalyticsReportProps> = ({ data, crops = 
         Farm Overview Analytics
       </Typography>
 
-      <Box display="flex" gap={3} sx={{ flexWrap: 'wrap', mb: 3 }}>
-        {/* Crop Distribution Chart */}
-        {cropDistributionChart && (
-          <Box sx={{ flex: '1 1 400px', minWidth: '300px' }}>
-            <PieChart 
-              title="Crop Distribution" 
-              data={cropDistributionChart} 
-            />
+      {data.cropDistribution.length === 0 ? (
+        <Typography color="text.secondary" textAlign="center" py={4}>
+          No crop data available for analytics
+        </Typography>
+      ) : (
+        <>
+          <Box display="flex" gap={3} sx={{ flexWrap: 'wrap', mb: 3 }}>
+            {/* Crop Distribution Chart */}
+            {cropDistributionChart && (
+              <Box sx={{ flex: '1 1 400px', minWidth: '300px' }}>
+                <PieChart 
+                  title="Crop Distribution" 
+                  data={cropDistributionChart} 
+                />
+              </Box>
+            )}
+
+            {/* Status Distribution Chart */}
+            {statusDistributionChart && (
+              <Box sx={{ flex: '1 1 400px', minWidth: '300px' }}>
+                <BarChart 
+                  title="Crop Status Distribution" 
+                  data={statusDistributionChart} 
+                />
+              </Box>
+            )}
           </Box>
-        )}
 
-        {/* Status Distribution Chart */}
-        {statusDistributionChart && (
-          <Box sx={{ flex: '1 1 400px', minWidth: '300px' }}>
-            <BarChart 
-              title="Crop Status Distribution" 
-              data={statusDistributionChart} 
-            />
-          </Box>
-        )}
-      </Box>
+          {/* Monthly Expenses Chart */}
+          {monthlyExpensesChart && (
+            <Box sx={{ mb: 3 }}>
+              <BarChart 
+                title="Monthly Expenses Trend" 
+                data={monthlyExpensesChart} 
+              />
+            </Box>
+          )}
 
-      {/* Monthly Expenses Chart */}
-      {monthlyExpensesChart && (
-        <Box sx={{ mb: 3 }}>
-          <BarChart 
-            title="Monthly Expenses Trend" 
-            data={monthlyExpensesChart} 
-          />
-        </Box>
-      )}
-
-      {/* Yield Performance Section */}
-      {yieldData.length > 0 && (
-        <Card sx={{ mt: 3, mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Yield Performance
-            </Typography>
-            {yieldData.map((crop, index) => (
-              <Box 
-                key={index} 
-                sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  py: 1,
-                  borderBottom: index < yieldData.length - 1 ? '1px solid' : 'none',
-                  borderColor: 'divider'
-                }}
-              >
-                <Typography variant="body2" fontWeight="medium">
-                  {crop.name}
+          {/* Yield Performance Section */}
+          {yieldData.length > 0 && (
+            <Card sx={{ mt: 3, mb: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Yield Performance
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Yield: {crop.yield.toLocaleString()} units
+                {yieldData.map((crop, index) => (
+                  <Box 
+                    key={index} 
+                    sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      py: 1,
+                      borderBottom: index < yieldData.length - 1 ? '1px solid' : 'none',
+                      borderColor: 'divider'
+                    }}
+                  >
+                    <Typography variant="body2" fontWeight="medium">
+                      {crop.name}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Yield: {crop.yield.toLocaleString()} units
+                      </Typography>
+                      {crop.area > 0 && (
+                        <Typography variant="body2" color="primary">
+                          {crop.yieldPerArea.toFixed(2)}/area
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                ))}
+                <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    Total Yield: {yieldData.reduce((sum, crop) => sum + crop.yield, 0).toLocaleString()} units
                   </Typography>
-                  {crop.area > 0 && (
-                    <Typography variant="body2" color="primary">
-                      {crop.yieldPerArea.toFixed(2)}/area
+                  <Typography variant="caption" color="text.secondary">
+                    Shows crops with yield data after harvest.
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Additional Stats Cards */}
+          <Box display="flex" gap={3} sx={{ flexWrap: 'wrap' }}>
+            {data.cropDistribution.map((crop: CropDistribution, index: number) => (
+              <Card key={`${crop.type}-${index}`} sx={{ flex: '1 1 200px', minWidth: '150px' }}>
+                <CardContent>
+                  <Typography variant="h6" color="primary">
+                    {crop.count}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {crop.type} Crops
+                  </Typography>
+                  {crop.total_area > 0 && (
+                    <Typography variant="caption" color="text.secondary">
+                      {crop.total_area} acres
                     </Typography>
                   )}
-                </Box>
-              </Box>
+                </CardContent>
+              </Card>
             ))}
-            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-              <Typography variant="body2" fontWeight="bold">
-                Total Yield: {yieldData.reduce((sum, crop) => sum + crop.yield, 0).toLocaleString()} units
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Shows crops with yield data after harvest.
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
+          </Box>
+        </>
       )}
-
-      {/* Additional Stats Cards */}
-      <Box display="flex" gap={3} sx={{ flexWrap: 'wrap' }}>
-        {data.cropDistribution && data.cropDistribution.map((crop) => (
-          <Card key={crop.type} sx={{ flex: '1 1 200px', minWidth: '150px' }}>
-            <CardContent>
-              <Typography variant="h6" color="primary">
-                {crop.count}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {crop.type} Crops
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {crop.total_area} acres
-              </Typography>
-            </CardContent>
-          </Card>
-        ))}
-      </Box>
     </Box>
   );
 };

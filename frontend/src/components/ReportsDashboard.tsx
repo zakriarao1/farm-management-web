@@ -1,6 +1,6 @@
 // frontend/components/ReportsDashboard.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -26,14 +26,15 @@ import {
 import { AnalyticsReport } from './AnalyticsReport';
 import { FinancialReport } from './FinancialReport';
 import { CropPerformanceReport } from './CropPerformanceReport';
-// Remove these imports or create the components
-// import { EmailReportDialog } from './EmailReportDialog';
-// import { DateRangeFilter } from './DateRangeFilter';
-// import { ComparativeAnalysis } from './ComparativeAnalysis';
-// import { useRealTimeData } from '../hooks/useRealTimeData';
-// import { exportToPDF, exportToCSV, exportToExcel } from '../utils/exportUtils';
+import type { 
+  AnalyticsData as AnalyticsDataType,
+  AnalyticsSummary,
+  CropDistribution,
+  StatusDistribution,
+  MonthlyExpense,
+  TopCropByExpense
+} from '../types';
 
-// Temporary interfaces for missing components
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
@@ -54,23 +55,6 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other })
   );
 };
 
-// Define a simpler analytics data structure
-interface AnalyticsSummary {
-  total_crops?: number;
-  active_crops?: number;
-  total_expenses?: number;
-  projected_revenue?: number;
-  [key: string]: any;
-}
-
-interface AnalyticsData {
-  summary?: AnalyticsSummary;
-  cropDistribution?: any[];
-  statusDistribution?: any[];
-  monthlyExpenses?: any[];
-  topCropsByExpenses?: any[];
-}
-
 export const ReportsDashboard: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
@@ -80,13 +64,12 @@ export const ReportsDashboard: React.FC = () => {
     end: null,
   });
   
-  // Temporarily use static data instead of useRealTimeData hook
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsDataType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Load data on component mount
-  React.useEffect(() => {
+  useEffect(() => {
     loadAnalyticsData();
   }, []);
 
@@ -99,14 +82,19 @@ export const ReportsDashboard: React.FC = () => {
       // const response = await analyticsApi.getSummary();
       // setAnalyticsData(response.data);
       
-      // Mock data for now
-      const mockData: AnalyticsData = {
+      // Mock data for now - matches AnalyticsData interface
+      const mockData: AnalyticsDataType = {
         summary: {
           total_crops: 12,
           active_crops: 8,
           total_expenses: 125000,
           projected_revenue: 287000,
+          avg_expected_yield: 4200,
+          avg_actual_yield: 4500,
+          harvested_crops_count: 4,
+          total_actual_yield: 18000,
         },
+        // REQUIRED: cropDistribution array (can be empty but must exist)
         cropDistribution: [
           { type: 'Wheat', count: 4, total_area: 20 },
           { type: 'Rice', count: 3, total_area: 15 },
@@ -161,7 +149,6 @@ export const ReportsDashboard: React.FC = () => {
   const handleExportPDF = async () => {
     handleExportClose();
     try {
-      // TODO: Implement PDF export
       console.log('Exporting to PDF...');
       alert('PDF export functionality will be implemented soon.');
     } catch (err) {
@@ -172,7 +159,6 @@ export const ReportsDashboard: React.FC = () => {
   const handleExportCSV = () => {
     handleExportClose();
     try {
-      // TODO: Implement CSV export
       console.log('Exporting to CSV...');
       alert('CSV export functionality will be implemented soon.');
     } catch (err) {
@@ -183,7 +169,6 @@ export const ReportsDashboard: React.FC = () => {
   const handleExportExcel = () => {
     handleExportClose();
     try {
-      // TODO: Implement Excel export
       console.log('Exporting to Excel...');
       alert('Excel export functionality will be implemented soon.');
     } catch (err) {
@@ -194,7 +179,6 @@ export const ReportsDashboard: React.FC = () => {
   const handleDateRangeChange = (start: Date | null, end: Date | null) => {
     setDateRange({ start, end });
     console.log('Date range changed:', { start, end });
-    // TODO: Implement date range filtering
   };
 
   // Simple DateRangeFilter component
@@ -452,8 +436,20 @@ export const ReportsDashboard: React.FC = () => {
           </Tabs>
         </Box>
 
+        {/* FIXED: TabPanel for AnalyticsReport with proper data structure */}
         <TabPanel value={tabValue} index={0}>
-          <AnalyticsReport data={analyticsData} />
+          {analyticsData ? (
+            <AnalyticsReport
+              data={analyticsData} // Now passes the complete AnalyticsData object
+              crops={[]} // Optional crops data
+            />
+          ) : (
+            <Box textAlign="center" py={4}>
+              <Typography color="text.secondary">
+                Loading analytics data...
+              </Typography>
+            </Box>
+          )}
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
