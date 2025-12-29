@@ -18,7 +18,6 @@ import {
   Analytics as AnalyticsIcon,
   AccountBalance as FinanceIcon,
   TrendingUp as PerformanceIcon,
-  LocalShipping as HarvestIcon,
   Download as DownloadIcon,
   Email as EmailIcon,
   Refresh as RefreshIcon,
@@ -27,15 +26,22 @@ import {
 import { AnalyticsReport } from './AnalyticsReport';
 import { FinancialReport } from './FinancialReport';
 import { CropPerformanceReport } from './CropPerformanceReport';
-import { reportApi } from '../services/reportApi';
-import type { 
-  AnalyticsData as AnalyticsDataType,
-  AnalyticsSummary,
-  CropDistribution,
-  StatusDistribution,
-  MonthlyExpense,
-  TopCropByExpense
-} from '../types';
+import type { AnalyticsData as AnalyticsDataType } from '../types';
+
+// Define a simpler interface for our component
+interface SimplifiedAnalyticsData {
+  summary?: {
+    total_crops?: number;
+    active_crops?: number;
+    total_expenses?: number;
+    projected_revenue?: number;
+    [key: string]: any;
+  };
+  cropDistribution?: any[];
+  statusDistribution?: any[];
+  monthlyExpenses?: any[];
+  topCropsByExpenses?: any[];
+}
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -66,68 +72,70 @@ export const ReportsDashboard: React.FC = () => {
     end: null,
   });
   
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsDataType | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<SimplifiedAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Load real data from API
-  const loadAnalyticsData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      console.log('📊 Fetching real analytics data from reportApi...');
-      
-      // Convert dateRange to string format for API
-      const dateRangeParams = {
-        startDate: dateRange.start ? dateRange.start.toISOString().split('T')[0] : undefined,
-        endDate: dateRange.end ? dateRange.end.toISOString().split('T')[0] : undefined
-      };
-      
-      const response = await reportApi.getAnalytics(dateRangeParams);
-      
-      if (!response.data) {
-        throw new Error('No data received from analytics API');
-      }
-      
-      console.log('✅ Real analytics data loaded:', {
-        totalCrops: response.data.summary?.total_crops,
-        activeCrops: response.data.summary?.active_crops,
-        harvestedCrops: response.data.summary?.total_harvested_crops,
-        totalExpenses: response.data.summary?.total_expenses,
-        cropDistributionCount: response.data.cropDistribution?.length || 0
-      });
-      
-      // Ensure all data exists (it should from your reportApi fallback)
-      const safeData: AnalyticsDataType = {
-        summary: response.data.summary || {},
-        cropDistribution: response.data.cropDistribution || [],
-        statusDistribution: response.data.statusDistribution || [],
-        monthlyExpenses: response.data.monthlyExpenses || [],
-        topCropsByExpenses: response.data.topCropsByExpenses || []
-      };
-      
-      setAnalyticsData(safeData);
-      
-    } catch (err: any) {
-      console.error('❌ Failed to load analytics data:', err);
-      setError(err.message || 'Failed to load analytics data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Load data on component mount
   useEffect(() => {
     loadAnalyticsData();
   }, []);
 
-  // Refresh data when date range changes
-  useEffect(() => {
-    if (!loading) {
-      loadAnalyticsData();
+  const loadAnalyticsData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // TODO: Replace with actual API call
+      // const response = await analyticsApi.getSummary();
+      // setAnalyticsData(response.data);
+      
+      // Mock data for now
+      const mockData: SimplifiedAnalyticsData = {
+        summary: {
+          total_crops: 12,
+          active_crops: 8,
+          total_expenses: 125000,
+          projected_revenue: 287000,
+        },
+        cropDistribution: [
+          { type: 'Wheat', count: 4, total_area: 20 },
+          { type: 'Rice', count: 3, total_area: 15 },
+          { type: 'Cotton', count: 2, total_area: 10 },
+          { type: 'Sugarcane', count: 2, total_area: 8 },
+          { type: 'Other', count: 1, total_area: 5 }
+        ],
+        statusDistribution: [
+          { status: 'PLANTED', count: 3 },
+          { status: 'GROWING', count: 5 },
+          { status: 'READY_FOR_HARVEST', count: 2 },
+          { status: 'HARVESTED', count: 2 }
+        ],
+        monthlyExpenses: [
+          { month: 'Jan', total_expenses: 15000, expense_count: 8 },
+          { month: 'Feb', total_expenses: 18000, expense_count: 10 },
+          { month: 'Mar', total_expenses: 22000, expense_count: 12 },
+          { month: 'Apr', total_expenses: 25000, expense_count: 15 },
+          { month: 'May', total_expenses: 28000, expense_count: 18 },
+          { month: 'Jun', total_expenses: 27000, expense_count: 16 }
+        ],
+        topCropsByExpenses: [
+          { name: 'Wheat', type: 'Grain', total_expenses: 45000, expense_count: 25 },
+          { name: 'Rice', type: 'Grain', total_expenses: 38000, expense_count: 22 },
+          { name: 'Cotton', type: 'Cash Crop', total_expenses: 22000, expense_count: 15 },
+          { name: 'Sugarcane', type: 'Cash Crop', total_expenses: 20000, expense_count: 12 }
+        ]
+      };
+      
+      setAnalyticsData(mockData);
+      
+    } catch (err) {
+      console.error('Failed to load analytics data:', err);
+      setError('Failed to load analytics data. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  }, [dateRange]);
+  };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -257,47 +265,16 @@ export const ReportsDashboard: React.FC = () => {
     );
   };
 
-  // Generate comparative data from real analytics
-  const getComparativeData = () => {
-    if (!analyticsData?.summary) return [];
-    
-    const summary = analyticsData.summary;
-    
-    return [
-      { 
-        metric: 'Total Crops', 
-        current: summary.total_crops || 0, 
-        previous: Math.max(0, (summary.total_crops || 0) - 2),
-        unit: '' 
-      },
-      { 
-        metric: 'Active Crops', 
-        current: summary.active_crops || 0, 
-        previous: Math.max(0, (summary.active_crops || 0) - 1),
-        unit: '' 
-      },
-      { 
-        metric: 'Harvested Crops', 
-        current: summary.total_harvested_crops || 0, 
-        previous: Math.max(0, (summary.total_harvested_crops || 0) - 1),
-        unit: '' 
-      },
-      { 
-        metric: 'Total Expenses', 
-        current: summary.total_expenses || 0, 
-        previous: Math.max(0, (summary.total_expenses || 0) * 0.8),
-        unit: '', 
-        isCurrency: true 
-      },
-      { 
-        metric: 'Avg Expense/Crop', 
-        current: summary.average_expense_per_crop || 0, 
-        previous: Math.max(0, (summary.average_expense_per_crop || 0) * 0.9),
-        unit: '', 
-        isCurrency: true 
-      },
-    ];
-  };
+  // Mock comparative data
+  const comparativeData = [
+    { metric: 'Total Crops', current: 12, previous: 10, unit: '' },
+    { metric: 'Active Crops', current: 8, previous: 7, unit: '' },
+    { metric: 'Total Expenses', current: 125000, previous: 98000, unit: '', isCurrency: true },
+    { metric: 'Projected Revenue', current: 287000, previous: 234000, unit: '', isCurrency: true },
+    { metric: 'Average Yield', current: 4500, previous: 4200, unit: 'kg' },
+    { metric: 'Expense per Crop', current: 10416, previous: 9800, unit: '', isCurrency: true },
+    { metric: 'Revenue per Acre', current: 14350, previous: 13000, unit: '', isCurrency: true },
+  ];
 
   if (loading && !analyticsData) {
     return (
@@ -371,7 +348,7 @@ export const ReportsDashboard: React.FC = () => {
         <DateRangeFilter onDateRangeChange={handleDateRangeChange} />
       </Box>
 
-      {/* Quick Stats Overview - SHOWING ONLY REAL DATA */}
+      {/* Quick Stats Overview */}
       {analyticsData?.summary && (
         <Box 
           display="flex" 
@@ -388,9 +365,6 @@ export const ReportsDashboard: React.FC = () => {
                     {analyticsData.summary.total_crops || 0}
                   </Typography>
                   <Typography color="text.secondary">Total Crops</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    All time records
-                  </Typography>
                 </Box>
               </Box>
             </CardContent>
@@ -406,29 +380,6 @@ export const ReportsDashboard: React.FC = () => {
                     {analyticsData.summary.active_crops || 0}
                   </Typography>
                   <Typography color="text.secondary">Active Crops</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Currently growing
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-
-          {/* Harvested Crops Card */}
-          <Card sx={{ flex: '1 1 200px', minWidth: '200px' }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" gap={2}>
-                <HarvestIcon color="warning" />
-                <Box>
-                  <Typography variant="h4" fontWeight="bold">
-                    {analyticsData.summary.total_harvested_crops || 0}
-                  </Typography>
-                  <Typography color="text.secondary">Harvested</Typography>
-                  {analyticsData.summary.total_sold_crops && analyticsData.summary.total_sold_crops > 0 && (
-                    <Typography variant="caption" color="text.secondary">
-                      {analyticsData.summary.total_sold_crops} sold
-                    </Typography>
-                  )}
                 </Box>
               </Box>
             </CardContent>
@@ -438,33 +389,27 @@ export const ReportsDashboard: React.FC = () => {
           <Card sx={{ flex: '1 1 200px', minWidth: '200px' }}>
             <CardContent>
               <Box display="flex" alignItems="center" gap={2}>
-                <FinanceIcon color="error" />
+                <FinanceIcon color="warning" />
                 <Box>
                   <Typography variant="h4" fontWeight="bold">
                     Rs {((analyticsData.summary.total_expenses || 0) / 1000).toFixed(1)}k
                   </Typography>
                   <Typography color="text.secondary">Total Expenses</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    All expenses recorded
-                  </Typography>
                 </Box>
               </Box>
             </CardContent>
           </Card>
 
-          {/* Average Expense per Crop Card */}
+          {/* Projected Revenue Card */}
           <Card sx={{ flex: '1 1 200px', minWidth: '200px' }}>
             <CardContent>
               <Box display="flex" alignItems="center" gap={2}>
                 <FinanceIcon color="info" />
                 <Box>
                   <Typography variant="h4" fontWeight="bold">
-                    Rs {Math.round(analyticsData.summary.average_expense_per_crop || 0).toLocaleString()}
+                    Rs {((analyticsData.summary.projected_revenue || 0) / 1000).toFixed(1)}k
                   </Typography>
-                  <Typography color="text.secondary">Avg Expense/Crop</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Based on {analyticsData.summary.total_crops || 0} crops
-                  </Typography>
+                  <Typography color="text.secondary">Projected Revenue</Typography>
                 </Box>
               </Box>
             </CardContent>
@@ -472,29 +417,16 @@ export const ReportsDashboard: React.FC = () => {
         </Box>
       )}
 
-      {/* Comparative Analysis - Show only if we have data */}
-      {analyticsData && getComparativeData().length > 0 && (
+      {/* Comparative Analysis */}
+      {analyticsData && (
         <Box sx={{ mb: 3 }}>
           <ComparativeAnalysis
-            title="Performance Overview"
-            data={getComparativeData()}
-            currentPeriod="Current"
-            previousPeriod="Previous"
+            title="Performance Comparison"
+            data={comparativeData}
+            currentPeriod="Current Period"
+            previousPeriod="Previous Period"
           />
         </Box>
-      )}
-
-      {/* Debug Info - Show what data we're getting */}
-      {process.env.NODE_ENV === 'development' && analyticsData && (
-        <Card sx={{ mb: 2, backgroundColor: '#f5f5f5' }}>
-          <CardContent>
-            <Typography variant="caption" color="text.secondary">
-              <strong>Real Data Summary:</strong> {analyticsData.cropDistribution.length} crop types, 
-              {analyticsData.statusDistribution?.length || 0} statuses, 
-              {analyticsData.monthlyExpenses?.length || 0} months of expense data
-            </Typography>
-          </CardContent>
-        </Card>
       )}
 
       {/* Reports Tabs */}
@@ -507,28 +439,31 @@ export const ReportsDashboard: React.FC = () => {
           </Tabs>
         </Box>
 
-        {/* Analytics Report Tab */}
+        {/* FIXED: TabPanel for AnalyticsReport with proper data handling */}
         <TabPanel value={tabValue} index={0}>
           {analyticsData ? (
             <AnalyticsReport
-              data={analyticsData}
-              crops={[]} // Optional: You could fetch crops with yield data if available
+              data={{
+                summary: analyticsData.summary || {},
+                cropDistribution: analyticsData.cropDistribution || [],
+                statusDistribution: analyticsData.statusDistribution || [],
+                monthlyExpenses: analyticsData.monthlyExpenses || [],
+                topCropsByExpenses: analyticsData.topCropsByExpenses || []
+              }}
             />
           ) : (
             <Box textAlign="center" py={4}>
               <Typography color="text.secondary">
-                Loading real-time analytics data...
+                No analytics data available
               </Typography>
             </Box>
           )}
         </TabPanel>
 
-        {/* Financial Report Tab */}
         <TabPanel value={tabValue} index={1}>
           <FinancialReport />
         </TabPanel>
 
-        {/* Crop Performance Tab */}
         <TabPanel value={tabValue} index={2}>
           <CropPerformanceReport />
         </TabPanel>
