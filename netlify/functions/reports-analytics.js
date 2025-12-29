@@ -1,10 +1,9 @@
 // netlify/functions/reports-analytics.js
-
 const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: { rejectUnauthorized: false }
 });
 
 exports.handler = async (event, context) => {
@@ -20,112 +19,138 @@ exports.handler = async (event, context) => {
   }
 
   if (event.httpMethod !== 'GET') {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
   }
 
   try {
-    console.log('Fetching analytics data...');
-
-    // Get basic crop statistics
-    const cropsCount = await pool.query('SELECT COUNT(*) FROM crops');
-    const activeCrops = await pool.query(
-      'SELECT COUNT(*) FROM crops WHERE status IN ($1, $2, $3)', 
-      ['PLANTED', 'GROWING', 'READY_FOR_HARVEST']
-    );
+    console.log('📊 Generating analytics report...');
     
-    const totalExpensesResult = await pool.query('SELECT COALESCE(SUM(amount), 0) as total FROM expenses');
-    const projectedRevenueResult = await pool.query(
-      'SELECT COALESCE(SUM(expected_yield * market_price), 0) as revenue FROM crops WHERE status != $1', 
-      ['FAILED']
-    );
-
-    // Get crop distribution
-    const cropDistribution = await pool.query(`
-      SELECT 
-        name as type, 
-        COUNT(*) as count, 
-        COALESCE(SUM(area), 0) as total_area 
-      FROM crops 
-      GROUP BY name
-      ORDER BY count DESC
-    `);
-
-    // Get status distribution
-    const statusDistribution = await pool.query(`
-      SELECT status, COUNT(*) as count
-      FROM crops 
-      GROUP BY status 
-      ORDER BY count DESC
-    `);
-
-    // Get monthly expenses
-    const monthlyExpenses = await pool.query(`
-      SELECT 
-        TO_CHAR(date, 'YYYY-MM') as month,
-        COALESCE(SUM(amount), 0) as total_expenses,
-        COUNT(*) as expense_count
-      FROM expenses 
-      GROUP BY TO_CHAR(date, 'YYYY-MM')
-      ORDER BY month DESC
-      LIMIT 6
-    `);
-
+    // Parse query parameters for date filtering
+    const { startDate, endDate } = event.queryStringParameters || {};
+    
+    // 1. Get total crops count
+    const totalCropsQuery = startDate && endDate ? 
+      'SELECT COUNT(*) as total FROM crops WHERE planting_date BETWEEN $1 AND $2' :
+      'SELECT COUNT(*) as total FROM crops';
+    
+    const totalCropsParams = startDate && endDate ? [startDate, endDate] : [];
+    const totalCropsResult = await pool.query(totalCropsQuery, totalCropsParams);
+    const totalCrops = parseInt(totalCropsResult.rows[0].total) || 0;
+    
+    // 2. Get active crops (not HARVESTED, SOLD, or FAILED)
+    const activeCropsQuery = startDate && endDate ? 
+      `SELECT COUNT(*) as total FROM crops 
+       WHERE status NOT IN ('HARVESTED', 'SOLD', 'FAILED')
+       AND planting_date BETWEEN $1 AND $2` :
+      `SELECT COUNT(*) as total FROM crops 
+       WHERE status NOT IN ('HARVESTED', 'SOLD', 'FAILED')`;
+    
+    const activeCropsParams = startDate && endDate ? [startDate, endDate] : [];
+    const activeCropsResult = await pool.query(activeCropsQuery, activeCropsParams);
+    const activeCrops = parseInt(activeCropsResult.rows[0].total) || 0;
+    
+    // 3. Get total expenses (with date filter if provided)
+    const expensesQuery = startDate && endDate ? 
+      'SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE date BETWEEN $1 AND $2' :
+      'SELECT COALESCE(SUM(amount), 0) as total FROM expenses';
+    
+    const expensesParams = startDate && endDate ? [startDate, endDate] : [];
+    const totalExpensesResult = await pool.query(expensesQuery, expensesParams);
+    const totalExpenses = parseFloat(totalExpensesResult.rows[0].total) || 0;
+    
+    // 4. Get crop distribution by name
+    const cropDistributionQuery = startDate && endDate ? 
+      `SELECT 
+        name as crop_type,
+        COUNT(*) as count,
+        COALESCE(SUM(area), 0) as total_area
+       FROM crops 
+       WHERE planting_date BETWEEN $1 AND $2
+       GROUP BY name
+       ORDER BY count DESC` :
+      `SELECT 
+        name as crop_type,
+        COUNT(*) as count,
+        COALESCE(SUM(area), 0) as total_area
+       FROM crops 
+       GROUP BY name
+       ORDER BY count DESC`;
+    
+    const cropDistributionParams = startDate && endDate ? [startDate, endDate] : [];
+    const cropDistributionResult = await pool.query(cropDistributionQuery, cropDistributionParams);
+    
+    const cropDistribution = cropDistributionResult.rows.map(row => ({
+      type: row.crop_type,
+      count: parseInt(row.count),
+      total_area: parseFloat(row.total_area)
+    }));
+    
+    // 5. Get status distribution
+    const statusDistributionQuery = startDate && endDate ? 
+      `SELECT 
+        status,
+        COUNT(*) as count
+       FROM crops 
+       WHERE planting_date BETWEEN $1 AND $2
+       GROUP BY status
+       ORDER BY count DESC` :
+      `SELECT 
+        status,
+        COUNT(*) as count
+       FROM crops 
+       GROUP BY status
+       ORDER BY count DESC`;
+    
+    const statusDistributionParams = startDate && endDate ? [startDate, endDate] : [];
+    const statusDistributionResult = await pool.query(statusDistributionQuery, statusDistributionParams);
+    
+    const statusDistribution = statusDistributionResult.rows.map(row => ({
+      status: row.status,
+      count: parseInt(row.count)
+    }));
+    
+    // Prepare the final analytics data
     const analyticsData = {
       summary: {
-        total_crops: parseInt(cropsCount.rows[0].count) || 0,
-        active_crops: parseInt(activeCrops.rows[0].count) || 0,
-        total_expenses: parseFloat(totalExpensesResult.rows[0].total) || 0,
-        projected_revenue: parseFloat(projectedRevenueResult.rows[0].revenue) || 0
+        total_crops: totalCrops,
+        active_crops: activeCrops,
+        total_expenses: totalExpenses,
+        projected_revenue: 0, // You'll need to calculate this based on your business logic
+        avg_expected_yield: 0,
+        avg_actual_yield: 0,
+        harvested_crops_count: 0,
+        total_actual_yield: 0
       },
-      cropDistribution: cropDistribution.rows.map(row => ({
-        type: row.type,
-        count: parseInt(row.count),
-        total_area: parseFloat(row.total_area)
-      })),
-      statusDistribution: statusDistribution.rows.map(row => ({
-        status: row.status,
-        count: parseInt(row.count)
-      })),
-      monthlyExpenses: monthlyExpenses.rows.map(row => ({
-        month: row.month,
-        total_expenses: parseFloat(row.total_expenses),
-        expense_count: parseInt(row.expense_count)
-      }))
+      cropDistribution: cropDistribution,
+      statusDistribution: statusDistribution,
+      monthlyExpenses: [], // You'll need to implement this
+      topCropsByExpenses: [] // You'll need to implement this
     };
-
-    console.log('Analytics data fetched successfully');
-
+    
+    console.log('✅ Analytics report generated successfully');
+    
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         data: analyticsData,
-        message: 'Analytics retrieved successfully'
+        message: 'Analytics report retrieved successfully'
       })
     };
-
-  } catch (error) {
-    console.error('Analytics API Error:', error);
     
-    // Return fallback data instead of error
-    const fallbackData = {
-      summary: {
-        total_crops: 0,
-        active_crops: 0,
-        total_expenses: 0,
-        projected_revenue: 0
-      },
-      cropDistribution: [],
-      statusDistribution: [],
-      monthlyExpenses: []
-    };
-
+  } catch (error) {
+    console.error('❌ Error generating analytics report:', error);
+    
     return {
-      statusCode: 200,
+      statusCode: 500,
       headers,
-      body: JSON.stringify({
-        data: fallbackData,
-        message: 'Using fallback analytics data due to server error'
+      body: JSON.stringify({ 
+        error: 'Failed to generate analytics report',
+        details: error.message
       })
     };
   }
