@@ -53,7 +53,29 @@ exports.handler = async (event, context) => {
     const activeCropsResult = await pool.query(activeCropsQuery, activeCropsParams);
     const activeCrops = parseInt(activeCropsResult.rows[0].total) || 0;
     
-    // 3. Get total expenses (with date filter if provided)
+    // 3. Get harvested crops
+    const harvestedCropsQuery = startDate && endDate ? 
+      `SELECT COUNT(*) as total FROM crops 
+       WHERE status = 'HARVESTED'
+       AND planting_date BETWEEN $1 AND $2` :
+      `SELECT COUNT(*) as total FROM crops 
+       WHERE status = 'HARVESTED'`;
+    
+    const harvestedCropsResult = await pool.query(harvestedCropsQuery, totalCropsParams);
+    const harvestedCrops = parseInt(harvestedCropsResult.rows[0].total) || 0;
+    
+    // 4. Get sold crops
+    const soldCropsQuery = startDate && endDate ? 
+      `SELECT COUNT(*) as total FROM crops 
+       WHERE status = 'SOLD'
+       AND planting_date BETWEEN $1 AND $2` :
+      `SELECT COUNT(*) as total FROM crops 
+       WHERE status = 'SOLD'`;
+    
+    const soldCropsResult = await pool.query(soldCropsQuery, totalCropsParams);
+    const soldCrops = parseInt(soldCropsResult.rows[0].total) || 0;
+    
+    // 5. Get total expenses (with date filter if provided)
     const expensesQuery = startDate && endDate ? 
       'SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE date BETWEEN $1 AND $2' :
       'SELECT COALESCE(SUM(amount), 0) as total FROM expenses';
@@ -62,12 +84,16 @@ exports.handler = async (event, context) => {
     const totalExpensesResult = await pool.query(expensesQuery, expensesParams);
     const totalExpenses = parseFloat(totalExpensesResult.rows[0].total) || 0;
     
-    // 4. Get crop distribution by name
+    // 6. Calculate average expense per crop
+    const avgExpensePerCrop = totalCrops > 0 ? totalExpenses / totalCrops : 0;
+    
+    // 7. Get crop distribution by name
     const cropDistributionQuery = startDate && endDate ? 
       `SELECT 
         name as crop_type,
         COUNT(*) as count,
-        COALESCE(SUM(area), 0) as total_area
+        COALESCE(SUM(area), 0) as total_area,
+        COALESCE(SUM(total_expenses), 0) as total_crop_expenses
        FROM crops 
        WHERE planting_date BETWEEN $1 AND $2
        GROUP BY name
@@ -75,7 +101,8 @@ exports.handler = async (event, context) => {
       `SELECT 
         name as crop_type,
         COUNT(*) as count,
-        COALESCE(SUM(area), 0) as total_area
+        COALESCE(SUM(area), 0) as total_area,
+        COALESCE(SUM(total_expenses), 0) as total_crop_expenses
        FROM crops 
        GROUP BY name
        ORDER BY count DESC`;
@@ -86,21 +113,24 @@ exports.handler = async (event, context) => {
     const cropDistribution = cropDistributionResult.rows.map(row => ({
       type: row.crop_type,
       count: parseInt(row.count),
-      total_area: parseFloat(row.total_area)
+      total_area: parseFloat(row.total_area),
+      total_expenses: parseFloat(row.total_crop_expenses) || 0
     }));
     
-    // 5. Get status distribution
+    // 8. Get status distribution
     const statusDistributionQuery = startDate && endDate ? 
       `SELECT 
         status,
-        COUNT(*) as count
+        COUNT(*) as count,
+        COALESCE(SUM(total_expenses), 0) as total_expenses
        FROM crops 
        WHERE planting_date BETWEEN $1 AND $2
        GROUP BY status
        ORDER BY count DESC` :
       `SELECT 
         status,
-        COUNT(*) as count
+        COUNT(*) as count,
+        COALESCE(SUM(total_expenses), 0) as total_expenses
        FROM crops 
        GROUP BY status
        ORDER BY count DESC`;
@@ -110,25 +140,79 @@ exports.handler = async (event, context) => {
     
     const statusDistribution = statusDistributionResult.rows.map(row => ({
       status: row.status,
-      count: parseInt(row.count)
+      count: parseInt(row.count),
+      total_expenses: parseFloat(row.total_expenses) || 0
     }));
     
-    // Prepare the final analytics data
+    // 9. Get monthly expenses for the last 6 months
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    const monthlyExpensesQuery = `
+      SELECT 
+        TO_CHAR(date, 'YYYY-MM') as month,
+        SUM(amount) as total_expenses,
+        COUNT(*) as expense_count
+      FROM expenses
+      WHERE date >= $1
+      ${startDate && endDate ? 'AND date BETWEEN $2 AND $3' : ''}
+      GROUP BY TO_CHAR(date, 'YYYY-MM')
+      ORDER BY month DESC
+      LIMIT 6
+    `;
+    
+    const monthlyExpensesParams = startDate && endDate ? 
+      [sixMonthsAgo.toISOString().split('T')[0], startDate, endDate] :
+      [sixMonthsAgo.toISOString().split('T')[0]];
+    
+    const monthlyExpensesResult = await pool.query(monthlyExpensesQuery, monthlyExpensesParams);
+    
+    const monthlyExpenses = monthlyExpensesResult.rows.map(row => ({
+      month: row.month,
+      total_expenses: parseFloat(row.total_expenses) || 0,
+      expense_count: parseInt(row.expense_count) || 0
+    })).reverse(); // Oldest first
+    
+    // 10. Get top crops by expenses (real data from expenses table)
+    const topCropsByExpensesQuery = `
+      SELECT 
+        c.name,
+        c.type,
+        COALESCE(SUM(e.amount), 0) as total_expenses,
+        COUNT(e.id) as expense_count
+      FROM crops c
+      LEFT JOIN expenses e ON c.id = e.crop_id
+      ${startDate && endDate ? 'WHERE c.planting_date BETWEEN $1 AND $2' : ''}
+      GROUP BY c.id, c.name, c.type
+      HAVING COALESCE(SUM(e.amount), 0) > 0
+      ORDER BY total_expenses DESC
+      LIMIT 5
+    `;
+    
+    const topCropsParams = startDate && endDate ? [startDate, endDate] : [];
+    const topCropsByExpensesResult = await pool.query(topCropsByExpensesQuery, topCropsParams);
+    
+    const topCropsByExpenses = topCropsByExpensesResult.rows.map(row => ({
+      name: row.name,
+      type: row.type || 'Unknown',
+      total_expenses: parseFloat(row.total_expenses) || 0,
+      expense_count: parseInt(row.expense_count) || 0
+    }));
+    
+    // Prepare the final analytics data - ONLY REAL DATA
     const analyticsData = {
       summary: {
         total_crops: totalCrops,
         active_crops: activeCrops,
+        total_harvested_crops: harvestedCrops,
+        total_sold_crops: soldCrops,
         total_expenses: totalExpenses,
-        projected_revenue: 0, // You'll need to calculate this based on your business logic
-        avg_expected_yield: 0,
-        avg_actual_yield: 0,
-        harvested_crops_count: 0,
-        total_actual_yield: 0
+        average_expense_per_crop: avgExpensePerCrop
       },
       cropDistribution: cropDistribution,
       statusDistribution: statusDistribution,
-      monthlyExpenses: [], // You'll need to implement this
-      topCropsByExpenses: [] // You'll need to implement this
+      monthlyExpenses: monthlyExpenses,
+      topCropsByExpenses: topCropsByExpenses
     };
     
     console.log('✅ Analytics report generated successfully');

@@ -313,11 +313,18 @@ export interface AnalyticsSummary {
   total_crops?: number;
   active_crops?: number;
   total_expenses?: number;
-  projected_revenue?: number;
-  avg_expected_yield?: number;
-  avg_actual_yield?: number;
-  harvested_crops_count?: number;
-  total_actual_yield?: number;
+  // Remove projected_revenue and yield-related fields since you don't have them
+  // projected_revenue?: number;
+  // avg_expected_yield?: number;
+  // avg_actual_yield?: number;
+  // harvested_crops_count?: number;
+  // total_actual_yield?: number;
+  
+  // Add these practical fields instead:
+  total_harvested_crops?: number;
+  total_sold_crops?: number;
+  average_expense_per_crop?: number;
+  
   // Add this index signature
   [key: string]: string | number | boolean | null | undefined;
 }
