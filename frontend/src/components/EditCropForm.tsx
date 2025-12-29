@@ -14,8 +14,8 @@ import {
   Grid,
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { cropApi } from '../services/api';
-import type { UpdateCropRequest, AreaUnit, CropStatus } from '../types';
+import { cropApi, expenseApi } from '../services/api';
+import type { UpdateCropRequest, AreaUnit, CropStatus, YieldUnit } from '../types';
 
 // Crop data with proper typing
 interface CropType {
@@ -45,44 +45,64 @@ const CROP_DATA: CropType[] = [
   { name: 'Beans' }
 ];
 
-// Area units
+// Area units with display names
 const AREA_UNITS = [
-  'ACRES',
-  'HECTARES',
-  'SQUARE_METERS',
-  'MARLA',
-  'KANAL'
+  { value: 'ACRES', label: 'Acres' },
+  { value: 'HECTARES', label: 'Hectares' },
+  { value: 'SQUARE_METERS', label: 'Square Meters' },
+  { value: 'MARLA', label: 'Marla' },
+  { value: 'KANAL', label: 'Kanal' }
 ];
 
-// Yield units
+// Yield units with display names
 const YIELD_UNITS = [
-  'TONS',
-  'KILOGRAMS',
-  'POUNDS',
-  'BUSHELS',
-  'MONS'
+  { value: 'TONS', label: 'Tons' },
+  { value: 'KILOGRAMS', label: 'Kilograms' },
+  { value: 'POUNDS', label: 'Pounds' },
+  { value: 'BUSHELS', label: 'Bushels' },
+  { value: 'MONS', label: 'Mons' }
 ];
 
 // Helper function to map backend snake_case to frontend camelCase
 const mapBackendToFrontend = (crop: any): UpdateCropRequest => {
+  console.log('🔍 Raw crop data for mapping:', crop);
+  
   const formatDateForInput = (dateString: string) => {
     if (!dateString) return '';
-    return dateString.split('T')[0];
+    try {
+      return new Date(dateString).toISOString().split('T')[0];
+    } catch (error) {
+      console.error('Date parsing error:', error);
+      return '';
+    }
   };
 
-  return {
+  // Log areaUnit and yieldUnit values for debugging
+  console.log('📊 Debug crop unit values:', {
+    area_unit: crop.area_unit,
+    areaUnit: crop.areaUnit,
+    yield_unit: crop.yield_unit,
+    yieldUnit: crop.yieldUnit,
+    total_expenses: crop.total_expenses,
+    totalExpenses: crop.totalExpenses
+  });
+
+  const mappedData: UpdateCropRequest = {
     name: crop.name || '',
     plantingDate: formatDateForInput(crop.planting_date || crop.plantingDate || ''),
     harvestDate: formatDateForInput(crop.harvest_date || crop.harvestDate || ''),
-    area: crop.area || 0,
+    area: Number(crop.area || 0),
     areaUnit: (crop.area_unit || crop.areaUnit || 'ACRES') as AreaUnit,
-    yield: crop.yield || 0,
-    yieldUnit: crop.yield_unit || crop.yieldUnit || 'TONS',
-    marketPrice: crop.market_price || crop.marketPrice || 0,
-    totalExpenses: crop.total_expenses || crop.totalExpenses || 0,
+    yield: Number(crop.yield || 0),
+    yieldUnit: (crop.yield_unit || crop.yieldUnit || 'TONS') as YieldUnit,
+    marketPrice: Number(crop.market_price || crop.marketPrice || 0),
+    totalExpenses: Number(crop.total_expenses || crop.totalExpenses || 0),
     status: (crop.status || 'PLANNED') as CropStatus,
     notes: crop.notes || '',
   };
+
+  console.log('🔄 Mapped crop data:', mappedData);
+  return mappedData;
 };
 
 export const EditCropForm: React.FC = () => {
@@ -107,7 +127,7 @@ export const EditCropForm: React.FC = () => {
     notes: '',
   });
 
-  const showYieldFields = formData.status === 'HARVESTED' || formData.status === 'SOLD';
+  const showYieldFields = formData.status === 'HARVESTED' || formData.status === 'SOLD' || formData.status === 'STOCKED';
   const showFinancialFields = formData.status === 'SOLD';
 
   // Load crop data and expenses when component mounts
@@ -123,6 +143,8 @@ export const EditCropForm: React.FC = () => {
         setLoadingCrop(true);
         setError('');
         
+        console.log(`📥 Loading crop data for ID: ${id}`);
+        
         // Load crop data
         const response = await cropApi.getById(parseInt(id));
         const crop = response.data;
@@ -131,20 +153,34 @@ export const EditCropForm: React.FC = () => {
           throw new Error('No crop data received from server');
         }
 
+        console.log('🌾 Raw crop data from API:', crop);
+
         // Map backend data to frontend format
         const mappedData = mapBackendToFrontend(crop);
+        console.log('✅ Mapped form data:', mappedData);
+        
         setFormData(mappedData);
 
         // Load expenses for this crop and calculate total
         try {
-          const expensesResponse = await cropApi.getExpenses(parseInt(id));
+          const expensesResponse = await expenseApi.getByCropId(id);
           const expensesData = expensesResponse.data || [];
+          
+          console.log('💰 Expenses data:', expensesData);
           
           // Calculate total expenses
           const total = expensesData.reduce((sum: number, expense: any) => 
-            sum + (parseFloat(expense.amount) || 0), 0
+            sum + (Number(expense.amount) || 0), 0
           );
+          
+          console.log(`🧮 Calculated total expenses: ${total}`);
           setCalculatedTotalExpenses(total);
+
+          // Also update formData.totalExpenses
+          setFormData(prev => ({
+            ...prev,
+            totalExpenses: total
+          }));
 
         } catch (expenseError) {
           console.warn('Could not load expenses:', expenseError);
@@ -165,15 +201,25 @@ export const EditCropForm: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
+    console.log(`✏️ Field changed: ${name} = ${value}`);
+    
     // Convert numeric fields to numbers
+    const processedValue = (name === 'area' || 
+                           name === 'yield' || 
+                           name === 'marketPrice' || 
+                           name === 'totalExpenses')
+      ? (value === '' ? 0 : parseFloat(value) || 0)
+      : value;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: name.includes('area') || 
-               name.includes('yield') || 
-               name.includes('marketPrice')
-        ? parseFloat(value) || 0
-        : value
+      [name]: processedValue
     }));
+
+    // When status changes, show/hide fields appropriately
+    if (name === 'status') {
+      console.log(`🔄 Status changed to: ${value}`);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -184,10 +230,15 @@ export const EditCropForm: React.FC = () => {
     setError('');
 
     try {
+      console.log('📤 Submitting form data:', formData);
+      
       // Format dates for API submission
       const formatDateForApi = (dateString: string) => {
         if (!dateString) return '';
-        return `${dateString}T00:00:00.000Z`;
+        // Ensure date is in correct format
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '';
+        return date.toISOString();
       };
 
       const submissionData: UpdateCropRequest = {
@@ -195,16 +246,13 @@ export const EditCropForm: React.FC = () => {
         plantingDate: formatDateForApi(formData.plantingDate || ''),
         harvestDate: formData.harvestDate ? formatDateForApi(formData.harvestDate) : undefined,
         // Ensure all numeric fields are numbers
-        area: formData.area || 0,
-        yield: formData.yield || 0,
-        marketPrice: formData.marketPrice || 0,
-        // Use calculated total expenses from expenses table
-        totalExpenses: calculatedTotalExpenses,
-        // Reset financial fields if not sold
-        ...(formData.status !== 'SOLD' && {
-          marketPrice: 0,
-        }),
+        area: Number(formData.area) || 0,
+        yield: Number(formData.yield) || 0,
+        marketPrice: Number(formData.marketPrice) || 0,
+        totalExpenses: calculatedTotalExpenses, // Use calculated total
       };
+
+      console.log('🚀 Submission data:', submissionData);
 
       await cropApi.update(parseInt(id), submissionData);
       navigate('/crops');
@@ -253,6 +301,13 @@ export const EditCropForm: React.FC = () => {
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
               {error}
+            </Alert>
+          )}
+
+          {/* Debug Info - Temporary */}
+          {process.env.NODE_ENV === 'development' && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Debug: Area Unit: "{formData.areaUnit}", Yield Unit: "{formData.yieldUnit}"
             </Alert>
           )}
 
@@ -326,6 +381,20 @@ export const EditCropForm: React.FC = () => {
                 />
               </Grid>
 
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Harvest Date"
+                  name="harvestDate"
+                  type="date"
+                  value={formData.harvestDate}
+                  onChange={handleChange}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={!showYieldFields}
+                  helperText={!showYieldFields ? "Only for harvested/sold crops" : ""}
+                />
+              </Grid>
+
               {/* Area Information */}
               <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom color="primary" sx={{ mt: 2 }}>
@@ -359,14 +428,14 @@ export const EditCropForm: React.FC = () => {
                   required
                 >
                   {AREA_UNITS.map(unit => (
-                    <MenuItem key={unit} value={unit}>
-                      {unit}
+                    <MenuItem key={unit.value} value={unit.value}>
+                      {unit.label}
                     </MenuItem>
                   ))}
                 </TextField>
               </Grid>
 
-              {/* Yield Section (Only shown when harvested/sold) */}
+              {/* Yield Section (Only shown when harvested/sold/stocked) */}
               {showYieldFields && (
                 <>
                   <Grid item xs={12}>
@@ -375,17 +444,6 @@ export const EditCropForm: React.FC = () => {
                     </Typography>
                   </Grid>
                   
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Harvest Date"
-                      name="harvestDate"
-                      type="date"
-                      value={formData.harvestDate}
-                      onChange={handleChange}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
                   <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
@@ -411,8 +469,8 @@ export const EditCropForm: React.FC = () => {
                       select
                     >
                       {YIELD_UNITS.map(unit => (
-                        <MenuItem key={unit} value={unit}>
-                          {unit}
+                        <MenuItem key={unit.value} value={unit.value}>
+                          {unit.label}
                         </MenuItem>
                       ))}
                     </TextField>
@@ -420,43 +478,45 @@ export const EditCropForm: React.FC = () => {
                 </>
               )}
 
-              {/* Financial Information (Only shown when sold) */}
+              {/* Financial Information */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom color="primary" sx={{ mt: 2 }}>
+                  Financial Information (PKR)
+                </Typography>
+              </Grid>
+              
               {showFinancialFields && (
-                <>
-                  <Grid item xs={12}>
-                    <Typography variant="h6" gutterBottom color="primary">
-                      Financial Information (PKR)
-                    </Typography>
-                  </Grid>
-                  
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Market Price (PKR)"
-                      name="marketPrice"
-                      type="number"
-                      value={formData.marketPrice}
-                      onChange={handleChange}
-                      inputProps={{ 
-                        min: "0",
-                        step: "0.01"
-                      }}
-                      helperText="Price per unit when sold"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Total Expenses (PKR)"
-                      name="totalExpenses"
-                      type="number"
-                      value={calculatedTotalExpenses}
-                      disabled
-                      helperText="Auto-calculated from expenses table"
-                    />
-                  </Grid>
-                </>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Market Price (PKR)"
+                    name="marketPrice"
+                    type="number"
+                    value={formData.marketPrice}
+                    onChange={handleChange}
+                    inputProps={{ 
+                      min: "0",
+                      step: "0.01"
+                    }}
+                    helperText="Price per unit when sold"
+                  />
+                </Grid>
               )}
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Total Expenses (PKR)"
+                  name="totalExpenses"
+                  type="number"
+                  value={calculatedTotalExpenses}
+                  disabled
+                  InputProps={{
+                    readOnly: true,
+                  }}
+                  helperText="Auto-calculated from expenses table"
+                />
+              </Grid>
 
               {/* Additional Information */}
               <Grid item xs={12}>
