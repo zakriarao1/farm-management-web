@@ -7,6 +7,33 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// Function to update crop total expenses
+const updateCropTotalExpenses = async (cropId) => {
+  try {
+    console.log(`🔄 Calculating total expenses for crop ${cropId}...`);
+    
+    // Calculate sum of all expenses for this crop
+    const result = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE crop_id = $1`,
+      [cropId]
+    );
+    
+    const totalExpenses = result.rows[0].total || 0;
+    console.log(`💰 Total expenses for crop ${cropId}: ${totalExpenses}`);
+    
+    // Update the crops table
+    await pool.query(
+      `UPDATE crops SET total_expenses = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      [totalExpenses, cropId]
+    );
+    
+    console.log(`✅ Updated crop ${cropId} total_expenses to ${totalExpenses}`);
+    
+  } catch (error) {
+    console.error(`❌ Error updating crop total expenses:`, error);
+  }
+};
+
 // Function to create expenses table if it doesn't exist
 const ensureExpensesTableExists = async () => {
   try {
@@ -48,9 +75,7 @@ exports.handler = async (event, context) => {
   const filename = path.basename(__filename);
   console.log(`🚀 ${filename} called for: ${event.path}`);
   console.log(`🔍 ${filename} - Method: ${event.httpMethod}`);
-  console.log(`🎯 expenses.js - Path: ${event.path}`);
-console.log(`🎯 expenses.js - Full URL: ${event.rawUrl || 'N/A'}`);
-console.log(`🎯 expenses.js - Query params:`, event.queryStringParameters);
+  
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
@@ -75,7 +100,6 @@ console.log(`🎯 expenses.js - Query params:`, event.queryStringParameters);
     // 🎯 CRITICAL: Handle /crops/:id/expenses route
     if (path.includes('/crops/') && path.includes('/expenses')) {
       console.log(`🎯 ${filename} - DETECTED /crops/:id/expenses route!`);
-      console.log(`🎯 ${filename} - expenses.js WILL handle this request`);
       
       const cropIndex = pathParts.indexOf('crops');
       const cropId = pathParts[cropIndex + 1];
@@ -102,21 +126,12 @@ console.log(`🎯 expenses.js - Query params:`, event.queryStringParameters);
             
             console.log(`✅ ${filename} - Found ${result.rows.length} EXPENSES for crop ${cropId}`);
             
-            if (result.rows.length > 0) {
-              console.log(`📊 ${filename} - First expense:`, {
-                id: result.rows[0].id,
-                crop_id: result.rows[0].crop_id,
-                description: result.rows[0].description,
-                amount: result.rows[0].amount
-              });
-            }
-            
             return {
               statusCode: 200,
               headers,
               body: JSON.stringify({ 
                 data: result.rows,
-                message: 'Expenses retrieved successfully'  // ✅ EXPENSES, not CROPS
+                message: 'Expenses retrieved successfully'
               })
             };
           } catch (queryError) {
@@ -180,6 +195,9 @@ console.log(`🎯 expenses.js - Query params:`, event.queryStringParameters);
             );
 
             console.log(`✅ ${filename} - Expense created with ID: ${insertResult.rows[0].id}`);
+
+            // 🎯 UPDATE: Update crop total expenses
+            await updateCropTotalExpenses(cropId);
 
             return {
               statusCode: 201,
@@ -357,7 +375,9 @@ console.log(`🎯 expenses.js - Query params:`, event.queryStringParameters);
           );
 
           console.log(`✅ ${filename} - Expense created with ID: ${postResult.rows[0].id}`);
-          console.log(`📄 ${filename} - Created expense:`, postResult.rows[0]);
+
+          // 🎯 UPDATE: Update crop total expenses
+          await updateCropTotalExpenses(cropId);
 
           return {
             statusCode: 201,
@@ -402,6 +422,24 @@ console.log(`🎯 expenses.js - Query params:`, event.queryStringParameters);
         }
         
         try {
+          // First, get the current expense to know the crop_id
+          const currentExpense = await pool.query('SELECT crop_id FROM expenses WHERE id = $1', [id]);
+          if (currentExpense.rows.length === 0) {
+            return { 
+              statusCode: 404, 
+              headers, 
+              body: JSON.stringify({ error: 'Expense not found' }) 
+            };
+          }
+          
+          const originalCropId = currentExpense.rows[0].crop_id;
+          let newCropId = originalCropId;
+          
+          // If updating crop_id, use the new one
+          if (updateData.crop_id !== undefined) {
+            newCropId = updateData.crop_id;
+          }
+
           const updateFields = [];
           const updateValues = [];
           let paramCount = 1;
@@ -449,7 +487,6 @@ console.log(`🎯 expenses.js - Query params:`, event.queryStringParameters);
           `;
           
           console.log(`🔧 ${filename} - Update query: ${updateQuery}`);
-          console.log(`📊 ${filename} - Update values:`, updateValues);
           
           const updateResult = await pool.query(updateQuery, updateValues);
           
@@ -462,6 +499,12 @@ console.log(`🎯 expenses.js - Query params:`, event.queryStringParameters);
           }
 
           console.log(`✅ ${filename} - Expense ${id} updated successfully`);
+
+          // 🎯 UPDATE: Update crop total expenses for both old and new crops if crop_id changed
+          await updateCropTotalExpenses(originalCropId);
+          if (newCropId !== originalCropId) {
+            await updateCropTotalExpenses(newCropId);
+          }
 
           return {
             statusCode: 200,
@@ -495,17 +538,25 @@ console.log(`🎯 expenses.js - Query params:`, event.queryStringParameters);
         console.log(`🗑️ ${filename} - Deleting expense with ID: ${id}`);
         
         try {
-          const deleteResult = await pool.query('DELETE FROM expenses WHERE id = $1 RETURNING *', [id]);
+          // Get the expense first to know the crop_id
+          const getResult = await pool.query('SELECT crop_id FROM expenses WHERE id = $1', [id]);
           
-          if (deleteResult.rowCount === 0) {
+          if (getResult.rowCount === 0) {
             return { 
               statusCode: 404, 
               headers, 
               body: JSON.stringify({ error: 'Expense not found' }) 
             };
           }
+          
+          const cropId = getResult.rows[0].crop_id;
 
+          const deleteResult = await pool.query('DELETE FROM expenses WHERE id = $1 RETURNING *', [id]);
+          
           console.log(`✅ ${filename} - Expense ${id} deleted`);
+
+          // 🎯 UPDATE: Update crop total expenses
+          await updateCropTotalExpenses(cropId);
 
           return {
             statusCode: 200,

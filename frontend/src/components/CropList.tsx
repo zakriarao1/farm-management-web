@@ -30,45 +30,20 @@ import { cropApi } from '../services/api';
 import type { Crop, CropStatus, StatusCounts } from '../types';
 
 const transformCropData = (crops: any[]): Crop[] => {
-  console.log('🔄 Transforming crops data:', crops);
-  
-  return crops.map(crop => {
-    console.log('📊 Raw crop data:', crop);
-    
-    // Debug: Show all available properties
-    console.log('🔍 Available crop properties:', Object.keys(crop));
-    
-    // Extract total expenses - check multiple possible locations
-    let totalExpenses = 0;
-    
-    if (crop.total_expenses !== undefined) {
-      totalExpenses = Number(crop.total_expenses);
-      console.log(`💰 Found total_expenses: ${crop.total_expenses} -> ${totalExpenses}`);
-    } else if (crop.totalExpenses !== undefined) {
-      totalExpenses = Number(crop.totalExpenses);
-      console.log(`💰 Found totalExpenses: ${crop.totalExpenses} -> ${totalExpenses}`);
-    } else if (crop.totalExpensesValue !== undefined) {
-      totalExpenses = Number(crop.totalExpensesValue);
-      console.log(`💰 Found totalExpensesValue: ${crop.totalExpensesValue} -> ${totalExpenses}`);
-    } else {
-      console.warn('⚠️ No total expenses found for crop:', crop.id, crop.name);
-    }
-    
-    return {
-      id: crop.id,
-      name: crop.name || 'Unnamed Crop',
-      plantingDate: crop.plantingDate || crop.planting_date || '',
-      harvestDate: crop.harvestDate || crop.harvest_date,
-      area: Number(crop.area || crop.area_value || 0),
-      areaUnit: (crop.areaUnit || crop.area_unit || 'UNITS') as any,
-      yield: Number(crop.yield || crop.yield_value || 0),
-      yieldUnit: (crop.yieldUnit || crop.yield_unit || 'UNITS') as any,
-      totalExpenses: totalExpenses, // Use the extracted value
-      marketPrice: Number(crop.marketPrice || crop.market_price || 0),
-      status: crop.status || 'PLANNED',
-      notes: crop.notes,
-    };
-  });
+  return crops.map(crop => ({
+    id: crop.id,
+    name: crop.name || 'Unnamed Crop',
+    plantingDate: crop.plantingDate || crop.planting_date || '',
+    harvestDate: crop.harvestDate || crop.harvest_date,
+    area: Number(crop.area || crop.area_value || 0),
+    areaUnit: (crop.areaUnit || crop.area_unit || 'UNITS') as any,
+    yield: Number(crop.yield || crop.yield_value || 0),
+    yieldUnit: (crop.yieldUnit || crop.yield_unit || 'UNITS') as any,
+    totalExpenses: Number(crop.totalExpenses || crop.total_expenses || 0),
+    marketPrice: Number(crop.marketPrice || crop.market_price || 0),
+    status: crop.status || 'PLANNED',
+    notes: crop.notes,
+  }));
 };
 export const CropList: React.FC = () => {
   const navigate = useNavigate();
