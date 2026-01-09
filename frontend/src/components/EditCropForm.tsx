@@ -42,7 +42,8 @@ const CROP_DATA: CropType[] = [
   { name: 'Peanuts' },
   { name: 'Chickpeas' },
   { name: 'Lentils' },
-  { name: 'Beans' }
+  { name: 'Beans' },
+  { name: 'Guar'}
 ];
 
 // Area units with display names
