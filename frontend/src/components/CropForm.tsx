@@ -37,7 +37,8 @@ const CROP_NAMES = [
   'Peanuts',
   'Chickpeas',
   'Lentils',
-  'Beans'
+  'Beans',
+  'Guar'
 ];
 
 // Area units with display names
